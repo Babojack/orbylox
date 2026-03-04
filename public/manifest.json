@@ -1,0 +1,17 @@
+{
+  "name": "ORBYLOX",
+  "short_name": "ORBYLOX",
+  "description": "Project management and idea validation for students and startups",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

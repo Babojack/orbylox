@@ -1,0 +1,668 @@
+import React, { useRef, useState } from 'react';
+import { api } from "@/api/apiClient";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Folder, File, UploadCloud, MoreVertical, Download, Trash2, FileImage, FileText, FolderPlus, CloudUpload, Eye, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+export default function FileHub() {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [zoom, setZoom] = useState(100);
+  const [draggingFileId, setDraggingFileId] = useState(null);
+  const [dropTargetFolderId, setDropTargetFolderId] = useState(null);
+  
+  const searchParams = new URLSearchParams(window.location.search);
+  const projectId = searchParams.get('project');
+
+  // Auth check
+  const { data: currentUser, isLoading: userLoading, isError: userError } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => api.auth.me(),
+    retry: false
+  });
+
+  // Redirect to login if not authenticated
+  React.useEffect(() => {
+    if (userError || (!userLoading && !currentUser)) {
+      api.auth.redirectToLogin(window.location.pathname);
+    }
+  }, [currentUser, userLoading, userError]);
+
+  const { data: files, isLoading } = useQuery({
+    queryKey: ['files', projectId, currentFolderId],
+    queryFn: async () => {
+      const allFiles = await api.entities.FileRecord.list('-created_date', 200);
+      return allFiles.filter(f => 
+        f.project_id === projectId && 
+        (currentFolderId ? f.folder_id === currentFolderId : !f.folder_id)
+      );
+    },
+    initialData: [],
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    enabled: !!projectId
+  });
+
+  const { data: folders } = useQuery({
+    queryKey: ['folders', projectId],
+    queryFn: async () => {
+      const allFolders = await api.entities.Folder.list('-created_date', 200);
+      return allFolders.filter(f => f.project_id === projectId);
+    },
+    initialData: [],
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    enabled: !!projectId
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file) => {
+      const { file_url } = await api.integrations.Core.UploadFile({ file });
+      return api.entities.FileRecord.create({
+        name: file.name,
+        url: file_url,
+        type: file.type,
+        size: file.size,
+        project_id: projectId,
+        folder_id: currentFolderId
+      });
+    },
+    onMutate: async (file) => {
+      await queryClient.cancelQueries(['files', projectId, currentFolderId]);
+      const previous = queryClient.getQueryData(['files', projectId, currentFolderId]);
+      const tempFile = {
+        id: 'temp_' + Date.now(),
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        url: URL.createObjectURL(file),
+        project_id: projectId,
+        folder_id: currentFolderId,
+        created_date: new Date().toISOString()
+      };
+      queryClient.setQueryData(['files', projectId, currentFolderId], old => [tempFile, ...(old || [])]);
+      return { previous };
+    },
+    onError: (err, file, context) => {
+      queryClient.setQueryData(['files', projectId, currentFolderId], context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['files', projectId, currentFolderId]);
+    }
+  });
+
+  const createFolderMutation = useMutation({
+    mutationFn: (folderName) => api.entities.Folder.create({
+      name: folderName,
+      project_id: projectId
+    }),
+    onMutate: async (folderName) => {
+      await queryClient.cancelQueries(['folders', projectId]);
+      const previous = queryClient.getQueryData(['folders', projectId]);
+      const tempFolder = {
+        id: 'temp_' + Date.now(),
+        name: folderName,
+        project_id: projectId,
+        created_date: new Date().toISOString()
+      };
+      queryClient.setQueryData(['folders', projectId], old => [tempFolder, ...(old || [])]);
+      setIsCreateFolderOpen(false);
+      setNewFolderName('');
+      return { previous };
+    },
+    onError: (err, folderName, context) => {
+      queryClient.setQueryData(['folders', projectId], context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['folders', projectId]);
+    }
+  });
+
+  const deleteFileMutation = useMutation({
+    mutationFn: (id) => api.entities.FileRecord.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries(['files', projectId, currentFolderId]);
+      const previous = queryClient.getQueryData(['files', projectId, currentFolderId]);
+      queryClient.setQueryData(['files', projectId, currentFolderId], old => (old || []).filter(f => f.id !== id));
+      return { previous };
+    },
+    onError: (err, id, context) => {
+      queryClient.setQueryData(['files', projectId, currentFolderId], context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['files', projectId, currentFolderId]);
+    }
+  });
+
+  const deleteFolderMutation = useMutation({
+    mutationFn: (id) => api.entities.Folder.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries(['folders', projectId]);
+      const previous = queryClient.getQueryData(['folders', projectId]);
+      queryClient.setQueryData(['folders', projectId], old => (old || []).filter(f => f.id !== id));
+      return { previous };
+    },
+    onError: (err, id, context) => {
+      queryClient.setQueryData(['folders', projectId], context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['folders', projectId]);
+    }
+  });
+
+  const moveFileToFolderMutation = useMutation({
+    mutationFn: ({ fileId, folderId }) => api.entities.FileRecord.update(fileId, { folder_id: folderId }),
+    onMutate: async ({ fileId, folderId }) => {
+      await queryClient.cancelQueries(['files', projectId, currentFolderId]);
+      const previous = queryClient.getQueryData(['files', projectId, currentFolderId]);
+      queryClient.setQueryData(['files', projectId, currentFolderId], old => (old || []).filter(f => f.id !== fileId));
+      return { previous };
+    },
+    onError: (err, vars, context) => {
+      queryClient.setQueryData(['files', projectId, currentFolderId], context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['files', projectId]);
+    }
+  });
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      uploadMutation.mutate(file);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    droppedFiles.forEach(file => uploadMutation.mutate(file));
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const formatSize = (bytes) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const getIcon = (type) => {
+    if (type?.includes('image')) return <FileImage className="w-8 h-8 text-purple-500" />;
+    if (type?.includes('pdf')) return <FileText className="w-8 h-8 text-red-500" />;
+    return <File className="w-8 h-8 text-blue-500" />;
+  };
+
+  const canPreview = (file) => {
+    const type = file.type || '';
+    const name = file.name?.toLowerCase() || '';
+    return type.includes('image') || 
+           type.includes('pdf') || 
+           type.includes('video') ||
+           type.includes('audio') ||
+           type.includes('text') ||
+           name.endsWith('.txt') ||
+           name.endsWith('.md') ||
+           name.endsWith('.json') ||
+           name.endsWith('.csv');
+  };
+
+  const getPreviewContent = (file) => {
+    const type = file.type || '';
+    const name = file.name?.toLowerCase() || '';
+    
+    if (type.includes('image')) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <img 
+            src={file.url} 
+            alt={file.name} 
+            className="max-w-full max-h-full object-contain transition-transform"
+            style={{ transform: `scale(${zoom / 100})` }}
+          />
+        </div>
+      );
+    }
+    
+    if (type.includes('pdf')) {
+      return (
+        <iframe 
+          src={`https://docs.google.com/viewer?url=${encodeURIComponent(file.url)}&embedded=true`}
+          className="w-full h-full border-0"
+          title={file.name}
+        />
+      );
+    }
+    
+    if (type.includes('video')) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <video 
+            src={file.url} 
+            controls 
+            className="max-w-full max-h-full"
+          />
+        </div>
+      );
+    }
+    
+    if (type.includes('audio')) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <audio src={file.url} controls className="w-full max-w-md" />
+        </div>
+      );
+    }
+    
+    // Text files
+    if (type.includes('text') || name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.json') || name.endsWith('.csv')) {
+      return <TextFilePreview url={file.url} />;
+    }
+    
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-slate-500">
+        <File className="w-24 h-24 mb-4" />
+        <p>Vorschau nicht verfügbar</p>
+        <a href={file.url} download className="mt-4 text-indigo-600 hover:underline">
+          Datei herunterladen
+        </a>
+      </div>
+    );
+  };
+
+  const currentFileIndex = previewFile ? files?.findIndex(f => f.id === previewFile.id) : -1;
+  const previewableFiles = files?.filter(canPreview) || [];
+  const currentPreviewIndex = previewFile ? previewableFiles.findIndex(f => f.id === previewFile.id) : -1;
+
+  const goToPrevFile = () => {
+    if (currentPreviewIndex > 0) {
+      setPreviewFile(previewableFiles[currentPreviewIndex - 1]);
+      setZoom(100);
+    }
+  };
+
+  const goToNextFile = () => {
+    if (currentPreviewIndex < previewableFiles.length - 1) {
+      setPreviewFile(previewableFiles[currentPreviewIndex + 1]);
+      setZoom(100);
+    }
+  };
+
+  if (userLoading || !currentUser) {
+    return <div className="flex items-center justify-center h-[50vh] text-slate-400">Laden...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Dateien</h2>
+            <p className="text-slate-500 text-sm sm:text-base">Verwalten Sie Dateien und Dokumente</p>
+        </div>
+        <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
+            <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                  <FolderPlus className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Ordner erstellen</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[95vw] sm:w-auto">
+                <DialogHeader>
+                  <DialogTitle>Neuer Ordner</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <Input 
+                    placeholder="Ordnername" 
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                  />
+                  <Button 
+                    className="w-full"
+                    onClick={() => createFolderMutation.mutate(newFolderName)}
+                    disabled={!newFolderName.trim()}
+                  >
+                    Erstellen
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button 
+                className="bg-indigo-600 hover:bg-indigo-700 flex-1 sm:flex-none text-xs sm:text-sm"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadMutation.isPending}
+            >
+                <UploadCloud className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">{uploadMutation.isPending ? 'Hochladen...' : 'Datei hochladen'}</span>
+                <span className="sm:hidden">{uploadMutation.isPending ? '...' : 'Upload'}</span>
+            </Button>
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                onChange={handleFileSelect}
+            />
+            <Button 
+              variant="destructive"
+              size="sm"
+              className="text-xs sm:text-sm"
+              onClick={async () => {
+                if (window.confirm('Alle Dateien löschen?')) {
+                  const currentFiles = files || [];
+                  await Promise.all(currentFiles.map(f => api.entities.FileRecord.delete(f.id)));
+                  queryClient.invalidateQueries(['files', projectId, currentFolderId]);
+                }
+              }}
+            >
+              <Trash2 className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Alles löschen</span>
+            </Button>
+        </div>
+      </div>
+
+      {/* Drag & Drop Upload Area */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={() => fileInputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-6 sm:p-12 text-center transition-all cursor-pointer ${
+          isDragging 
+            ? 'border-indigo-500 bg-indigo-50' 
+            : 'border-slate-300 bg-slate-50 hover:border-indigo-400'
+        }`}
+      >
+        <CloudUpload className={`w-10 h-10 sm:w-16 sm:h-16 mx-auto mb-2 sm:mb-4 ${isDragging ? 'text-indigo-600' : 'text-slate-400'}`} />
+        <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1 sm:mb-2">
+          {isDragging ? 'Dateien hier ablegen' : 'Tippen zum Hochladen'}
+        </h3>
+        <p className="text-slate-500 text-sm hidden sm:block">oder Dateien per Drag & Drop</p>
+      </div>
+
+      {/* Breadcrumb / Back Button */}
+      {currentFolderId && (
+        <div className="flex items-center gap-2 mb-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setCurrentFolderId(null)}
+            className="gap-2"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Zurück zur Übersicht
+          </Button>
+          <span className="text-slate-500">
+            / {folders?.find(f => f.id === currentFolderId)?.name || 'Ordner'}
+          </span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4">
+        {/* Drop zone for moving files back to root */}
+        {currentFolderId && (
+          <Card 
+            className={`p-4 flex flex-col items-center justify-center aspect-square border-2 border-dashed transition-all cursor-pointer ${
+              dropTargetFolderId === 'root' 
+                ? 'border-indigo-500 bg-indigo-50 scale-105' 
+                : 'border-slate-300 bg-slate-50 hover:border-indigo-400'
+            }`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (draggingFileId) setDropTargetFolderId('root');
+            }}
+            onDragLeave={() => setDropTargetFolderId(null)}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggingFileId) {
+                moveFileToFolderMutation.mutate({ fileId: draggingFileId, folderId: null });
+                setDraggingFileId(null);
+                setDropTargetFolderId(null);
+              }
+            }}
+            onClick={() => setCurrentFolderId(null)}
+          >
+            <ChevronLeft className="w-10 h-10 text-slate-400 mb-2" />
+            <span className="text-sm text-slate-500 text-center">Zurück / Hierher verschieben</span>
+          </Card>
+        )}
+
+        {/* Folders - only show when not inside a folder */}
+        {!currentFolderId && folders?.map((folder) => (
+          <Card 
+            key={folder.id} 
+            className={`p-4 flex flex-col items-center justify-center aspect-square bg-indigo-50 border-indigo-100 hover:bg-indigo-100 transition-colors cursor-pointer group text-center relative ${
+              dropTargetFolderId === folder.id ? 'ring-2 ring-indigo-500 bg-indigo-100 scale-105' : ''
+            }`}
+            onClick={() => setCurrentFolderId(folder.id)}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (draggingFileId) {
+                setDropTargetFolderId(folder.id);
+              }
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDropTargetFolderId(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (draggingFileId) {
+                moveFileToFolderMutation.mutate({ fileId: draggingFileId, folderId: folder.id });
+                setDraggingFileId(null);
+                setDropTargetFolderId(null);
+              }
+            }}
+          >
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => e.stopPropagation()}>
+                    <MoreVertical className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); deleteFolderMutation.mutate(folder.id); }} className="text-red-600">
+                    <Trash2 className="w-3 h-3 mr-2" /> Löschen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <Folder className={`w-12 h-12 text-indigo-400 mb-2 group-hover:scale-110 transition-transform ${dropTargetFolderId === folder.id ? 'text-indigo-600' : ''}`} />
+            <span className="font-medium text-indigo-900">{folder.name}</span>
+          </Card>
+        ))}
+        
+        {/* File List */}
+        {isLoading ? <div>Laden...</div> : files?.map((file) => (
+             <Card 
+               key={file.id} 
+               draggable
+               onDragStart={(e) => {
+                 setDraggingFileId(file.id);
+                 e.dataTransfer.effectAllowed = 'move';
+               }}
+               onDragEnd={() => {
+                 setDraggingFileId(null);
+                 setDropTargetFolderId(null);
+               }}
+               className={`p-4 flex flex-col items-center justify-between aspect-square hover:shadow-md transition-all relative group bg-white cursor-pointer ${
+                 draggingFileId === file.id ? 'opacity-50 scale-95' : ''
+               }`}
+               onClick={() => canPreview(file) && setPreviewFile(file)}
+             >
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => e.stopPropagation()}>
+                              <MoreVertical className="w-3 h-3" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            {canPreview(file) && (
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }}>
+                                <Eye className="w-3 h-3 mr-2" /> Vorschau
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem asChild>
+                                <a href={file.url} target="_blank" rel="noreferrer" className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                                    <Download className="w-3 h-3 mr-2" /> Öffnen
+                                </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); deleteFileMutation.mutate(file.id); }} className="text-red-600">
+                                <Trash2 className="w-3 h-3 mr-2" /> Löschen
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+                
+                {canPreview(file) && (
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                    <Eye className="w-8 h-8 text-white" />
+                  </div>
+                )}
+                
+                <div className="flex-1 flex items-center justify-center">
+                    {file.type?.includes('image') ? (
+                        <img src={file.url} alt={file.name} className="max-w-full max-h-24 rounded object-contain" />
+                    ) : getIcon(file.type)}
+                </div>
+                
+                <div className="text-center w-full mt-2">
+                    <p className="font-medium text-sm truncate text-slate-700" title={file.name}>{file.name}</p>
+                    <p className="text-xs text-slate-400">{formatSize(file.size)}</p>
+                </div>
+             </Card>
+        ))}
+      </div>
+
+      {/* File Preview Modal */}
+      <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
+        <DialogContent className="w-[95vw] sm:max-w-6xl h-[85vh] sm:h-[90vh] p-0 gap-0 overflow-hidden">
+          {previewFile && (
+            <>
+              {/* Header */}
+              <div className="flex items-center justify-between p-2 sm:p-4 border-b bg-white gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <div className="shrink-0 hidden sm:block">{getIcon(previewFile.type)}</div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-slate-900 text-sm sm:text-base truncate">{previewFile.name}</h3>
+                    <p className="text-xs text-slate-500">{formatSize(previewFile.size)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                  {previewFile.type?.includes('image') && (
+                    <div className="hidden sm:flex items-center gap-1">
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(Math.max(25, zoom - 25))}>
+                        <ZoomOut className="w-4 h-4" />
+                      </Button>
+                      <span className="text-xs text-slate-600 w-10 text-center">{zoom}%</span>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(Math.min(300, zoom + 25))}>
+                        <ZoomIn className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <a href={previewFile.url} target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                      <Download className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Öffnen</span>
+                    </Button>
+                  </a>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 bg-slate-100 overflow-auto relative" style={{ height: 'calc(90vh - 80px)' }}>
+                {getPreviewContent(previewFile)}
+                
+                {/* Navigation arrows */}
+                {previewableFiles.length > 1 && (
+                  <>
+                    {currentPreviewIndex > 0 && (
+                      <button 
+                        onClick={goToPrevFile}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-colors"
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                      </button>
+                    )}
+                    {currentPreviewIndex < previewableFiles.length - 1 && (
+                      <button 
+                        onClick={goToNextFile}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-colors"
+                      >
+                        <ChevronRight className="w-6 h-6" />
+                      </button>
+                    )}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                      {currentPreviewIndex + 1} / {previewableFiles.length}
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Text file preview component
+function TextFilePreview({ url }) {
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetch(url)
+      .then(res => res.text())
+      .then(text => {
+        setContent(text);
+        setLoading(false);
+      })
+      .catch(() => {
+        setContent('Fehler beim Laden der Datei');
+        setLoading(false);
+      });
+  }, [url]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-full">Laden...</div>;
+  }
+
+  return (
+    <ScrollArea className="h-full">
+      <pre className="p-6 text-sm font-mono whitespace-pre-wrap bg-white m-4 rounded-lg shadow">
+        {content}
+      </pre>
+    </ScrollArea>
+  );
+}
