@@ -56,6 +56,7 @@ import Home from './pages/Home';
 import Impressum from './pages/Impressum';
 import Integrations from './pages/Integrations';
 import Landing from './pages/Landing';
+import Login from './pages/Login';
 import ProductValidation from './pages/ProductValidation';
 import Profile from './pages/Profile';
 import ProjectsList from './pages/ProjectsList';
@@ -78,6 +79,7 @@ export const PAGES = {
     "Impressum": Impressum,
     "Integrations": Integrations,
     "Landing": Landing,
+    "login": Login,
     "ProductValidation": ProductValidation,
     "Profile": Profile,
     "ProjectsList": ProjectsList,
