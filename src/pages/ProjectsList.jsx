@@ -46,8 +46,13 @@ function ProjectsListContent() {
     queryKey: ['projects'],
     queryFn: async () => {
       const allProjects = await api.entities.Project.list('-created_date', 200);
-      // Показываем только проекты где пользователь - создатель или участник
-      return allProjects.filter(p => 
+      const list = Array.isArray(allProjects)
+        ? allProjects
+        : Array.isArray(allProjects?.items)
+          ? allProjects.items
+          : [];
+      // Only show projects where the current user is creator or member
+      return list.filter(p => 
         p.created_by === user?.email || 
         (p.members && p.members.includes(user?.email))
       );
