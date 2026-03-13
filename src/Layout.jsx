@@ -186,9 +186,18 @@ function LayoutContent({ children, currentPageName }) {
     }
   }, [projectId, queryClient]);
 
-  // Redirect to projects list if no project selected (but not from standalone pages)
+  // Redirect to projects list if no project selected (but not from standalone pages like Landing, Profile, Login, etc.)
   React.useEffect(() => {
-    if (!projectId && currentPageName !== 'ProjectsList' && currentPageName !== 'index' && currentPageName !== 'Landing' && currentPageName !== 'Profile' && currentPageName !== 'Subscription' && currentPageName !== 'Impressum') {
+    if (
+      !projectId &&
+      currentPageName !== 'ProjectsList' &&
+      currentPageName !== 'index' &&
+      currentPageName !== 'Landing' &&
+      currentPageName !== 'Profile' &&
+      currentPageName !== 'Subscription' &&
+      currentPageName !== 'Impressum' &&
+      currentPageName !== 'login'
+    ) {
       window.location.href = createPageUrl('ProjectsList');
     }
   }, [projectId, currentPageName]);
@@ -354,7 +363,10 @@ function LayoutContent({ children, currentPageName }) {
                   <span className="text-sm font-medium text-white">{t('settings')}</span>
                </Link>
                <button 
-                 onClick={() => api.auth.logout('/')} 
+                 onClick={() => {
+                   api.auth.logout();
+                   window.location.href = createPageUrl('login');
+                 }} 
                  className="w-full flex items-center gap-3 px-4 py-3 bg-red-500 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:-translate-y-0.5 group"
                >
                   <LogOut className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
@@ -470,7 +482,10 @@ function LayoutContent({ children, currentPageName }) {
                      </DropdownMenuItem>
                      <DropdownMenuSeparator />
                      <DropdownMenuItem 
-                      onClick={() => api.auth.logout('/')}
+                      onClick={() => {
+                        api.auth.logout();
+                        window.location.href = createPageUrl('login');
+                      }}
                       className="text-red-600 cursor-pointer"
                      >
                       <LogOut className="w-4 h-4 mr-2" />

@@ -19,14 +19,8 @@ function LandingContent() {
   const [waitlistLoading, setWaitlistLoading] = React.useState(false);
   const [waitlistSuccess, setWaitlistSuccess] = React.useState(false);
   
-  const { data: isAuth } = useQuery({
-    queryKey: ['isAuthenticated'],
-    queryFn: () => api.auth.isAuthenticated(),
-    initialData: false
-  });
-
   const handleGetStarted = () => {
-    api.auth.redirectToLogin(createPageUrl('ProjectsList'));
+    navigate(createPageUrl('login'));
   };
 
   const handleWaitlistSubmit = async () => {

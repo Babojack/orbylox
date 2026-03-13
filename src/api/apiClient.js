@@ -111,13 +111,67 @@ export const api = {
       );
       return updated;
     },
+    async register({ email, password }) {
+      await delay();
+      if (typeof window === "undefined") return null;
+      const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "users");
+      const users = raw ? JSON.parse(raw) : [];
+      if (users.some((u) => u.email === email)) {
+        throw new Error("User already exists");
+      }
+      const user = { email, password };
+      users.push(user);
+      window.localStorage.setItem(
+        STORAGE_KEY_PREFIX + "users",
+        JSON.stringify(users),
+      );
+      // Auto-login after registration
+      window.localStorage.setItem(
+        STORAGE_KEY_PREFIX + "user",
+        JSON.stringify({ email }),
+      );
+      return { email };
+    },
+    async login({ email, password }) {
+      await delay();
+      if (typeof window === "undefined") return null;
+      const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "users");
+      const users = raw ? JSON.parse(raw) : [];
+      const found = users.find((u) => u.email === email && u.password === password);
+      if (!found) {
+        throw new Error("Invalid email or password");
+      }
+      window.localStorage.setItem(
+        STORAGE_KEY_PREFIX + "user",
+        JSON.stringify({ email }),
+      );
+      return { email };
+    },
+    async isAuthenticated() {
+      const user = await this.me();
+      return !!user;
+    },
     logout() {
       if (typeof window === "undefined") return;
       window.localStorage.removeItem(STORAGE_KEY_PREFIX + "user");
     },
     redirectToLogin(targetUrl) {
       if (typeof window === "undefined") return;
-      // Simple demo login: set a fake user and redirect into the app
+      // Store desired redirect and navigate to login form
+      try {
+        if (targetUrl) {
+          window.localStorage.setItem(
+            STORAGE_KEY_PREFIX + "redirect_after_login",
+            targetUrl,
+          );
+        }
+      } catch {
+        // ignore storage errors
+      }
+      window.location.href = "/login";
+    },
+    demoLogin(targetUrl) {
+      if (typeof window === "undefined") return;
       const demoUser = { email: "demo@orbylox.local" };
       try {
         window.localStorage.setItem(
@@ -127,7 +181,15 @@ export const api = {
       } catch {
         // ignore storage errors
       }
-      const redirect = targetUrl || "/ProjectsList";
+      const redirect =
+        targetUrl ||
+        window.localStorage.getItem(
+          STORAGE_KEY_PREFIX + "redirect_after_login",
+        ) ||
+        "/ProjectsList";
+      window.localStorage.removeItem(
+        STORAGE_KEY_PREFIX + "redirect_after_login",
+      );
       window.location.href = redirect;
     },
   },
