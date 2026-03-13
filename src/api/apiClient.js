@@ -117,8 +117,18 @@ export const api = {
     },
     redirectToLogin(targetUrl) {
       if (typeof window === "undefined") return;
-      // For now just go to the landing page, you can replace this with a real login later
-      window.location.href = "/Landing";
+      // Simple demo login: set a fake user and redirect into the app
+      const demoUser = { email: "demo@orbylox.local" };
+      try {
+        window.localStorage.setItem(
+          STORAGE_KEY_PREFIX + "user",
+          JSON.stringify(demoUser),
+        );
+      } catch {
+        // ignore storage errors
+      }
+      const redirect = targetUrl || "/ProjectsList";
+      window.location.href = redirect;
     },
   },
   entities: {
