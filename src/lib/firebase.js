@@ -1,6 +1,12 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -14,19 +20,50 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-if (!firebaseConfig.apiKey) {
+const hasFirebaseConfig = !!firebaseConfig.apiKey;
+
+if (!hasFirebaseConfig) {
   console.warn(
     "[Firebase] Missing VITE_FIREBASE_* env vars. Copy .env.example to .env and add your Firebase config."
   );
 }
 
-const app = initializeApp(firebaseConfig);
+const app = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
 const analytics =
-  typeof window !== "undefined" && firebaseConfig.measurementId
+  app &&
+  typeof window !== "undefined" &&
+  firebaseConfig.measurementId
     ? getAnalytics(app)
     : null;
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+const auth = app ? getAuth(app) : null;
+const db = app ? getFirestore(app) : null;
+const storage = app ? getStorage(app) : null;
 
-export { app, analytics, auth, db, storage };
+const googleProvider = app ? new GoogleAuthProvider() : null;
+
+export function mapFirebaseUser(fbUser) {
+  if (!fbUser) return null;
+  return {
+    uid: fbUser.uid,
+    email: fbUser.email || null,
+    displayName: fbUser.displayName || null,
+    full_name: fbUser.displayName || null,
+    photoURL: fbUser.photoURL || null,
+    avatar_url: fbUser.photoURL || null,
+    emailVerified: fbUser.emailVerified,
+    plan: fbUser.plan || "basic",
+  };
+}
+
+export {
+  app,
+  analytics,
+  auth,
+  db,
+  storage,
+  hasFirebaseConfig,
+  googleProvider,
+  signInWithPopup,
+  firebaseSignOut,
+  onAuthStateChanged,
+};

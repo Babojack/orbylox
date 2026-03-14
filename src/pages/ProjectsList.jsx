@@ -12,9 +12,9 @@ import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 
-// ADMIN EMAIL - безлимитное создание проектов
 const ADMIN_EMAIL = "gudfransen@gmail.com";
-const MAX_PROJECTS_PER_USER = 2;
+const MAX_PROJECTS_BASIC = 2;
+const MAX_PROJECTS_PREMIUM = 10;
 const MAX_MEMBERS_PER_PROJECT = 3;
 
 function ProjectsListContent() {
@@ -60,10 +60,10 @@ function ProjectsListContent() {
     enabled: !!user
   });
 
-  // Считаем проекты созданные пользователем (для лимита)
   const userCreatedProjects = projects.filter(p => p.created_by === user?.email);
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-  const canCreateProject = isAdmin || userCreatedProjects.length < MAX_PROJECTS_PER_USER;
+  const maxProjects = user?.plan === "premium" ? MAX_PROJECTS_PREMIUM : MAX_PROJECTS_BASIC;
+  const canCreateProject = isAdmin || userCreatedProjects.length < maxProjects;
 
   const createProjectMutation = useMutation({
     mutationFn: (projectData) => api.entities.Project.create({
@@ -215,8 +215,8 @@ function ProjectsListContent() {
                   onClick={() => {
                     if (!canCreateProject) {
                       alert(language === 'de' 
-                        ? `❌ Du hast das Limit von ${MAX_PROJECTS_PER_USER} Projekten erreicht!`
-                        : `❌ You've reached the limit of ${MAX_PROJECTS_PER_USER} projects!`);
+                        ? `❌ Du hast das Limit von ${maxProjects} Projekten erreicht!`
+                        : `❌ You've reached the limit of ${maxProjects} projects!`);
                       return;
                     }
                     setShowDecisionMenu(false);
@@ -240,7 +240,7 @@ function ProjectsListContent() {
                   <p className="text-slate-600 text-sm">
                     {canCreateProject 
                       ? 'Starte ein neues Projekt mit Tasks, Docs, Chat und mehr'
-                      : `Limit erreicht (${userCreatedProjects.length}/${MAX_PROJECTS_PER_USER})`}
+                      : `Limit erreicht (${userCreatedProjects.length}/${maxProjects})`}
                   </p>
                 </motion.button>
 
@@ -251,8 +251,8 @@ function ProjectsListContent() {
                   onClick={() => {
                     if (!canCreateProject) {
                       alert(language === 'de' 
-                        ? `❌ Du hast das Limit von ${MAX_PROJECTS_PER_USER} Projekten erreicht!`
-                        : `❌ You've reached the limit of ${MAX_PROJECTS_PER_USER} projects!`);
+                        ? `❌ Du hast das Limit von ${maxProjects} Projekten erreicht!`
+                        : `❌ You've reached the limit of ${maxProjects} projects!`);
                       return;
                     }
                     setShowDecisionMenu(false);
@@ -276,7 +276,7 @@ function ProjectsListContent() {
                   <p className="text-slate-600 text-sm">
                     {canCreateProject 
                       ? 'Prüfe deine Produktidee mit Lean Startup, Design Thinking & mehr'
-                      : `Limit erreicht (${userCreatedProjects.length}/${MAX_PROJECTS_PER_USER})`}
+                      : `Limit erreicht (${userCreatedProjects.length}/${maxProjects})`}
                   </p>
                 </motion.button>
               </div>
@@ -343,8 +343,8 @@ function ProjectsListContent() {
               onClick={() => {
                 if (!canCreateProject) {
                   alert(language === 'de' 
-                    ? `❌ Du hast das Limit von ${MAX_PROJECTS_PER_USER} Projekten erreicht!`
-                    : `❌ You've reached the limit of ${MAX_PROJECTS_PER_USER} projects!`);
+                    ? `❌ Du hast das Limit von ${maxProjects} Projekten erreicht!`
+                    : `❌ You've reached the limit of ${maxProjects} projects!`);
                   return;
                 }
                 setShowDecisionMenu(true);
@@ -356,7 +356,7 @@ function ProjectsListContent() {
               }`}
             >
               <Plus className="w-5 h-5 mr-2" />
-              Neu {!isAdmin && `(${userCreatedProjects.length}/${MAX_PROJECTS_PER_USER})`}
+              Neu {!isAdmin && `(${userCreatedProjects.length}/${maxProjects})`}
             </Button>
             <Dialog open={isCreateOpen} onOpenChange={(open) => {
               setIsCreateOpen(open);

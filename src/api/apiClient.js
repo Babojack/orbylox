@@ -1,12 +1,37 @@
-// Lightweight local API stub so the app works without any external backend.
-// You can later replace these methods with real Firebase or your own server.
+// Lightweight local API stub; auth uses Firebase when configured.
+import {
+  auth as firebaseAuth,
+  hasFirebaseConfig,
+  onAuthStateChanged,
+  firebaseSignOut,
+  mapFirebaseUser,
+} from "@/lib/firebase";
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const STORAGE_KEY_PREFIX = "orbylox_";
+const DEMO_EMAIL = "demo@orbylox.local";
+
+// Demo mode: nothing is persisted. All data lives only in memory and is lost on refresh/close.
+const demoMemoryStore = {};
+
+function isDemoUser() {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "user");
+    if (!raw) return false;
+    const user = JSON.parse(raw);
+    return user && user.email === DEMO_EMAIL;
+  } catch {
+    return false;
+  }
+}
 
 const readCollection = (name) => {
   if (typeof window === "undefined") return [];
+  if (isDemoUser()) {
+    return demoMemoryStore[name] || [];
+  }
   const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + name);
   try {
     return raw ? JSON.parse(raw) : [];
@@ -17,6 +42,10 @@ const readCollection = (name) => {
 
 const writeCollection = (name, items) => {
   if (typeof window === "undefined") return;
+  if (isDemoUser()) {
+    demoMemoryStore[name] = items;
+    return;
+  }
   window.localStorage.setItem(STORAGE_KEY_PREFIX + name, JSON.stringify(items));
 };
 
@@ -90,10 +119,19 @@ export const api = {
     async me() {
       await delay();
       if (typeof window === "undefined") return null;
+      if (hasFirebaseConfig && firebaseAuth) {
+        return new Promise((resolve) => {
+          const unsub = onAuthStateChanged(firebaseAuth, (u) => {
+            unsub();
+            resolve(mapFirebaseUser(u));
+          });
+        });
+      }
       const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "user");
       if (raw) {
         try {
-          return JSON.parse(raw);
+          const u = JSON.parse(raw);
+          return { ...u, plan: u.plan || "basic" };
         } catch {
           return null;
         }
@@ -105,6 +143,7 @@ export const api = {
       if (typeof window === "undefined") return null;
       const current = (await this.me()) || {};
       const updated = { ...current, ...data };
+      if (current.email === DEMO_EMAIL) return updated; // demo: never persist
       window.localStorage.setItem(
         STORAGE_KEY_PREFIX + "user",
         JSON.stringify(updated),
@@ -119,7 +158,7 @@ export const api = {
       if (users.some((u) => u.email === email)) {
         throw new Error("User already exists");
       }
-      const user = { email, password };
+      const user = { email, password, plan: "basic" };
       users.push(user);
       window.localStorage.setItem(
         STORAGE_KEY_PREFIX + "users",
@@ -128,9 +167,9 @@ export const api = {
       // Auto-login after registration
       window.localStorage.setItem(
         STORAGE_KEY_PREFIX + "user",
-        JSON.stringify({ email }),
+        JSON.stringify({ email, plan: "basic" }),
       );
-      return { email };
+      return { email, plan: "basic" };
     },
     async login({ email, password }) {
       await delay();
@@ -143,9 +182,9 @@ export const api = {
       }
       window.localStorage.setItem(
         STORAGE_KEY_PREFIX + "user",
-        JSON.stringify({ email }),
+        JSON.stringify({ email, plan: found.plan || "basic" }),
       );
-      return { email };
+      return { email, plan: found.plan || "basic" };
     },
     async isAuthenticated() {
       const user = await this.me();
@@ -153,6 +192,9 @@ export const api = {
     },
     logout() {
       if (typeof window === "undefined") return;
+      if (hasFirebaseConfig && firebaseAuth) {
+        firebaseSignOut(firebaseAuth);
+      }
       window.localStorage.removeItem(STORAGE_KEY_PREFIX + "user");
     },
     redirectToLogin(targetUrl) {
@@ -172,7 +214,7 @@ export const api = {
     },
     demoLogin(targetUrl) {
       if (typeof window === "undefined") return;
-      const demoUser = { email: "demo@orbylox.local" };
+      const demoUser = { email: DEMO_EMAIL };
       try {
         window.localStorage.setItem(
           STORAGE_KEY_PREFIX + "user",
