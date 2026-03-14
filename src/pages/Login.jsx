@@ -28,10 +28,7 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!hasFirebaseConfig || !auth || !googleProvider) {
-      setError("Google sign-in is not configured. Use email or Demo.");
-      return;
-    }
+    if (!hasFirebaseConfig || !auth || !googleProvider) return;
     setError(null);
     setGoogleLoading(true);
     try {
@@ -215,8 +212,9 @@ export default function Login() {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                disabled={googleLoading}
-                className="w-11 h-11 rounded-full bg-[#EA4335] flex items-center justify-center text-white hover:opacity-90 disabled:opacity-70"
+                disabled={googleLoading || !hasFirebaseConfig}
+                title={!hasFirebaseConfig ? "Add Firebase env vars to enable" : "Sign in with Google"}
+                className="w-11 h-11 rounded-full bg-[#EA4335] flex items-center justify-center text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Google"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -227,6 +225,11 @@ export default function Login() {
                 </svg>
               </button>
             </div>
+            {!hasFirebaseConfig && (
+              <p className="mt-2 text-xs text-slate-500 text-center">
+                Use email above or Demo below. Google sign-in appears when Firebase is configured.
+              </p>
+            )}
             <button
               type="button"
               onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); setConfirmPassword(""); }}
