@@ -1,10 +1,17 @@
-// Deploy: Firebase Console → Firestore → Rules, or run: firebase deploy --only firestore:rules
+// Firestore Security Rules – alle App-Daten (Projekte, Docs, Tasks, Canvas, etc.)
+// Deploy: Firebase Console → Firestore → Rules → Inhalt einfügen & Publish
+// Oder: firebase deploy --only firestore:rules
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Alle Collections: Project, Document, Task, Subtask, CanvasItem, CanvasConnection,
+    // ProductIdea, Post, TaskComment, FileRecord, Folder, Message, Event, etc.
+    // Jedes Dokument hat ein Feld "userId" (Firebase Auth UID). Nutzer dürfen nur eigene Daten lesen/schreiben.
     match /{collection}/{docId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
     }
   }
 }
