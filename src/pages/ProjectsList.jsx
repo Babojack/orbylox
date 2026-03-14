@@ -297,6 +297,11 @@ function ProjectsListContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-12">
+        {user && !user.uid && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            Data is stored only on this device. Sign in with Google to save to the cloud (Firestore).
+          </div>
+        )}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-3xl font-bold text-slate-900 mb-2">{t('myProjects')}</h2>

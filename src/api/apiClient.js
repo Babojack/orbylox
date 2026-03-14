@@ -190,7 +190,20 @@ function createEntityApi(entityName) {
         return item;
       }
       const userId = getStorageUserId(user);
-      if (!userId) throw new Error("Not authenticated");
+      // Nur Firebase-Auth-Nutzer (z. B. Google) haben uid → Daten in Firestore. Sonst localStorage.
+      if (!userId) {
+        const items = readCollection(entityName);
+        const now = new Date().toISOString();
+        const item = {
+          id: generateId(),
+          created_date: now,
+          updated_date: now,
+          ...data,
+        };
+        items.push(item);
+        writeCollection(entityName, items);
+        return item;
+      }
       return firestoreCreate(firestoreDb, entityName, userId, user.email, data);
     },
     async update(id, data) {
@@ -223,7 +236,19 @@ function createEntityApi(entityName) {
         return updated;
       }
       const userId = getStorageUserId(user);
-      if (!userId) return null;
+      if (!userId) {
+        const items = readCollection(entityName);
+        const idx = items.findIndex((i) => i.id === id);
+        if (idx === -1) return null;
+        const updated = {
+          ...items[idx],
+          ...data,
+          updated_date: new Date().toISOString(),
+        };
+        items[idx] = updated;
+        writeCollection(entityName, items);
+        return updated;
+      }
       return firestoreUpdate(firestoreDb, entityName, id, data);
     },
     async delete(id) {
@@ -242,7 +267,12 @@ function createEntityApi(entityName) {
         return { id };
       }
       const userId = getStorageUserId(user);
-      if (!userId) return { id };
+      if (!userId) {
+        const items = readCollection(entityName);
+        const filtered = items.filter((i) => i.id !== id);
+        writeCollection(entityName, filtered);
+        return { id };
+      }
       await firestoreDelete(firestoreDb, entityName, id);
       return { id };
     },
