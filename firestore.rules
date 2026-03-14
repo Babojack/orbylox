@@ -1,3 +1,4 @@
+// Deploy: Firebase Console → Firestore → Rules, or run: firebase deploy --only firestore:rules
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {

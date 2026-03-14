@@ -109,17 +109,18 @@ async function firestoreList(db, collectionName, userId, orderBy) {
   return sortItems(items, orderBy);
 }
 
-async function firestoreCreate(db, collectionName, userId, data) {
+async function firestoreCreate(db, collectionName, userId, userEmail, data) {
   const now = new Date().toISOString();
   const id = generateId();
   const docRef = doc(db, collectionName, id);
   await setDoc(docRef, {
     userId,
+    created_by: userEmail || null,
     created_date: now,
     updated_date: now,
     ...data,
   });
-  return { id, userId, created_date: now, updated_date: now, ...data };
+  return { id, userId, created_by: userEmail || null, created_date: now, updated_date: now, ...data };
 }
 
 async function firestoreUpdate(db, collectionName, id, data) {
@@ -190,7 +191,7 @@ function createEntityApi(entityName) {
       }
       const userId = getStorageUserId(user);
       if (!userId) throw new Error("Not authenticated");
-      return firestoreCreate(firestoreDb, entityName, userId, data);
+      return firestoreCreate(firestoreDb, entityName, userId, user.email, data);
     },
     async update(id, data) {
       await delay();
