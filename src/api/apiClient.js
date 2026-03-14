@@ -1,18 +1,29 @@
-// Lightweight local API stub; auth uses Firebase when configured.
+// Local API: uses Firestore when Firebase is configured, else localStorage. Demo users: in-memory only.
 import {
   auth as firebaseAuth,
+  db as firestoreDb,
   hasFirebaseConfig,
   onAuthStateChanged,
   firebaseSignOut,
   mapFirebaseUser,
 } from "@/lib/firebase";
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+} from "firebase/firestore";
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const STORAGE_KEY_PREFIX = "orbylox_";
 const DEMO_EMAIL = "demo@orbylox.local";
 
-// Demo mode: nothing is persisted. All data lives only in memory and is lost on refresh/close.
 const demoMemoryStore = {};
 
 function isDemoUser() {
@@ -27,11 +38,35 @@ function isDemoUser() {
   }
 }
 
+/** Returns { demo: true } for demo user, or current user { uid, email } for storage, or null. */
+async function getStorageUser() {
+  if (typeof window === "undefined") return null;
+  if (isDemoUser()) return { demo: true };
+  if (hasFirebaseConfig && firebaseAuth) {
+    return new Promise((resolve) => {
+      const unsub = onAuthStateChanged(firebaseAuth, (u) => {
+        unsub();
+        resolve(u ? mapFirebaseUser(u) : null);
+      });
+    });
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Firestore is only used when user is signed in with Firebase (has uid). Local email users keep using localStorage. */
+function getStorageUserId(user) {
+  if (!user || user.demo) return null;
+  return user.uid || null;
+}
+
 const readCollection = (name) => {
   if (typeof window === "undefined") return [];
-  if (isDemoUser()) {
-    return demoMemoryStore[name] || [];
-  }
+  if (isDemoUser()) return demoMemoryStore[name] || [];
   const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + name);
   try {
     return raw ? JSON.parse(raw) : [];
@@ -52,62 +87,162 @@ const writeCollection = (name, items) => {
 const generateId = () =>
   Math.random().toString(36).slice(2) + Date.now().toString(36);
 
+function sortItems(items, orderBy) {
+  if (orderBy === "-created_date") {
+    return [...items].sort(
+      (a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0),
+    );
+  }
+  if (orderBy === "created_date") {
+    return [...items].sort(
+      (a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0),
+    );
+  }
+  return items;
+}
+
+async function firestoreList(db, collectionName, userId, orderBy) {
+  const coll = collection(db, collectionName);
+  const q = query(coll, where("userId", "==", userId));
+  const snap = await getDocs(q);
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return sortItems(items, orderBy);
+}
+
+async function firestoreCreate(db, collectionName, userId, data) {
+  const now = new Date().toISOString();
+  const id = generateId();
+  const docRef = doc(db, collectionName, id);
+  await setDoc(docRef, {
+    userId,
+    created_date: now,
+    updated_date: now,
+    ...data,
+  });
+  return { id, userId, created_date: now, updated_date: now, ...data };
+}
+
+async function firestoreUpdate(db, collectionName, id, data) {
+  const docRef = doc(db, collectionName, id);
+  const updated = { ...data, updated_date: new Date().toISOString() };
+  await updateDoc(docRef, updated);
+  const snap = await getDoc(docRef);
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+async function firestoreDelete(db, collectionName, id) {
+  const docRef = doc(db, collectionName, id);
+  await deleteDoc(docRef);
+  return { id };
+}
+
 function createEntityApi(entityName) {
   return {
     async list(orderBy = "-created_date") {
       await delay();
-      const items = readCollection(entityName);
-      if (orderBy === "-created_date") {
-        return items.sort(
-          (a, b) => new Date(b.created_date) - new Date(a.created_date),
-        );
+      const user = await getStorageUser();
+      if (user?.demo) {
+        const items = readCollection(entityName);
+        return sortItems(items, orderBy);
       }
-      if (orderBy === "created_date") {
-        return items.sort(
-          (a, b) => new Date(a.created_date) - new Date(b.created_date),
-        );
+      if (!hasFirebaseConfig || !firestoreDb || !user) {
+        const items = readCollection(entityName);
+        return sortItems(items, orderBy);
       }
-      return items;
+      const userId = getStorageUserId(user);
+      if (!userId) return [];
+      return firestoreList(firestoreDb, entityName, userId, orderBy);
     },
-    async filter(where = {}, orderBy = "-created_date") {
+    async filter(whereClause = {}, orderBy = "-created_date") {
       const items = await this.list(orderBy);
       return items.filter((item) =>
-        Object.entries(where).every(([k, v]) => item[k] === v),
+        Object.entries(whereClause).every(([k, v]) => item[k] === v),
       );
     },
     async create(data) {
       await delay();
-      const items = readCollection(entityName);
-      const now = new Date().toISOString();
-      const item = {
-        id: generateId(),
-        created_date: now,
-        updated_date: now,
-        ...data,
-      };
-      items.push(item);
-      writeCollection(entityName, items);
-      return item;
+      const user = await getStorageUser();
+      if (user?.demo) {
+        const items = readCollection(entityName);
+        const now = new Date().toISOString();
+        const item = {
+          id: generateId(),
+          created_date: now,
+          updated_date: now,
+          ...data,
+        };
+        items.push(item);
+        writeCollection(entityName, items);
+        return item;
+      }
+      if (!hasFirebaseConfig || !firestoreDb || !user) {
+        const items = readCollection(entityName);
+        const now = new Date().toISOString();
+        const item = {
+          id: generateId(),
+          created_date: now,
+          updated_date: now,
+          ...data,
+        };
+        items.push(item);
+        writeCollection(entityName, items);
+        return item;
+      }
+      const userId = getStorageUserId(user);
+      if (!userId) throw new Error("Not authenticated");
+      return firestoreCreate(firestoreDb, entityName, userId, data);
     },
     async update(id, data) {
       await delay();
-      const items = readCollection(entityName);
-      const idx = items.findIndex((i) => i.id === id);
-      if (idx === -1) return null;
-      const updated = {
-        ...items[idx],
-        ...data,
-        updated_date: new Date().toISOString(),
-      };
-      items[idx] = updated;
-      writeCollection(entityName, items);
-      return updated;
+      const user = await getStorageUser();
+      if (user?.demo) {
+        const items = readCollection(entityName);
+        const idx = items.findIndex((i) => i.id === id);
+        if (idx === -1) return null;
+        const updated = {
+          ...items[idx],
+          ...data,
+          updated_date: new Date().toISOString(),
+        };
+        items[idx] = updated;
+        writeCollection(entityName, items);
+        return updated;
+      }
+      if (!hasFirebaseConfig || !firestoreDb || !user) {
+        const items = readCollection(entityName);
+        const idx = items.findIndex((i) => i.id === id);
+        if (idx === -1) return null;
+        const updated = {
+          ...items[idx],
+          ...data,
+          updated_date: new Date().toISOString(),
+        };
+        items[idx] = updated;
+        writeCollection(entityName, items);
+        return updated;
+      }
+      const userId = getStorageUserId(user);
+      if (!userId) return null;
+      return firestoreUpdate(firestoreDb, entityName, id, data);
     },
     async delete(id) {
       await delay();
-      const items = readCollection(entityName);
-      const filtered = items.filter((i) => i.id !== id);
-      writeCollection(entityName, filtered);
+      const user = await getStorageUser();
+      if (user?.demo) {
+        const items = readCollection(entityName);
+        const filtered = items.filter((i) => i.id !== id);
+        writeCollection(entityName, filtered);
+        return { id };
+      }
+      if (!hasFirebaseConfig || !firestoreDb || !user) {
+        const items = readCollection(entityName);
+        const filtered = items.filter((i) => i.id !== id);
+        writeCollection(entityName, filtered);
+        return { id };
+      }
+      const userId = getStorageUserId(user);
+      if (!userId) return { id };
+      await firestoreDelete(firestoreDb, entityName, id);
       return { id };
     },
   };
