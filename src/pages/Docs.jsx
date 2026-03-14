@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { StickyNote, Plus, Trash2, Pin, PinOff, Grid3X3, List, Search, Palette, Smile, MoreVertical, Copy, Archive, Clock } from 'lucide-react';
