@@ -87,6 +87,14 @@ const writeCollection = (name, items) => {
 const generateId = () =>
   Math.random().toString(36).slice(2) + Date.now().toString(36);
 
+/** Removes keys with undefined values so Firestore doesn't reject the document. */
+function stripUndefined(obj) {
+  if (!obj || typeof obj !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  );
+}
+
 function sortItems(items, orderBy) {
   if (orderBy === "-created_date") {
     return [...items].sort(
@@ -113,19 +121,23 @@ async function firestoreCreate(db, collectionName, userId, userEmail, data) {
   const now = new Date().toISOString();
   const id = generateId();
   const docRef = doc(db, collectionName, id);
-  await setDoc(docRef, {
+  const payload = stripUndefined({
     userId,
     created_by: userEmail || null,
     created_date: now,
     updated_date: now,
     ...data,
   });
-  return { id, userId, created_by: userEmail || null, created_date: now, updated_date: now, ...data };
+  await setDoc(docRef, payload);
+  return { id, ...payload };
 }
 
 async function firestoreUpdate(db, collectionName, id, data) {
   const docRef = doc(db, collectionName, id);
-  const updated = { ...data, updated_date: new Date().toISOString() };
+  const updated = stripUndefined({
+    ...data,
+    updated_date: new Date().toISOString(),
+  });
   await updateDoc(docRef, updated);
   const snap = await getDoc(docRef);
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;

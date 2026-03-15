@@ -255,10 +255,12 @@ export default function SocialBoard() {
   };
 
   const handlePostSubmit = () => {
-    if (!newPostContent.trim()) return;
+    const hasText = newPostContent.trim().length > 0;
+    const hasImages = selectedImages.length > 0;
+    if (!hasText && !hasImages) return;
     createPostMutation.mutate({
-      content: newPostContent,
-      images: selectedImages.length > 0 ? selectedImages : undefined
+      content: hasText ? newPostContent.trim() : " ",
+      images: hasImages ? selectedImages : undefined,
     });
   };
 
@@ -345,9 +347,12 @@ export default function SocialBoard() {
                 </Button>
               </label>
            </div>
-           <Button 
-              onClick={handlePostSubmit} 
-              disabled={createPostMutation.isPending || !newPostContent.trim()}
+           <Button
+              onClick={handlePostSubmit}
+              disabled={
+                createPostMutation.isPending ||
+                (!newPostContent.trim() && selectedImages.length === 0)
+              }
               className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-6"
             >
               {createPostMutation.isPending ? "Posten..." : "Beitrag posten"}
