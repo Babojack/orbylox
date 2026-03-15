@@ -45,7 +45,7 @@ function ProjectsListContent() {
 
   const userEmailLower = user?.email?.toLowerCase();
 
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: projects = [], isLoading, isError: projectsError, error: projectsErrorObj, refetch: refetchProjects } = useQuery({
     queryKey: ['projects', userEmailLower],
     queryFn: async () => {
       const allProjects = await api.entities.Project.list('-created_date', 200);
@@ -474,7 +474,31 @@ function ProjectsListContent() {
         </div>
 
         {/* Projects Grid */}
-        {projects.length === 0 ? (
+        {projectsError ? (
+          <div className="text-center py-20">
+            <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FolderOpen className="w-12 h-12 text-red-600" />
+            </div>
+            <h3 className="text-2xl font-semibold text-slate-900 mb-2">Projekte konnten nicht geladen werden</h3>
+            <p className="text-slate-600 mb-4 max-w-md mx-auto">
+              {projectsErrorObj?.message || "Fehler beim Laden. Bitte prüfe die Verbindung und ob du mit Google angemeldet bist."}
+            </p>
+            <Button
+              onClick={() => refetchProjects()}
+              variant="outline"
+              className="mr-2"
+            >
+              Erneut versuchen
+            </Button>
+            <Button
+              onClick={() => setShowDecisionMenu(true)}
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Erstes Projekt erstellen
+            </Button>
+          </div>
+        ) : projects.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <FolderOpen className="w-12 h-12 text-indigo-600" />
@@ -482,7 +506,7 @@ function ProjectsListContent() {
             <h3 className="text-2xl font-semibold text-slate-900 mb-2">{t('noProjects')}</h3>
             <p className="text-slate-600 mb-6">{t('noProjectsDesc')}</p>
             <Button
-              onClick={() => setIsCreateOpen(true)}
+              onClick={() => setShowDecisionMenu(true)}
               className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
             >
               <Plus className="w-5 h-5 mr-2" />

@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/use-toast";
 import ImageCollage from "@/components/feed/ImageCollage";
 
 export default function SocialBoard() {
@@ -33,16 +34,18 @@ export default function SocialBoard() {
   const searchParams = new URLSearchParams(window.location.search);
   const projectId = searchParams.get('project');
 
-  // Fetch Posts with optimized settings
-  const { data: posts = [], isLoading } = useQuery({
+  const { data: posts = [], isLoading, isError: postsLoadError, error: postsLoadErrorObj, refetch: refetchPosts } = useQuery({
     queryKey: ['posts', projectId],
     queryFn: async () => {
       const allPosts = await api.entities.Post.filter({ project_id: projectId }, '-created_date', 200);
       return allPosts;
     },
     staleTime: 30000,
-    enabled: !!projectId
+    enabled: !!projectId,
   });
+  if (postsLoadError && postsLoadErrorObj) {
+    console.error("[Feed] Posts load failed:", postsLoadErrorObj);
+  }
 
   const { data: user, isLoading: userLoading, isError: userError } = useQuery({ 
     queryKey: ['currentUser'], 
@@ -91,7 +94,14 @@ export default function SocialBoard() {
       return { previous };
     },
     onError: (err, vars, context) => {
-      queryClient.setQueryData(['posts', projectId], context.previous);
+      queryClient.setQueryData(['posts', projectId], context?.previous ?? []);
+      const msg = err?.message || "Post konnte nicht gespeichert werden.";
+      console.error("[Feed] Post create failed:", err);
+      toast({
+        title: "Feed-Post fehlgeschlagen",
+        description: msg,
+        variant: "destructive",
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries(['posts', projectId]);
@@ -347,7 +357,13 @@ export default function SocialBoard() {
 
       {/* Feed */}
       <div className="space-y-6">
-        {isLoading ? (
+        {postsLoadError ? (
+          <div className="text-center py-10 p-6 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700 font-medium">Feed konnte nicht geladen werden</p>
+            <p className="text-red-600 text-sm mt-1">{postsLoadErrorObj?.message || "Unbekannter Fehler"}</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => refetchPosts()}>Erneut laden</Button>
+          </div>
+        ) : isLoading ? (
            <div className="text-center py-10 text-slate-400">Feed wird geladen...</div>
         ) : posts.length === 0 ? (
           <div className="text-center py-20">
