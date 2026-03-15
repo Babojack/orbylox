@@ -42,8 +42,10 @@ function ProjectsListContent() {
     }
   }, [user, userLoading, userError]);
 
+  const userEmailLower = user?.email?.toLowerCase();
+
   const { data: projects = [], isLoading } = useQuery({
-    queryKey: ['projects'],
+    queryKey: ['projects', userEmailLower],
     queryFn: async () => {
       const allProjects = await api.entities.Project.list('-created_date', 200);
       const list = Array.isArray(allProjects)
@@ -51,16 +53,20 @@ function ProjectsListContent() {
         : Array.isArray(allProjects?.items)
           ? allProjects.items
           : [];
-      // Only show projects where the current user is creator or member
-      return list.filter(p => 
-        p.created_by === user?.email || 
-        (p.members && p.members.includes(user?.email))
-      );
+      // Only show projects where the current user is creator or member (case-insensitive)
+      return list.filter(p => {
+        const createdByMatch = p.created_by && userEmailLower && p.created_by.toLowerCase() === userEmailLower;
+        const memberMatch = p.members && Array.isArray(p.members) && userEmailLower
+          && p.members.some(m => m && m.toLowerCase() === userEmailLower);
+        return createdByMatch || memberMatch;
+      });
     },
     enabled: !!user
   });
 
-  const userCreatedProjects = projects.filter(p => p.created_by === user?.email);
+  const userCreatedProjects = projects.filter(p =>
+    p.created_by && userEmailLower && p.created_by.toLowerCase() === userEmailLower
+  );
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   const maxProjects = user?.plan === "premium" ? MAX_PROJECTS_PREMIUM : MAX_PROJECTS_BASIC;
   const canCreateProject = isAdmin || userCreatedProjects.length < maxProjects;
