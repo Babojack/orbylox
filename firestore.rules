@@ -10,26 +10,33 @@ service cloud.firestore {
       return isSignedIn() && resource.data.created_by == request.auth.token.email;
     }
 
+    function isUidOwner(resource) {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
     function isMember(resource) {
       return isSignedIn()
         && 'members' in resource.data
         && request.auth.token.email in resource.data.members;
     }
 
-    function canRead(resource) {
-      return isOwner(resource) || isMember(resource);
+    function canReadProject(resource) {
+      return isUidOwner(resource) || isOwner(resource) || isMember(resource);
     }
 
-    function canWrite(resource) {
-      return isOwner(resource);
+    function canWriteProject(resource) {
+      return isUidOwner(resource) || isOwner(resource);
     }
 
     match /Project/{projectId} {
-      allow read: if isSignedIn() && canRead(resource);
+      allow read: if canReadProject(resource);
       allow create: if isSignedIn()
-        && request.resource.data.created_by == request.auth.token.email
-        && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && canWrite(resource);
+        && request.resource.data.userId == request.auth.uid
+        && (
+          !('created_by' in request.resource.data)
+          || request.resource.data.created_by == request.auth.token.email
+        );
+      allow update, delete: if canWriteProject(resource);
     }
 
     match /Waitlist/{id} {
