@@ -1,17 +1,121 @@
-// Firestore Security Rules – alle App-Daten (Projekte, Docs, Tasks, Canvas, etc.)
-// Deploy: Firebase Console → Firestore → Rules → Inhalt einfügen & Publish
-// Oder: firebase deploy --only firestore:rules
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Alle Collections: Project, Document, Task, Subtask, CanvasItem, CanvasConnection,
-    // ProductIdea, Post, TaskComment, FileRecord, Folder, Message, Event, etc.
-    // Jedes Dokument hat ein Feld "userId" (Firebase Auth UID). Nutzer dürfen nur eigene Daten lesen/schreiben.
-    match /{collection}/{docId} {
-      allow read, update, delete: if request.auth != null
-        && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(resource) {
+      return isSignedIn() && resource.data.created_by == request.auth.token.email;
+    }
+
+    function isMember(resource) {
+      return isSignedIn()
+        && 'members' in resource.data
+        && request.auth.token.email in resource.data.members;
+    }
+
+    function canRead(resource) {
+      return isOwner(resource) || isMember(resource);
+    }
+
+    function canWrite(resource) {
+      return isOwner(resource);
+    }
+
+    match /Project/{projectId} {
+      allow read: if isSignedIn() && canRead(resource);
+      allow create: if isSignedIn()
+        && request.resource.data.created_by == request.auth.token.email
         && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && canWrite(resource);
+    }
+
+    match /Waitlist/{id} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+
+    match /Document/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /Task/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /Subtask/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /TaskComment/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /CanvasItem/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /CanvasConnection/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /ProductIdea/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /Post/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /PostComment/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /Message/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /Event/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /FileRecord/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /Folder/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /CustomIntegration/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /StartupStep/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /StartupJourney/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /User/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /ProjectBackup/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /RestoreRequest/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
