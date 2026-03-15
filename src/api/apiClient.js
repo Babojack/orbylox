@@ -164,7 +164,17 @@ function createEntityApi(entityName) {
       }
       const userId = getStorageUserId(user);
       if (!userId) return [];
-      return firestoreList(firestoreDb, entityName, userId, orderBy);
+      try {
+        return await firestoreList(firestoreDb, entityName, userId, orderBy);
+      } catch (err) {
+        console.error(`[Firestore] ${entityName}.list fehlgeschlagen:`, err.message);
+        if (err.code === "permission-denied" || err.message?.includes("permissions")) {
+          throw new Error(
+            "Missing or insufficient permissions. Bitte Firestore-Regeln in der Firebase Console deployen (siehe firestore.rules)."
+          );
+        }
+        throw err;
+      }
     },
     async filter(whereClause = {}, orderBy = "-created_date") {
       const items = await this.list(orderBy);
@@ -216,7 +226,17 @@ function createEntityApi(entityName) {
         writeCollection(entityName, items);
         return item;
       }
-      return firestoreCreate(firestoreDb, entityName, userId, user.email, data);
+      try {
+        return await firestoreCreate(firestoreDb, entityName, userId, user.email, data);
+      } catch (err) {
+        console.error(`[Firestore] ${entityName}.create fehlgeschlagen:`, err.message);
+        if (err.code === "permission-denied" || err.message?.includes("permissions")) {
+          throw new Error(
+            "Missing or insufficient permissions. Bitte Firestore-Regeln in der Firebase Console deployen (siehe firestore.rules)."
+          );
+        }
+        throw err;
+      }
     },
     async update(id, data) {
       await delay();
@@ -261,7 +281,17 @@ function createEntityApi(entityName) {
         writeCollection(entityName, items);
         return updated;
       }
-      return firestoreUpdate(firestoreDb, entityName, id, data);
+      try {
+        return await firestoreUpdate(firestoreDb, entityName, id, data);
+      } catch (err) {
+        console.error(`[Firestore] ${entityName}.update fehlgeschlagen:`, err.message);
+        if (err.code === "permission-denied" || err.message?.includes("permissions")) {
+          throw new Error(
+            "Missing or insufficient permissions. Bitte Firestore-Regeln in der Firebase Console deployen (siehe firestore.rules)."
+          );
+        }
+        throw err;
+      }
     },
     async delete(id) {
       await delay();
@@ -285,8 +315,18 @@ function createEntityApi(entityName) {
         writeCollection(entityName, filtered);
         return { id };
       }
-      await firestoreDelete(firestoreDb, entityName, id);
-      return { id };
+      try {
+        await firestoreDelete(firestoreDb, entityName, id);
+        return { id };
+      } catch (err) {
+        console.error(`[Firestore] ${entityName}.delete fehlgeschlagen:`, err.message);
+        if (err.code === "permission-denied" || err.message?.includes("permissions")) {
+          throw new Error(
+            "Missing or insufficient permissions. Bitte Firestore-Regeln in der Firebase Console deployen (siehe firestore.rules)."
+          );
+        }
+        throw err;
+      }
     },
   };
 }
