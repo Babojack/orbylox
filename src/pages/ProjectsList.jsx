@@ -54,15 +54,15 @@ function ProjectsListContent() {
         : Array.isArray(allProjects?.items)
           ? allProjects.items
           : [];
-      // Only show projects where the current user is creator or member (case-insensitive)
-      return list.filter(p => {
+      return list.filter((p) => {
         const createdByMatch = p.created_by && userEmailLower && p.created_by.toLowerCase() === userEmailLower;
         const memberMatch = p.members && Array.isArray(p.members) && userEmailLower
-          && p.members.some(m => m && m.toLowerCase() === userEmailLower);
+          && p.members.some((m) => m && m.toLowerCase() === userEmailLower);
         return createdByMatch || memberMatch;
       });
     },
-    enabled: !!user
+    enabled: !!user,
+    refetchOnMount: 'always',
   });
 
   const userCreatedProjects = projects.filter(p =>
@@ -78,7 +78,13 @@ function ProjectsListContent() {
       members: user?.email ? [user.email] : []
     }),
     onSuccess: (newProj) => {
-      queryClient.invalidateQueries(['projects']);
+      const key = ['projects', userEmailLower];
+      queryClient.setQueryData(key, (old) => {
+        const list = Array.isArray(old) ? old : [];
+        if (list.some((p) => p.id === newProj.id)) return old;
+        return [newProj, ...list];
+      });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       setIsCreateOpen(false);
       setNewProject({ name: "", description: "", cover_image: "" });
       if (createMode === 'validation') {
@@ -102,21 +108,24 @@ function ProjectsListContent() {
       await Promise.all(projectIds.map(id => api.entities.Project.delete(id)));
     },
     onMutate: async (projectIds) => {
-      await queryClient.cancelQueries(['projects']);
-      const previousProjects = queryClient.getQueryData(['projects']);
-      queryClient.setQueryData(['projects'], old => 
-        (old || []).filter(p => !projectIds.includes(p.id))
+      const key = ['projects', userEmailLower];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previousProjects = queryClient.getQueryData(key);
+      queryClient.setQueryData(key, (old) =>
+        (old || []).filter((p) => !projectIds.includes(p.id))
       );
       return { previousProjects };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['projects']);
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       setSelectedProjects([]);
       setIsSelectionMode(false);
     },
     onError: (err, projectIds, context) => {
-      queryClient.setQueryData(['projects'], context.previousProjects);
-    }
+      if (context?.previousProjects != null) {
+        queryClient.setQueryData(['projects', userEmailLower], context.previousProjects);
+      }
+    },
   });
 
   const toggleProjectSelection = (projectId) => {
