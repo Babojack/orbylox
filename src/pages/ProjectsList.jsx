@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
+import { toast } from "@/components/ui/use-toast";
 
 const ADMIN_EMAIL = "gudfransen@gmail.com";
 const MAX_PROJECTS_BASIC = 2;
@@ -80,14 +81,20 @@ function ProjectsListContent() {
       queryClient.invalidateQueries(['projects']);
       setIsCreateOpen(false);
       setNewProject({ name: "", description: "", cover_image: "" });
-      // Navigate based on mode
       if (createMode === 'validation') {
         navigate(createPageUrl('ProductValidation') + `?project=${newProj.id}`);
       } else {
         navigate(createPageUrl('SocialBoard') + `?project=${newProj.id}`);
       }
       setCreateMode(null);
-    }
+    },
+    onError: (err) => {
+      toast({
+        title: "Projekt konnte nicht erstellt werden",
+        description: err?.message || "Bitte mit Google anmelden für Cloud-Speicher oder Fehler prüfen.",
+        variant: "destructive",
+      });
+    },
   });
 
   const deleteProjectsMutation = useMutation({
@@ -438,11 +445,18 @@ function ProjectsListContent() {
                   )}
                 </div>
                 <Button
+                  type="button"
                   className="w-full bg-indigo-600 hover:bg-indigo-700"
-                  onClick={() => createProjectMutation.mutate(newProject)}
-                  disabled={!newProject.name.trim()}
+                  onClick={() => {
+                    if (!newProject.name?.trim()) {
+                      toast({ title: "Bitte Projektname eingeben", variant: "destructive" });
+                      return;
+                    }
+                    createProjectMutation.mutate({ ...newProject, name: newProject.name.trim() });
+                  }}
+                  disabled={createProjectMutation.isPending || !newProject.name?.trim()}
                 >
-                  {t('createAndOpen')}
+                  {createProjectMutation.isPending ? "Wird erstellt…" : t('createAndOpen')}
                 </Button>
               </div>
             </DialogContent>
