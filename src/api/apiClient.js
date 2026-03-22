@@ -23,6 +23,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
 const UPLOAD_TIMEOUT_MS = 30000;
+const MAX_INLINE_IMAGE_BYTES = 850000;
 
 const STORAGE_KEY_PREFIX = "orbylox_";
 const DEMO_EMAIL = "demo@orbylox.local";
@@ -159,6 +160,15 @@ function withTimeout(promise, timeoutMs, errorMessage) {
       setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
     ),
   ]);
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Bild konnte nicht als Data-URL gelesen werden."));
+    reader.readAsDataURL(file);
+  });
 }
 
 function createEntityApi(entityName) {
@@ -505,19 +515,30 @@ export const api = {
           const safeName = (file.name || "upload.bin").replace(/[^a-zA-Z0-9._-]/g, "_");
           const storagePath = `uploads/${userId}/${Date.now()}_${safeName}`;
           const fileRef = ref(firebaseStorage, storagePath);
-          await withTimeout(
-            uploadBytes(fileRef, file, {
-              contentType: file.type || "application/octet-stream",
-            }),
-            UPLOAD_TIMEOUT_MS,
-            "Datei-Upload Timeout (Firebase Storage)."
-          );
-          const downloadUrl = await withTimeout(
-            getDownloadURL(fileRef),
-            10000,
-            "Download-URL konnte nicht abgerufen werden."
-          );
-          return { file_url: downloadUrl };
+          try {
+            await withTimeout(
+              uploadBytes(fileRef, file, {
+                contentType: file.type || "application/octet-stream",
+              }),
+              UPLOAD_TIMEOUT_MS,
+              "Datei-Upload Timeout (Firebase Storage)."
+            );
+            const downloadUrl = await withTimeout(
+              getDownloadURL(fileRef),
+              10000,
+              "Download-URL konnte nicht abgerufen werden."
+            );
+            return { file_url: downloadUrl };
+          } catch (err) {
+            console.error("[UploadFile] Firebase Storage upload failed:", err?.message || err);
+            // CORS fallback for feed images: store small images inline to keep posting functional.
+            if (file.type?.startsWith("image/") && file.size <= MAX_INLINE_IMAGE_BYTES) {
+              const inlineDataUrl = await fileToDataUrl(file);
+              return { file_url: inlineDataUrl };
+            }
+            // Last-resort fallback for non-image or large files (session-local only).
+            return { file_url: URL.createObjectURL(file) };
+          }
         }
 
         // Fallback for non-Firebase/local mode.
