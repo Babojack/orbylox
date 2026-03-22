@@ -1,12 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 export default function ImageCollage({ images = [] }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [failedImages, setFailedImages] = useState({});
 
   if (!images || images.length === 0) return null;
+
+  useEffect(() => {
+    setFailedImages({});
+    setCurrentIndex(0);
+  }, [images]);
+
+  const markFailed = (index) => {
+    setFailedImages((prev) => ({ ...prev, [index]: true }));
+  };
+
+  const renderUnavailable = (className = "w-full h-full") => (
+    <div className={`${className} flex items-center justify-center bg-slate-100 text-slate-500 text-xs rounded`}>
+      Bild nicht verfuegbar
+    </div>
+  );
 
   const openLightbox = (index) => {
     setCurrentIndex(index);
@@ -27,11 +43,16 @@ export default function ImageCollage({ images = [] }) {
             <X className="w-5 h-5" />
           </button>
           
-          <img 
-            src={images[currentIndex]} 
-            alt="Full size" 
-            className="max-w-full max-h-full object-contain"
-          />
+          {failedImages[currentIndex] ? (
+            renderUnavailable("w-full h-full max-w-full max-h-full")
+          ) : (
+            <img
+              src={images[currentIndex]}
+              alt="Full size"
+              className="max-w-full max-h-full object-contain"
+              onError={() => markFailed(currentIndex)}
+            />
+          )}
           
           {images.length > 1 && (
             <>
@@ -61,12 +82,17 @@ export default function ImageCollage({ images = [] }) {
   if (images.length === 1) {
     return (
       <>
-        <img 
-          src={images[0]} 
-          alt="Post" 
-          className="mt-3 rounded-lg max-h-48 border border-slate-200 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-          onClick={() => openLightbox(0)}
-        />
+        {failedImages[0] ? (
+          renderUnavailable("mt-3 rounded-lg max-h-48 border border-slate-200 h-48")
+        ) : (
+          <img
+            src={images[0]}
+            alt="Post"
+            className="mt-3 rounded-lg max-h-48 border border-slate-200 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => openLightbox(0)}
+            onError={() => markFailed(0)}
+          />
+        )}
         {renderLightbox()}
       </>
     );
@@ -78,13 +104,20 @@ export default function ImageCollage({ images = [] }) {
       <>
         <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
           {images.map((img, i) => (
-            <img 
-              key={i}
-              src={img} 
-              alt={`Post ${i + 1}`} 
-              className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => openLightbox(i)}
-            />
+            failedImages[i] ? (
+              <React.Fragment key={i}>
+                {renderUnavailable("w-full h-32")}
+              </React.Fragment>
+            ) : (
+              <img
+                key={i}
+                src={img}
+                alt={`Post ${i + 1}`}
+                className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => openLightbox(i)}
+                onError={() => markFailed(i)}
+              />
+            )
           ))}
         </div>
         {renderLightbox()}
@@ -97,25 +130,40 @@ export default function ImageCollage({ images = [] }) {
     return (
       <>
         <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
-          <img 
-            src={images[0]} 
-            alt="Post 1" 
-            className="w-full h-[calc(8rem+0.25rem)] object-cover cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => openLightbox(0)}
-          />
+          {failedImages[0] ? (
+            renderUnavailable("w-full h-[calc(8rem+0.25rem)]")
+          ) : (
+            <img
+              src={images[0]}
+              alt="Post 1"
+              className="w-full h-[calc(8rem+0.25rem)] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => openLightbox(0)}
+              onError={() => markFailed(0)}
+            />
+          )}
           <div className="grid grid-rows-2 gap-1">
-            <img 
-              src={images[1]} 
-              alt="Post 2" 
-              className="w-full h-16 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => openLightbox(1)}
-            />
-            <img 
-              src={images[2]} 
-              alt="Post 3" 
-              className="w-full h-16 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => openLightbox(2)}
-            />
+            {failedImages[1] ? (
+              renderUnavailable("w-full h-16")
+            ) : (
+              <img
+                src={images[1]}
+                alt="Post 2"
+                className="w-full h-16 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => openLightbox(1)}
+                onError={() => markFailed(1)}
+              />
+            )}
+            {failedImages[2] ? (
+              renderUnavailable("w-full h-16")
+            ) : (
+              <img
+                src={images[2]}
+                alt="Post 3"
+                className="w-full h-16 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => openLightbox(2)}
+                onError={() => markFailed(2)}
+              />
+            )}
           </div>
         </div>
         {renderLightbox()}
@@ -128,13 +176,20 @@ export default function ImageCollage({ images = [] }) {
     <>
       <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
         {images.slice(0, 4).map((img, i) => (
-          <img 
-            key={i}
-            src={img} 
-            alt={`Post ${i + 1}`} 
-            className="w-full h-24 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => openLightbox(i)}
-          />
+          failedImages[i] ? (
+            <React.Fragment key={i}>
+              {renderUnavailable("w-full h-24")}
+            </React.Fragment>
+          ) : (
+            <img
+              key={i}
+              src={img}
+              alt={`Post ${i + 1}`}
+              className="w-full h-24 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => openLightbox(i)}
+              onError={() => markFailed(i)}
+            />
+          )
         ))}
       </div>
       {renderLightbox()}
