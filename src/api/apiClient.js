@@ -2,6 +2,7 @@
 import {
   auth as firebaseAuth,
   db as firestoreDb,
+  storage as firebaseStorage,
   hasFirebaseConfig,
   onAuthStateChanged,
   firebaseSignOut,
@@ -18,6 +19,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -482,11 +484,26 @@ export const api = {
       // you can replace these with real backend calls later.
       async UploadFile({ file }) {
         await delay();
-        if (typeof window === "undefined") {
+        if (typeof window === "undefined" || !file) {
           return { file_url: "" };
         }
-        const url = URL.createObjectURL(file);
-        return { file_url: url };
+        const user = await getStorageUser();
+        const userId = getStorageUserId(user);
+
+        // Prefer persistent Firebase Storage URLs for signed-in Firebase users.
+        if (hasFirebaseConfig && firebaseStorage && userId) {
+          const safeName = (file.name || "upload.bin").replace(/[^a-zA-Z0-9._-]/g, "_");
+          const storagePath = `uploads/${userId}/${Date.now()}_${safeName}`;
+          const fileRef = ref(firebaseStorage, storagePath);
+          await uploadBytes(fileRef, file, {
+            contentType: file.type || "application/octet-stream",
+          });
+          const downloadUrl = await getDownloadURL(fileRef);
+          return { file_url: downloadUrl };
+        }
+
+        // Fallback for non-Firebase/local mode.
+        return { file_url: URL.createObjectURL(file) };
       },
       async InvokeLLM({ prompt }) {
         await delay(50);
