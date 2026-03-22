@@ -24,6 +24,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
 const UPLOAD_TIMEOUT_MS = 30000;
 const MAX_INLINE_IMAGE_BYTES = 850000;
+let storageUploadBlockedForSession = false;
 
 const STORAGE_KEY_PREFIX = "orbylox_";
 const DEMO_EMAIL = "demo@orbylox.local";
@@ -169,6 +170,66 @@ function fileToDataUrl(file) {
     reader.onerror = () => reject(new Error("Bild konnte nicht als Data-URL gelesen werden."));
     reader.readAsDataURL(file);
   });
+}
+
+function dataUrlBytes(dataUrl) {
+  const base64 = String(dataUrl).split(",")[1] || "";
+  return Math.ceil((base64.length * 3) / 4);
+}
+
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Bild konnte nicht geladen werden."));
+    };
+    img.src = objectUrl;
+  });
+}
+
+async function imageFileToOptimizedDataUrl(file, maxBytes = MAX_INLINE_IMAGE_BYTES) {
+  const img = await loadImageElement(file);
+  let width = img.naturalWidth || img.width;
+  let height = img.naturalHeight || img.height;
+
+  const maxDimension = 1600;
+  const initialScale = Math.min(1, maxDimension / Math.max(width, height));
+  width = Math.max(1, Math.round(width * initialScale));
+  height = Math.max(1, Math.round(height * initialScale));
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return fileToDataUrl(file);
+
+  let quality = 0.9;
+  let attempts = 0;
+  let dataUrl = "";
+
+  while (attempts < 8) {
+    canvas.width = width;
+    canvas.height = height;
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    dataUrl = canvas.toDataURL("image/jpeg", quality);
+    if (dataUrlBytes(dataUrl) <= maxBytes) {
+      return dataUrl;
+    }
+    if (quality > 0.45) {
+      quality -= 0.1;
+    } else {
+      width = Math.max(320, Math.round(width * 0.82));
+      height = Math.max(240, Math.round(height * 0.82));
+    }
+    attempts += 1;
+  }
+
+  return dataUrl || fileToDataUrl(file);
 }
 
 async function sha256Hex(input) {
@@ -550,7 +611,7 @@ export const api = {
         const userId = getStorageUserId(user);
 
         // Prefer persistent Firebase Storage URLs for signed-in Firebase users.
-        if (hasFirebaseConfig && firebaseStorage && userId) {
+        if (hasFirebaseConfig && firebaseStorage && userId && !storageUploadBlockedForSession) {
           const safeName = (file.name || "upload.bin").replace(/[^a-zA-Z0-9._-]/g, "_");
           const storagePath = `uploads/${userId}/${Date.now()}_${safeName}`;
           const fileRef = ref(firebaseStorage, storagePath);
@@ -570,9 +631,18 @@ export const api = {
             return { file_url: downloadUrl };
           } catch (err) {
             console.error("[UploadFile] Firebase Storage upload failed:", err?.message || err);
-            // CORS fallback for feed images: store small images inline to keep posting functional.
-            if (file.type?.startsWith("image/") && file.size <= MAX_INLINE_IMAGE_BYTES) {
-              const inlineDataUrl = await fileToDataUrl(file);
+            const msg = String(err?.message || "").toLowerCase();
+            if (
+              msg.includes("cors") ||
+              msg.includes("preflight") ||
+              msg.includes("failed to fetch") ||
+              msg.includes("network")
+            ) {
+              storageUploadBlockedForSession = true;
+            }
+            // Image fallback: always store as persistent inline data URL (compressed if needed).
+            if (file.type?.startsWith("image/")) {
+              const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
               return { file_url: inlineDataUrl };
             }
             // Last-resort fallback for non-image or large files (session-local only).
@@ -580,7 +650,11 @@ export const api = {
           }
         }
 
-        // Fallback for non-Firebase/local mode.
+        // Fallback for non-Firebase/local mode or temporarily disabled storage upload.
+        if (file.type?.startsWith("image/")) {
+          const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
+          return { file_url: inlineDataUrl };
+        }
         return { file_url: URL.createObjectURL(file) };
       },
       async InvokeLLM({ prompt }) {
