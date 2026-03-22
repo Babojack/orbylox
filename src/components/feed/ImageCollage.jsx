@@ -9,13 +9,22 @@ export default function ImageCollage({ images = [] }) {
 
   if (!images || images.length === 0) return null;
 
+  const imagesKey = images.join("||");
+
   useEffect(() => {
     setFailedImages({});
     setCurrentIndex(0);
-  }, [images]);
+  }, [imagesKey]);
 
   const markFailed = (index) => {
     setFailedImages((prev) => ({ ...prev, [index]: true }));
+  };
+
+  const isUnavailable = (url, index) => {
+    if (!url) return true;
+    // Legacy local blob URLs from older posts are not persistent and will break after reload.
+    if (typeof url === "string" && url.startsWith("blob:")) return true;
+    return !!failedImages[index];
   };
 
   const renderUnavailable = (className = "w-full h-full") => (
@@ -43,7 +52,7 @@ export default function ImageCollage({ images = [] }) {
             <X className="w-5 h-5" />
           </button>
           
-          {failedImages[currentIndex] ? (
+          {isUnavailable(images[currentIndex], currentIndex) ? (
             renderUnavailable("w-full h-full max-w-full max-h-full")
           ) : (
             <img
@@ -82,7 +91,7 @@ export default function ImageCollage({ images = [] }) {
   if (images.length === 1) {
     return (
       <>
-        {failedImages[0] ? (
+        {isUnavailable(images[0], 0) ? (
           renderUnavailable("mt-3 rounded-lg max-h-48 border border-slate-200 h-48")
         ) : (
           <img
@@ -104,7 +113,7 @@ export default function ImageCollage({ images = [] }) {
       <>
         <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
           {images.map((img, i) => (
-            failedImages[i] ? (
+            isUnavailable(img, i) ? (
               <React.Fragment key={i}>
                 {renderUnavailable("w-full h-32")}
               </React.Fragment>
@@ -130,7 +139,7 @@ export default function ImageCollage({ images = [] }) {
     return (
       <>
         <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
-          {failedImages[0] ? (
+          {isUnavailable(images[0], 0) ? (
             renderUnavailable("w-full h-[calc(8rem+0.25rem)]")
           ) : (
             <img
@@ -142,7 +151,7 @@ export default function ImageCollage({ images = [] }) {
             />
           )}
           <div className="grid grid-rows-2 gap-1">
-            {failedImages[1] ? (
+            {isUnavailable(images[1], 1) ? (
               renderUnavailable("w-full h-16")
             ) : (
               <img
@@ -153,7 +162,7 @@ export default function ImageCollage({ images = [] }) {
                 onError={() => markFailed(1)}
               />
             )}
-            {failedImages[2] ? (
+            {isUnavailable(images[2], 2) ? (
               renderUnavailable("w-full h-16")
             ) : (
               <img
@@ -176,7 +185,7 @@ export default function ImageCollage({ images = [] }) {
     <>
       <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
         {images.slice(0, 4).map((img, i) => (
-          failedImages[i] ? (
+          isUnavailable(img, i) ? (
             <React.Fragment key={i}>
               {renderUnavailable("w-full h-24")}
             </React.Fragment>
