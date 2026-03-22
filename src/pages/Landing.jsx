@@ -112,7 +112,7 @@ function LandingContent() {
             <img
               src={orbyloxLogo}
               alt="ORBYLOX"
-              className="h-14 sm:h-16 lg:h-20 w-auto object-contain"
+              className="h-14 sm:h-16 lg:h-20 w-[230px] sm:w-[280px] lg:w-[320px] object-cover object-center"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -434,7 +434,7 @@ function LandingContent() {
             <img
               src={orbyloxLogo}
               alt="ORBYLOX"
-              className="h-12 sm:h-14 w-auto object-contain"
+              className="h-12 sm:h-14 w-[220px] sm:w-[270px] object-cover object-center"
             />
           </div>
           <p className="text-sm mb-2">© 2024 ORBYLOX. {t('simplestToolForStartups')}</p>

@@ -190,12 +190,8 @@ function ProjectsListContent() {
             <img
               src={orbyloxLogo}
               alt="ORBYLOX"
-              className="h-12 sm:h-14 w-auto object-contain"
+              className="h-12 sm:h-14 w-[210px] sm:w-[250px] object-cover object-center"
             />
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">ORBYLOX</h1>
-              <p className="text-xs text-slate-500">Collaborative Workspace</p>
-            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button 

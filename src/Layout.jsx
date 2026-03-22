@@ -301,7 +301,7 @@ function LayoutContent({ children, currentPageName }) {
             <img
               src={orbyloxLogo}
               alt="ORBYLOX"
-              className="h-12 sm:h-14 w-auto object-contain"
+              className="h-12 sm:h-14 w-[190px] object-cover object-center"
             />
           </div>
           <button 
