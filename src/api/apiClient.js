@@ -2,7 +2,6 @@
 import {
   auth as firebaseAuth,
   db as firestoreDb,
-  storage as firebaseStorage,
   hasFirebaseConfig,
   onAuthStateChanged,
   firebaseSignOut,
@@ -19,12 +18,10 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
 const UPLOAD_TIMEOUT_MS = 30000;
 const MAX_INLINE_IMAGE_BYTES = 850000;
-let storageUploadBlockedForSession = false;
 
 const STORAGE_KEY_PREFIX = "orbylox_";
 const DEMO_EMAIL = "demo@orbylox.local";
@@ -161,6 +158,39 @@ function withTimeout(promise, timeoutMs, errorMessage) {
       setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
     ),
   ]);
+}
+
+async function uploadToCloudinary(file, userId = "anon") {
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+  if (!cloudName || !uploadPreset) {
+    throw new Error("Cloudinary env vars fehlen (VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET).");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", `orbylox/uploads/${userId || "anon"}`);
+
+  const response = await withTimeout(
+    fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+      method: "POST",
+      body: formData,
+    }),
+    UPLOAD_TIMEOUT_MS,
+    "Datei-Upload Timeout (Cloudinary)."
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Cloudinary Upload fehlgeschlagen (${response.status}): ${text}`);
+  }
+
+  const data = await response.json();
+  if (!data?.secure_url) {
+    throw new Error("Cloudinary Antwort enthaelt keine secure_url.");
+  }
+  return { file_url: data.secure_url };
 }
 
 function fileToDataUrl(file) {
@@ -610,52 +640,19 @@ export const api = {
         const user = await getStorageUser();
         const userId = getStorageUserId(user);
 
-        // Prefer persistent Firebase Storage URLs for signed-in Firebase users.
-        if (hasFirebaseConfig && firebaseStorage && userId && !storageUploadBlockedForSession) {
-          const safeName = (file.name || "upload.bin").replace(/[^a-zA-Z0-9._-]/g, "_");
-          const storagePath = `uploads/${userId}/${Date.now()}_${safeName}`;
-          const fileRef = ref(firebaseStorage, storagePath);
-          try {
-            await withTimeout(
-              uploadBytes(fileRef, file, {
-                contentType: file.type || "application/octet-stream",
-              }),
-              UPLOAD_TIMEOUT_MS,
-              "Datei-Upload Timeout (Firebase Storage)."
-            );
-            const downloadUrl = await withTimeout(
-              getDownloadURL(fileRef),
-              10000,
-              "Download-URL konnte nicht abgerufen werden."
-            );
-            return { file_url: downloadUrl };
-          } catch (err) {
-            console.error("[UploadFile] Firebase Storage upload failed:", err?.message || err);
-            const msg = String(err?.message || "").toLowerCase();
-            if (
-              msg.includes("cors") ||
-              msg.includes("preflight") ||
-              msg.includes("failed to fetch") ||
-              msg.includes("network")
-            ) {
-              storageUploadBlockedForSession = true;
-            }
-            // Image fallback: always store as persistent inline data URL (compressed if needed).
-            if (file.type?.startsWith("image/")) {
-              const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
-              return { file_url: inlineDataUrl };
-            }
-            // Last-resort fallback for non-image or large files (session-local only).
-            return { file_url: URL.createObjectURL(file) };
+        // Primary: Cloudinary direct browser upload.
+        try {
+          return await uploadToCloudinary(file, userId);
+        } catch (err) {
+          console.error("[UploadFile] Cloudinary upload failed:", err?.message || err);
+          // Fallback for images: persistent inline data URL (compressed).
+          if (file.type?.startsWith("image/")) {
+            const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
+            return { file_url: inlineDataUrl };
           }
+          // Last-resort for non-images (session-local only).
+          return { file_url: URL.createObjectURL(file) };
         }
-
-        // Fallback for non-Firebase/local mode or temporarily disabled storage upload.
-        if (file.type?.startsWith("image/")) {
-          const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
-          return { file_url: inlineDataUrl };
-        }
-        return { file_url: URL.createObjectURL(file) };
       },
       async InvokeLLM({ prompt }) {
         await delay(50);
