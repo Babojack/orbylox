@@ -376,6 +376,16 @@ export default function SocialBoard() {
             <p className="text-slate-300 text-sm mt-2">Erstelle den ersten Post!</p>
           </div>
         ) : posts.map((post) => (
+          (() => {
+            const allPostImages = Array.isArray(post.images)
+              ? post.images
+              : post.image_url
+                ? [post.image_url]
+                : [];
+            const safePostImages = allPostImages.filter(
+              (url) => typeof url === "string" && url.trim() !== "" && !url.startsWith("blob:")
+            );
+            return (
           <Card key={post.id} className="border-slate-100 shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
               <div className="flex items-center gap-3">
@@ -409,11 +419,8 @@ export default function SocialBoard() {
               <div className="text-slate-700 whitespace-pre-wrap text-base leading-relaxed">
                 {post.content}
               </div>
-              {/* Support both old image_url and new images array */}
-              {(post.images && post.images.length > 0) ? (
-                <ImageCollage images={post.images} />
-              ) : post.image_url ? (
-                <ImageCollage images={[post.image_url]} />
+              {safePostImages.length > 0 ? (
+                <ImageCollage images={safePostImages} />
               ) : null}
               {post.tags && post.tags.length > 0 && (
                  <div className="flex gap-2 mt-4">
@@ -536,6 +543,8 @@ export default function SocialBoard() {
                )}
             </CardFooter>
           </Card>
+            );
+          })()
         ))}
       </div>
     </div>

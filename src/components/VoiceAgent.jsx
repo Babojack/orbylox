@@ -1,7 +1,11 @@
 import React, { useEffect } from 'react';
 
 export default function VoiceAgent() {
+  const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
+
   useEffect(() => {
+    if (!agentId) return;
+
     // Load ElevenLabs script once
     if (!document.querySelector('script[src*="elevenlabs"]')) {
       const script = document.createElement('script');
@@ -26,11 +30,13 @@ export default function VoiceAgent() {
     return () => {
       if (style.parentNode) style.parentNode.removeChild(style);
     };
-  }, []);
+  }, [agentId]);
+
+  if (!agentId) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      <elevenlabs-convai agent-id="agent_2401kdmc23bfe2981zcyjzjge11t"></elevenlabs-convai>
+      <elevenlabs-convai agent-id={agentId}></elevenlabs-convai>
     </div>
   );
 }
