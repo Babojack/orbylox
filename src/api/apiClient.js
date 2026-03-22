@@ -171,6 +171,25 @@ function fileToDataUrl(file) {
   });
 }
 
+async function sha256Hex(input) {
+  if (typeof window === "undefined" || !window.crypto?.subtle) {
+    return null;
+  }
+  const msgUint8 = new TextEncoder().encode(input);
+  const hashBuffer = await window.crypto.subtle.digest("SHA-256", msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashPassword(password) {
+  // Frontend-only fallback auth: hash to avoid plaintext password storage.
+  const hashed = await sha256Hex(password);
+  if (!hashed) {
+    throw new Error("Secure password hashing is unavailable in this environment.");
+  }
+  return `sha256:${hashed}`;
+}
+
 function createEntityApi(entityName) {
   return {
     async list(orderBy = "-created_date") {
@@ -398,7 +417,8 @@ export const api = {
       if (users.some((u) => u.email === email)) {
         throw new Error("User already exists");
       }
-      const user = { email, password, plan: "basic" };
+      const password_hash = await hashPassword(password);
+      const user = { email, password_hash, plan: "basic" };
       users.push(user);
       window.localStorage.setItem(
         STORAGE_KEY_PREFIX + "users",
@@ -416,9 +436,28 @@ export const api = {
       if (typeof window === "undefined") return null;
       const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "users");
       const users = raw ? JSON.parse(raw) : [];
-      const found = users.find((u) => u.email === email && u.password === password);
+      const password_hash = await hashPassword(password);
+      let changed = false;
+      const found = users.find((u) => {
+        if (u.email !== email) return false;
+        if (u.password_hash && u.password_hash === password_hash) return true;
+        // Legacy plaintext migration path.
+        if (u.password && u.password === password) {
+          u.password_hash = password_hash;
+          delete u.password;
+          changed = true;
+          return true;
+        }
+        return false;
+      });
       if (!found) {
         throw new Error("Invalid email or password");
+      }
+      if (changed) {
+        window.localStorage.setItem(
+          STORAGE_KEY_PREFIX + "users",
+          JSON.stringify(users),
+        );
       }
       window.localStorage.setItem(
         STORAGE_KEY_PREFIX + "user",

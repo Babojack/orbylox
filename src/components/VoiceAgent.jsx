@@ -2,14 +2,15 @@ import React, { useEffect } from 'react';
 
 export default function VoiceAgent() {
   const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
+  const widgetScriptSrc = import.meta.env.VITE_ELEVENLABS_WIDGET_SRC;
 
   useEffect(() => {
-    if (!agentId) return;
+    if (!agentId || !widgetScriptSrc) return;
 
     // Load ElevenLabs script once
-    if (!document.querySelector('script[src*="elevenlabs"]')) {
+    if (!document.querySelector(`script[src="${widgetScriptSrc}"]`)) {
       const script = document.createElement('script');
-      script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed@beta';
+      script.src = widgetScriptSrc;
       script.async = true;
       document.body.appendChild(script);
     }
@@ -30,9 +31,9 @@ export default function VoiceAgent() {
     return () => {
       if (style.parentNode) style.parentNode.removeChild(style);
     };
-  }, [agentId]);
+  }, [agentId, widgetScriptSrc]);
 
-  if (!agentId) return null;
+  if (!agentId || !widgetScriptSrc) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50">

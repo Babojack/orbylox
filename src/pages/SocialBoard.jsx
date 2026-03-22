@@ -23,6 +23,16 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import ImageCollage from "@/components/feed/ImageCollage";
 
+function avatarSeedFromEmail(email = "") {
+  // Avoid leaking raw emails in third-party avatar URLs.
+  const normalized = (email || "").trim().toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = (hash * 31 + normalized.charCodeAt(i)) >>> 0;
+  }
+  return `u${hash.toString(16)}`;
+}
+
 export default function SocialBoard() {
   const queryClient = useQueryClient();
   const [newPostContent, setNewPostContent] = useState("");
@@ -390,7 +400,7 @@ export default function SocialBoard() {
             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 border border-slate-100">
-                   <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_email}`} />
+                   <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeedFromEmail(post.author_email)}`} />
                    <AvatarFallback>{post.author_email?.[0] || 'U'}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -523,7 +533,7 @@ export default function SocialBoard() {
                      {getPostComments(post.id).map((comment) => (
                        <div key={comment.id} className="flex gap-2 p-2 bg-slate-50 rounded-lg">
                          <Avatar className="h-6 w-6">
-                           <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author_email}`} />
+                          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeedFromEmail(comment.author_email)}`} />
                            <AvatarFallback className="text-xs">{comment.author_email?.[0]}</AvatarFallback>
                          </Avatar>
                          <div className="flex-1">

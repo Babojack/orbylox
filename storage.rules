@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Uploads are written under uploads/{uid}/...
+    match /uploads/{userId}/{allPaths=**} {
+      allow write: if isSignedIn() && request.auth.uid == userId;
+      // Authenticated app users can read shared project assets.
+      allow read: if isSignedIn();
+    }
+
+    // Default deny for any other storage path.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
