@@ -392,7 +392,7 @@ function LayoutContent({ children, currentPageName }) {
       {/* Main Content */}
       <main className={`flex-1 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white dark:bg-slate-900 min-h-screen flex flex-col transition-all duration-300`}>
         {/* Header */}
-        <header className="h-16 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-40">
+        <header className="h-16 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white dark:bg-slate-900 z-40">
           <div className="flex items-center gap-2 md:gap-4">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
