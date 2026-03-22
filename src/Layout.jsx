@@ -40,6 +40,16 @@ import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
 
+const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
+
+function getAdminEmails() {
+  const fromEnv = (import.meta.env.VITE_ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set([...DEFAULT_ADMIN_EMAILS, ...fromEnv])];
+}
+
 // Random avatar URLs for new users
 const RANDOM_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
@@ -92,6 +102,7 @@ function LayoutContent({ children, currentPageName }) {
     } catch { return {}; }
   });
   const [showNotifications, setShowNotifications] = React.useState(false);
+  const isAdmin = getAdminEmails().includes((currentUser?.email || "").toLowerCase());
   
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -196,6 +207,7 @@ function LayoutContent({ children, currentPageName }) {
       currentPageName !== 'Profile' &&
       currentPageName !== 'Subscription' &&
       currentPageName !== 'Impressum' &&
+      currentPageName !== 'AdminUsers' &&
       currentPageName !== 'login'
     ) {
       window.location.href = createPageUrl('ProjectsList');
@@ -253,7 +265,7 @@ function LayoutContent({ children, currentPageName }) {
   }
   
   // Don't show layout on projects list page or standalone pages
-  if (currentPageName === 'ProjectsList' || currentPageName === 'index' || currentPageName === 'Landing' || currentPageName === 'Profile' || currentPageName === 'Subscription' || currentPageName === 'Impressum') {
+  if (currentPageName === 'ProjectsList' || currentPageName === 'index' || currentPageName === 'Landing' || currentPageName === 'Profile' || currentPageName === 'Subscription' || currentPageName === 'Impressum' || currentPageName === 'AdminUsers') {
         return children;
       }
   
@@ -480,6 +492,14 @@ function LayoutContent({ children, currentPageName }) {
                          {t('subscription')}
                        </Link>
                      </DropdownMenuItem>
+                     {isAdmin && (
+                       <DropdownMenuItem asChild>
+                        <Link to={createPageUrl('AdminUsers')} className="cursor-pointer">
+                          <Settings className="w-4 h-4 mr-2" />
+                          Admin Panel
+                        </Link>
+                       </DropdownMenuItem>
+                     )}
                      <DropdownMenuSeparator />
                      <DropdownMenuItem 
                       onClick={() => {

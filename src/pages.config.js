@@ -48,6 +48,7 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import Calendar from './pages/Calendar';
+import AdminUsers from './pages/AdminUsers';
 import Canvas from './pages/Canvas';
 import Chat from './pages/Chat';
 import Docs from './pages/Docs';
@@ -70,6 +71,7 @@ import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "AdminUsers": AdminUsers,
     "Calendar": Calendar,
     "Canvas": Canvas,
     "Chat": Chat,

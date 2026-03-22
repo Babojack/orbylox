@@ -25,8 +25,39 @@ const MAX_INLINE_IMAGE_BYTES = 850000;
 
 const STORAGE_KEY_PREFIX = "orbylox_";
 const DEMO_EMAIL = "demo@orbylox.local";
+const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
+const USER_PLANS_KEY = STORAGE_KEY_PREFIX + "user_plans";
 
 const demoMemoryStore = {};
+
+function getAdminEmails() {
+  const fromEnv = (import.meta.env.VITE_ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const merged = new Set([...DEFAULT_ADMIN_EMAILS, ...fromEnv]);
+  return [...merged];
+}
+
+function isAdminEmail(email) {
+  if (!email) return false;
+  return getAdminEmails().includes(String(email).toLowerCase());
+}
+
+function readUserPlansMap() {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(USER_PLANS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeUserPlansMap(map) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(USER_PLANS_KEY, JSON.stringify(map || {}));
+}
 
 function isDemoUser() {
   if (typeof window === "undefined") return false;
@@ -473,7 +504,14 @@ export const api = {
         return new Promise((resolve) => {
           const unsub = onAuthStateChanged(firebaseAuth, (u) => {
             unsub();
-            resolve(mapFirebaseUser(u));
+            const mapped = mapFirebaseUser(u);
+            if (!mapped) return resolve(null);
+            const plans = readUserPlansMap();
+            const emailKey = (mapped.email || "").toLowerCase();
+            resolve({
+              ...mapped,
+              plan: plans[emailKey] || mapped.plan || "basic",
+            });
           });
         });
       }
@@ -559,6 +597,84 @@ export const api = {
     async isAuthenticated() {
       const user = await this.me();
       return !!user;
+    },
+    async isAdmin() {
+      const user = await this.me();
+      return isAdminEmail(user?.email);
+    },
+    async listUsers() {
+      await delay();
+      if (typeof window === "undefined") return [];
+      const current = await this.me();
+      if (!isAdminEmail(current?.email)) {
+        throw new Error("Nur Admins koennen Benutzer verwalten.");
+      }
+
+      const usersRaw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "users");
+      const users = usersRaw ? JSON.parse(usersRaw) : [];
+      const plans = readUserPlansMap();
+      const emails = new Set();
+
+      users.forEach((u) => u?.email && emails.add(String(u.email).toLowerCase()));
+      Object.keys(plans || {}).forEach((e) => emails.add(String(e).toLowerCase()));
+      if (current?.email) emails.add(String(current.email).toLowerCase());
+
+      return [...emails]
+        .filter(Boolean)
+        .map((email) => {
+          const localUser = users.find((u) => String(u.email).toLowerCase() === email);
+          return {
+            id: email,
+            email,
+            plan: plans[email] || localUser?.plan || "basic",
+          };
+        })
+        .sort((a, b) => a.email.localeCompare(b.email));
+    },
+    async setUserPlan({ email, plan }) {
+      await delay();
+      if (typeof window === "undefined") return null;
+      const current = await this.me();
+      if (!isAdminEmail(current?.email)) {
+        throw new Error("Nur Admins koennen Benutzer verwalten.");
+      }
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      if (!normalizedEmail || !normalizedEmail.includes("@")) {
+        throw new Error("Ungueltige E-Mail.");
+      }
+      const normalizedPlan = plan === "premium" ? "premium" : "basic";
+
+      // Persist plan override map (also works for Firebase-auth users by email).
+      const plans = readUserPlansMap();
+      plans[normalizedEmail] = normalizedPlan;
+      writeUserPlansMap(plans);
+
+      // Update local auth users list when present.
+      const usersRaw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "users");
+      const users = usersRaw ? JSON.parse(usersRaw) : [];
+      const idx = users.findIndex((u) => String(u.email).toLowerCase() === normalizedEmail);
+      if (idx >= 0) {
+        users[idx] = { ...users[idx], plan: normalizedPlan };
+        window.localStorage.setItem(STORAGE_KEY_PREFIX + "users", JSON.stringify(users));
+      }
+
+      // If currently logged-in local profile matches, update it immediately.
+      try {
+        const activeRaw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "user");
+        if (activeRaw) {
+          const active = JSON.parse(activeRaw);
+          if (String(active?.email || "").toLowerCase() === normalizedEmail) {
+            window.localStorage.setItem(
+              STORAGE_KEY_PREFIX + "user",
+              JSON.stringify({ ...active, plan: normalizedPlan })
+            );
+          }
+        }
+      } catch {
+        // ignore malformed local profile
+      }
+
+      return { email: normalizedEmail, plan: normalizedPlan };
     },
     logout() {
       if (typeof window === "undefined") return;
