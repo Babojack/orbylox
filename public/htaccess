@@ -29,3 +29,12 @@
   Header always set Cross-Origin-Resource-Policy "cross-origin"
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
 </IfModule>
+
+# Always fetch latest index.html so new hashed assets are picked up
+<Files "index.html">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </IfModule>
+</Files>
