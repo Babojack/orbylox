@@ -12,6 +12,7 @@ import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { toast } from "@/components/ui/use-toast";
+import orbyloxLogo from "@/assets/orbylox-logo.png";
 
 const ADMIN_EMAIL = "gudfransen@gmail.com";
 const MAX_PROJECTS_BASIC = 2;
@@ -186,11 +187,13 @@ function ProjectsListContent() {
       <div className="border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-xl">O</span>
-            </div>
+            <img
+              src={orbyloxLogo}
+              alt="ORBYLOX"
+              className="h-10 w-auto object-contain"
+            />
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">OMNIPLACE</h1>
+              <h1 className="text-2xl font-bold text-slate-900">ORBYLOX</h1>
               <p className="text-xs text-slate-500">Collaborative Workspace</p>
             </div>
           </div>

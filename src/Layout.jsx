@@ -39,6 +39,7 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
+import orbyloxLogo from "@/assets/orbylox-logo.png";
 
 const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
 
@@ -297,10 +298,11 @@ function LayoutContent({ children, currentPageName }) {
       <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 dark:border-slate-800 flex flex-col fixed lg:fixed h-full bg-white dark:bg-slate-900 z-50 transition-transform duration-300`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-indigo-200 shadow-lg">
-                <span className="text-white font-bold text-lg">O</span>
-              </div>
-              <span className="font-semibold text-lg tracking-tight">ORBYLOX</span>
+            <img
+              src={orbyloxLogo}
+              alt="ORBYLOX"
+              className="h-10 w-auto object-contain"
+            />
           </div>
           <button 
             onClick={() => setIsSidebarOpen(false)}

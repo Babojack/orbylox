@@ -11,6 +11,7 @@ import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import InteractiveFeatureCard from "@/components/landing/InteractiveFeatureCard";
+import orbyloxLogo from "@/assets/orbylox-logo.png";
 
 function LandingContent() {
   const { t } = useLanguage();
@@ -108,12 +109,11 @@ function LandingContent() {
       <nav className="fixed top-0 w-full backdrop-blur-md bg-white/70 border-b border-slate-100 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-xl">O</span>
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              ORBYLOX
-            </span>
+            <img
+              src={orbyloxLogo}
+              alt="ORBYLOX"
+              className="h-12 w-auto object-contain"
+            />
           </div>
           <div className="flex items-center gap-2">
             <Button 
@@ -431,10 +431,11 @@ function LandingContent() {
       <footer className="border-t border-slate-100 py-12 px-6 bg-slate-50">
         <div className="max-w-6xl mx-auto text-center text-slate-600">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">O</span>
-            </div>
-            <span className="font-semibold text-slate-900">ORBYLOX</span>
+            <img
+              src={orbyloxLogo}
+              alt="ORBYLOX"
+              className="h-10 w-auto object-contain"
+            />
           </div>
           <p className="text-sm mb-2">© 2024 ORBYLOX. {t('simplestToolForStartups')}</p>
           <p className="text-xs text-slate-400 flex items-center justify-center gap-1">
