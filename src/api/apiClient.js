@@ -22,6 +22,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
+const UPLOAD_TIMEOUT_MS = 30000;
 
 const STORAGE_KEY_PREFIX = "orbylox_";
 const DEMO_EMAIL = "demo@orbylox.local";
@@ -149,6 +150,15 @@ async function firestoreDelete(db, collectionName, id) {
   const docRef = doc(db, collectionName, id);
   await deleteDoc(docRef);
   return { id };
+}
+
+function withTimeout(promise, timeoutMs, errorMessage) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    ),
+  ]);
 }
 
 function createEntityApi(entityName) {
@@ -495,10 +505,18 @@ export const api = {
           const safeName = (file.name || "upload.bin").replace(/[^a-zA-Z0-9._-]/g, "_");
           const storagePath = `uploads/${userId}/${Date.now()}_${safeName}`;
           const fileRef = ref(firebaseStorage, storagePath);
-          await uploadBytes(fileRef, file, {
-            contentType: file.type || "application/octet-stream",
-          });
-          const downloadUrl = await getDownloadURL(fileRef);
+          await withTimeout(
+            uploadBytes(fileRef, file, {
+              contentType: file.type || "application/octet-stream",
+            }),
+            UPLOAD_TIMEOUT_MS,
+            "Datei-Upload Timeout (Firebase Storage)."
+          );
+          const downloadUrl = await withTimeout(
+            getDownloadURL(fileRef),
+            10000,
+            "Download-URL konnte nicht abgerufen werden."
+          );
           return { file_url: downloadUrl };
         }
 
