@@ -291,7 +291,7 @@ export default function FileHub() {
       <div className="flex flex-col items-center justify-center h-full text-slate-500">
         <File className="w-24 h-24 mb-4" />
         <p>Vorschau nicht verfügbar</p>
-        <a href={file.url} download className="mt-4 text-indigo-600 hover:underline">
+        <a href={file.url} download={file.name || true} className="mt-4 text-indigo-600 hover:underline">
           Datei herunterladen
         </a>
       </div>
@@ -534,8 +534,8 @@ export default function FileHub() {
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem asChild>
-                                <a href={file.url} target="_blank" rel="noreferrer" className="flex items-center" onClick={(e) => e.stopPropagation()}>
-                                    <Download className="w-3 h-3 mr-2" /> Öffnen
+                                <a href={file.url} download={file.name || true} className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                                    <Download className="w-3 h-3 mr-2" /> Herunterladen
                                 </a>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); deleteFileMutation.mutate(file.id); }} className="text-red-600">
@@ -591,9 +591,9 @@ export default function FileHub() {
                       </Button>
                     </div>
                   )}
-                  <a href={previewFile.url} target="_blank" rel="noreferrer">
+                  <a href={previewFile.url} download={previewFile.name || true}>
                     <Button variant="outline" size="sm" className="text-xs sm:text-sm">
-                      <Download className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Öffnen</span>
+                      <Download className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Download</span>
                     </Button>
                   </a>
                 </div>
