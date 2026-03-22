@@ -190,7 +190,7 @@ function ProjectsListContent() {
             <img
               src={orbyloxLogo}
               alt="ORBYLOX"
-              className="h-10 w-auto object-contain"
+              className="h-12 sm:h-14 w-auto object-contain"
             />
             <div>
               <h1 className="text-2xl font-bold text-slate-900">ORBYLOX</h1>
