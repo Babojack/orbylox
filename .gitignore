@@ -3,6 +3,10 @@
 .env.*
 .cursor/
 
+# Hostinger invite API secrets (never commit)
+public/api/invite-config.php
+public/api/vendor/
+
 # Logs
 logs
 *.log

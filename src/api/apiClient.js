@@ -19,7 +19,6 @@ import {
   where,
   or,
 } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
 const UPLOAD_TIMEOUT_MS = 30000;
@@ -88,15 +87,6 @@ async function getStorageUser() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "user");
     return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function getCallableFunctions() {
-  if (!hasFirebaseConfig) return null;
-  try {
-    return getFunctions();
   } catch {
     return null;
   }
@@ -812,13 +802,35 @@ export const api = {
         };
       },
       async SendEmail(payload = {}) {
-        const functions = getCallableFunctions();
-        if (!functions) {
-          throw new Error("Email sending is not configured (Firebase Functions).");
+        const url =
+          import.meta.env.VITE_INVITE_EMAIL_URL ||
+          (typeof window !== "undefined" ? `${window.location.origin}/api/send-invite.php` : "");
+        const apiKey = import.meta.env.VITE_INVITE_API_KEY || "";
+        if (!url) {
+          throw new Error("Invite email URL missing (VITE_INVITE_EMAIL_URL).");
         }
-        const fn = httpsCallable(functions, "sendInviteEmail");
-        const res = await fn(payload);
-        return res?.data || { status: "ok" };
+        if (!apiKey) {
+          throw new Error("Invite API key missing (VITE_INVITE_API_KEY).");
+        }
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Invite-Api-Key": apiKey,
+          },
+          body: JSON.stringify(payload),
+        });
+        const text = await res.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          throw new Error(text || `Invite email failed (${res.status})`);
+        }
+        if (!res.ok) {
+          throw new Error(data.error || text || `Invite email failed (${res.status})`);
+        }
+        return data;
       },
       async SendSMS() {
         await delay();

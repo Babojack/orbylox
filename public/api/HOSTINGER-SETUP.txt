@@ -1,0 +1,27 @@
+ORBYLOX – Invite mail on Hostinger (no Firebase Functions)
+
+1) Upload this entire folder to your site, e.g.:
+   public_html/api/
+
+   You need:
+   - send-invite.php
+   - composer.json
+   - invite-config.php     (copy from invite-config.example.php, add passwords)
+   - vendor/               (run "composer install" on server or locally then upload)
+
+2) On the server (SSH) in the api folder:
+   composer install --no-dev --optimize-autoloader
+
+3) Copy invite-config.example.php → invite-config.php
+   - Set api_key to a long random string (same value as VITE_INVITE_API_KEY in frontend .env)
+   - Set smtp_pass to the mailbox password for invite@orbylox.de
+
+4) Frontend .env (then npm run build and deploy dist):
+   VITE_INVITE_EMAIL_URL=https://orbylox.de/api/send-invite.php
+   VITE_INVITE_API_KEY=<same as invite-config api_key>
+
+5) Test: open browser console on your app, invite someone – or curl:
+   curl -sS -X POST https://orbylox.de/api/send-invite.php \
+     -H "Content-Type: application/json" \
+     -H "X-Invite-Api-Key: YOUR_KEY" \
+     -d '{"to":"you@example.com","projectId":"testid","appUrl":"https://orbylox.de"}'

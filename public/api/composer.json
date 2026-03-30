@@ -1,0 +1,7 @@
+{
+  "name": "orbylox/invite-api",
+  "description": "Hostinger PHP invite mail (PHPMailer)",
+  "require": {
+    "phpmailer/phpmailer": "^6.9"
+  }
+}
