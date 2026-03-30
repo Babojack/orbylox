@@ -46,7 +46,7 @@ service cloud.firestore {
 
     function canAccessProjectId(projectId) {
       let p = projectSnap(projectId);
-      return p.exists()
+      return exists(/databases/$(database)/documents/Project/$(projectId))
         && (
           (('userId' in p.data) && p.data.userId == request.auth.uid)
           || (('created_by' in p.data) && p.data.created_by != null && p.data.created_by.lower() == authEmailLower())
@@ -74,6 +74,15 @@ service cloud.firestore {
         && isProjectScoped(resource.data)
         && isProjectScoped(request.resource.data)
         && resource.data.project_id == request.resource.data.project_id
+        && (
+          !('userId' in resource.data)
+          || (('userId' in request.resource.data) && request.resource.data.userId == resource.data.userId)
+        )
+        && (
+          !('created_by' in resource.data)
+          || (('created_by' in request.resource.data) && request.resource.data.created_by != null && resource.data.created_by != null
+            && request.resource.data.created_by.lower() == resource.data.created_by.lower())
+        )
         && canAccessProjectId(resource.data.project_id);
     }
 
