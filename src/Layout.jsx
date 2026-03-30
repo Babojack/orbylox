@@ -39,7 +39,6 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
-import orbyloxLogo from "@/assets/orbylox-logo.png";
 
 const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
 
@@ -298,11 +297,9 @@ function LayoutContent({ children, currentPageName }) {
       <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 dark:border-slate-800 flex flex-col fixed lg:fixed h-full bg-white dark:bg-slate-900 z-50 transition-transform duration-300`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <img
-              src={orbyloxLogo}
-              alt="ORBYLOX"
-              className="h-12 sm:h-14 w-[190px] object-cover object-center"
-            />
+            <div className="text-[11px] sm:text-xs font-extrabold tracking-[0.08em] leading-tight text-slate-900 dark:text-slate-100">
+              ORBYLOX - FREE PROJECT MANAGEMENT FOR EVERYONE
+            </div>
           </div>
           <button 
             onClick={() => setIsSidebarOpen(false)}
@@ -434,7 +431,7 @@ function LayoutContent({ children, currentPageName }) {
                </DropdownMenuTrigger>
                <DropdownMenuContent align="end" className="w-72">
                  <div className="px-3 py-2 border-b border-slate-100">
-                   <p className="font-medium text-sm text-slate-900">Benachrichtigungen</p>
+                   <p className="font-medium text-sm text-slate-900">{t('notifications')}</p>
                  </div>
                  {newPostsCount > 0 && (
                    <DropdownMenuItem asChild>
@@ -454,7 +451,7 @@ function LayoutContent({ children, currentPageName }) {
                  )}
                  {(newPostsCount + newMessagesCount) === 0 && (
                    <div className="px-3 py-4 text-center text-sm text-slate-400">
-                     Keine neuen Benachrichtigungen
+                     {t('noNotifications')}
                    </div>
                  )}
                </DropdownMenuContent>

@@ -12,7 +12,6 @@ import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { toast } from "@/components/ui/use-toast";
-import orbyloxLogo from "@/assets/orbylox-logo.png";
 
 const ADMIN_EMAIL = "gudfransen@gmail.com";
 const MAX_PROJECTS_BASIC = 2;
@@ -187,11 +186,9 @@ function ProjectsListContent() {
       <div className="border-b border-slate-200 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img
-              src={orbyloxLogo}
-              alt="ORBYLOX"
-              className="h-12 sm:h-14 w-[210px] sm:w-[250px] object-cover object-center"
-            />
+            <div className="text-[11px] sm:text-sm font-extrabold tracking-[0.08em] leading-tight text-slate-900">
+              ORBYLOX - FREE PROJECT MANAGEMENT FOR EVERYONE
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button 

@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { createPageUrl } from "@/utils";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export default function AdminUsers() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
 
@@ -48,7 +50,7 @@ export default function AdminUsers() {
   }, [search, users]);
 
   if (userLoading || adminLoading) {
-    return <div className="flex items-center justify-center h-[40vh] text-slate-500">Laden...</div>;
+    return <div className="flex items-center justify-center h-[40vh] text-slate-500">{t("loading")}</div>;
   }
 
   if (!currentUser) {
@@ -60,12 +62,12 @@ export default function AdminUsers() {
     return (
       <div className="max-w-3xl mx-auto py-10">
         <Card className="p-6 border-red-200 bg-red-50">
-          <h2 className="text-xl font-semibold text-red-800">Kein Zugriff</h2>
+          <h2 className="text-xl font-semibold text-red-800">{t("noProjectAccess")}</h2>
           <p className="text-red-700 mt-2">
-            Diese Seite ist nur fuer Admins verfuegbar.
+            This page is only available for admins.
           </p>
           <Button className="mt-4" onClick={() => (window.location.href = createPageUrl("ProjectsList"))}>
-            Zurueck zu Projekten
+            {t("backToProjects")}
           </Button>
         </Card>
       </div>
@@ -77,10 +79,10 @@ export default function AdminUsers() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Admin Panel</h2>
-          <p className="text-slate-500">Benutzerplaene verwalten (Basic / Premium)</p>
+          <p className="text-slate-500">Manage user plans (Basic / Premium)</p>
         </div>
         <Button variant="outline" onClick={() => refetchUsers()}>
-          Neu laden
+          {t("tryAgain")}
         </Button>
       </div>
 
@@ -88,18 +90,18 @@ export default function AdminUsers() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Nach E-Mail suchen..."
+          placeholder="Search by email..."
         />
       </Card>
 
       {usersError ? (
         <Card className="p-4 border-red-200 bg-red-50 text-red-700">
-          Benutzer konnten nicht geladen werden: {usersError.message}
+          Users could not be loaded: {usersError.message}
         </Card>
       ) : usersLoading ? (
-        <div className="text-slate-500 py-10 text-center">Benutzer werden geladen...</div>
+        <div className="text-slate-500 py-10 text-center">{t("loading")}</div>
       ) : filtered.length === 0 ? (
-        <Card className="p-6 text-slate-500 text-center">Keine Benutzer gefunden.</Card>
+        <Card className="p-6 text-slate-500 text-center">No users found.</Card>
       ) : (
         <div className="space-y-3">
           {filtered.map((u) => (

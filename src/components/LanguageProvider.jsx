@@ -20,6 +20,9 @@ export const translations = {
     newMessages: "new messages",
     editProfile: "Edit Profile",
     subscription: "Subscription",
+    language: "Language",
+    english: "English",
+    german: "German",
     
     // Navigation
     overview: "Feeds",
@@ -28,6 +31,12 @@ export const translations = {
     canvas: "Canvas",
     files: "Files",
     chat: "Chat",
+
+    // Common UI
+    projectFeed: "Project Feed",
+    noProjectAccess: "No access to this project",
+    backToProjects: "Back to projects",
+    tryAgain: "Try again",
     
     // ProjectsList
     myProjects: "My Projects",
@@ -342,6 +351,9 @@ export const translations = {
     newMessages: "neue Nachrichten",
     editProfile: "Profil bearbeiten",
     subscription: "Abonnement",
+    language: "Sprache",
+    english: "Englisch",
+    german: "Deutsch",
     
     // Navigation
     overview: "Feeds",
@@ -350,6 +362,12 @@ export const translations = {
     canvas: "Canvas",
     files: "Dateien",
     chat: "Chat",
+
+    // Common UI
+    projectFeed: "Projekt Feed",
+    noProjectAccess: "Kein Zugriff auf dieses Projekt",
+    backToProjects: "Zurueck zu Projekten",
+    tryAgain: "Erneut versuchen",
     
     // ProjectsList
     myProjects: "Meine Projekte",
@@ -651,6 +669,12 @@ export const translations = {
 
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState(() => {
+    try {
+      const saved = (localStorage.getItem('orbylox_language') || '').toLowerCase();
+      if (saved === 'de' || saved === 'en') return saved;
+    } catch {
+      // ignore
+    }
     return 'en';
   });
 

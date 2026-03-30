@@ -62,14 +62,14 @@ export default function ProjectMembersManager({ projectId }) {
       const isGerman = language === 'de';
       return api.integrations.Core.SendEmail({
         to: email,
-        from_name: "OMNIPLACE Team",
+        from_name: "ORBYLOX Team",
         subject: isGerman 
-          ? "🎉 Du wurdest zu einem Projekt in OMNIPLACE eingeladen!"
-          : "🎉 You've been invited to a project in OMNIPLACE!",
+          ? "🎉 Du wurdest zu einem Projekt in ORBYLOX eingeladen!"
+          : "🎉 You've been invited to a project in ORBYLOX!",
         body: isGerman ? `
 Hallo!
 
-Du wurdest eingeladen, einem Projekt in OMNIPLACE beizutreten - der Plattform für Teamarbeit.
+Du wurdest eingeladen, einem Projekt in ORBYLOX beizutreten - der Plattform für Teamarbeit.
 
 🚀 Was dich erwartet:
 • Gemeinsame Arbeit an Aufgaben in Echtzeit
@@ -80,11 +80,11 @@ Du wurdest eingeladen, einem Projekt in OMNIPLACE beizutreten - der Plattform f�
 👉 Klicke hier, um zu starten: ${appUrl}
 
 Bis bald im Projekt!
-Dein OMNIPLACE Team
+Dein ORBYLOX Team
         ` : `
 Hello!
 
-You've been invited to join a project in OMNIPLACE - the platform for team collaboration.
+You've been invited to join a project in ORBYLOX - the platform for team collaboration.
 
 🚀 What awaits you:
 • Real-time collaborative task management
@@ -95,7 +95,7 @@ You've been invited to join a project in OMNIPLACE - the platform for team colla
 👉 Click here to get started: ${appUrl}
 
 See you in the project!
-Your OMNIPLACE Team
+Your ORBYLOX Team
         `
       });
     }
@@ -126,19 +126,7 @@ Your OMNIPLACE Team
     setInviting(true);
     
     try {
-      // Check if user exists in the system
-      const allUsers = await api.entities.User.list();
-      const userExists = allUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
-      
-      if (!userExists) {
-        alert(isGerman 
-          ? '❌ Dieser Benutzer ist nicht im System registriert.\nBitte lass ihn sich zuerst registrieren!'
-          : '❌ This user is not registered in the system.\nPlease ask them to register first!');
-        setInviting(false);
-        return;
-      }
-      
-      // Add to project
+      // Add to project (also works for not-yet-registered emails)
       const newMembers = [...currentMembers, email.toLowerCase()];
       await updateMembersMutation.mutateAsync(newMembers);
       

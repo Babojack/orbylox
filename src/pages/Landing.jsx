@@ -4,17 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { 
         ArrowRight, Sparkles, Check, 
-        Lightbulb, Clock, Euro, BookOpen, Rocket, MapPin
+        Lightbulb, Clock, Euro, BookOpen, Rocket, MapPin, Languages
       } from 'lucide-react';
       import { Input } from "@/components/ui/input";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import InteractiveFeatureCard from "@/components/landing/InteractiveFeatureCard";
-import orbyloxLogo from "@/assets/orbylox-logo.png";
 
 function LandingContent() {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
   const [waitlistEmail, setWaitlistEmail] = React.useState('');
   const [waitlistLoading, setWaitlistLoading] = React.useState(false);
@@ -109,13 +108,20 @@ function LandingContent() {
       <nav className="fixed top-0 w-full bg-white border-b border-slate-100 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img
-              src={orbyloxLogo}
-              alt="ORBYLOX"
-              className="h-14 sm:h-16 lg:h-20 w-[230px] sm:w-[280px] lg:w-[320px] object-cover object-center"
-            />
+            <div className="text-[11px] sm:text-sm lg:text-base font-extrabold tracking-[0.08em] leading-tight text-slate-900">
+              ORBYLOX - FREE PROJECT MANAGEMENT FOR EVERYONE
+            </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-slate-600 hover:text-slate-900"
+              onClick={() => setLanguage(language === 'en' ? 'de' : 'en')}
+              title={t('language')}
+            >
+              <Languages className="w-5 h-5" />
+            </Button>
             <Button 
               onClick={handleGetStarted}
               variant="outline" 
@@ -431,11 +437,9 @@ function LandingContent() {
       <footer className="border-t border-slate-100 py-12 px-6 bg-slate-50">
         <div className="max-w-6xl mx-auto text-center text-slate-600">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <img
-              src={orbyloxLogo}
-              alt="ORBYLOX"
-              className="h-12 sm:h-14 w-[220px] sm:w-[270px] object-cover object-center"
-            />
+            <div className="text-[11px] sm:text-sm font-extrabold tracking-[0.08em] leading-tight text-slate-900">
+              ORBYLOX - FREE PROJECT MANAGEMENT FOR EVERYONE
+            </div>
           </div>
           <p className="text-sm mb-2">© 2024 ORBYLOX. {t('simplestToolForStartups')}</p>
           <p className="text-xs text-slate-400 flex items-center justify-center gap-1">

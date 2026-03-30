@@ -22,6 +22,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import ImageCollage from "@/components/feed/ImageCollage";
+import { useLanguage } from "@/components/LanguageProvider";
 
 function avatarSeedFromEmail(email = "") {
   // Avoid leaking raw emails in third-party avatar URLs.
@@ -34,6 +35,7 @@ function avatarSeedFromEmail(email = "") {
 }
 
 export default function SocialBoard() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [newPostContent, setNewPostContent] = useState("");
   const [selectedImages, setSelectedImages] = useState([]);
@@ -275,19 +277,19 @@ export default function SocialBoard() {
   };
 
   if (userLoading || !user) {
-    return <div className="flex items-center justify-center h-[50vh] text-slate-400">Laden...</div>;
+    return <div className="flex items-center justify-center h-[50vh] text-slate-400">{t('loading')}</div>;
   }
 
   if (isLoading) {
     return (
       <div className="max-w-3xl mx-auto space-y-8">
         <div className="flex flex-col gap-2">
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Projekt Feed</h2>
-          <p className="text-slate-500">Updates, Ankündigungen und Team-Diskussionen.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">{t('projectFeed')}</h2>
+          <p className="text-slate-500">Updates, announcements and team discussions.</p>
         </div>
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
-          <span>Feed wird geladen...</span>
+          <span>Loading feed...</span>
         </div>
       </div>
     );
@@ -296,15 +298,15 @@ export default function SocialBoard() {
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900">Projekt Feed</h2>
-        <p className="text-slate-500">Updates, Ankündigungen und Team-Diskussionen.</p>
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900">{t('projectFeed')}</h2>
+        <p className="text-slate-500">Updates, announcements and team discussions.</p>
       </div>
 
       {/* Create Post Input */}
       <Card className="border-slate-100 shadow-sm overflow-hidden">
         <div className="p-4 pb-0">
            <Textarea 
-            placeholder="Was gibt's Neues?" 
+            placeholder="What's new?" 
             className="border-none resize-none focus-visible:ring-0 text-lg min-h-[100px] placeholder:text-slate-300"
             value={newPostContent}
             onChange={(e) => setNewPostContent(e.target.value)}
