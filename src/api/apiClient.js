@@ -17,7 +17,9 @@ import {
   deleteDoc,
   query,
   where,
+  or,
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
 const UPLOAD_TIMEOUT_MS = 30000;
@@ -91,6 +93,15 @@ async function getStorageUser() {
   }
 }
 
+function getCallableFunctions() {
+  if (!hasFirebaseConfig) return null;
+  try {
+    return getFunctions();
+  } catch {
+    return null;
+  }
+}
+
 /** Firestore is only used when user is signed in with Firebase (has uid). Local email users keep using localStorage. */
 function getStorageUserId(user) {
   if (!user || user.demo) return null;
@@ -144,6 +155,20 @@ function sortItems(items, orderBy) {
 
 async function firestoreList(db, collectionName, userId, orderBy) {
   const coll = collection(db, collectionName);
+  if (collectionName === "Project") {
+    const user = await getStorageUser();
+    const emailLower = (user?.email || "").toLowerCase();
+    const clauses = [where("userId", "==", userId)];
+    if (emailLower) {
+      clauses.push(where("created_by", "==", emailLower));
+      clauses.push(where("members", "array-contains", emailLower));
+    }
+    const q = query(coll, or(...clauses));
+    const snap = await getDocs(q);
+    const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return sortItems(items, orderBy);
+  }
+
   const q = query(coll, where("userId", "==", userId));
   const snap = await getDocs(q);
   const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -786,9 +811,14 @@ export const api = {
           url: "https://via.placeholder.com/800x450.png?text=Roadmap",
         };
       },
-      async SendEmail() {
-        await delay();
-        return { status: "ok" };
+      async SendEmail(payload = {}) {
+        const functions = getCallableFunctions();
+        if (!functions) {
+          throw new Error("Email sending is not configured (Firebase Functions).");
+        }
+        const fn = httpsCallable(functions, "sendInviteEmail");
+        const res = await fn(payload);
+        return res?.data || { status: "ok" };
       },
       async SendSMS() {
         await delay();

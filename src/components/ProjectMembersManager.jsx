@@ -62,11 +62,12 @@ export default function ProjectMembersManager({ projectId }) {
       const isGerman = language === 'de';
       return api.integrations.Core.SendEmail({
         to: email,
-        from_name: "ORBYLOX Team",
+        projectId,
+        appUrl,
         subject: isGerman 
           ? "🎉 Du wurdest zu einem Projekt in ORBYLOX eingeladen!"
           : "🎉 You've been invited to a project in ORBYLOX!",
-        body: isGerman ? `
+        bodyText: isGerman ? `
 Hallo!
 
 Du wurdest eingeladen, einem Projekt in ORBYLOX beizutreten - der Plattform für Teamarbeit.
@@ -77,7 +78,7 @@ Du wurdest eingeladen, einem Projekt in ORBYLOX beizutreten - der Plattform für
 • Team-Chat
 • Dokumente und Dateien
 
-👉 Klicke hier, um zu starten: ${appUrl}
+👉 Klicke hier, um zu starten: ${appUrl}/login?project=${encodeURIComponent(projectId)}
 
 Bis bald im Projekt!
 Dein ORBYLOX Team
@@ -92,7 +93,7 @@ You've been invited to join a project in ORBYLOX - the platform for team collabo
 • Team chat
 • Documents and files
 
-👉 Click here to get started: ${appUrl}
+👉 Click here to get started: ${appUrl}/login?project=${encodeURIComponent(projectId)}
 
 See you in the project!
 Your ORBYLOX Team
