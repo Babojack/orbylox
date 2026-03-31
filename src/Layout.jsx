@@ -39,6 +39,7 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
+import { recoverActiveTimer, stopTimer, getActiveTimer } from "@/lib/projectTimer";
 
 const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
 
@@ -103,6 +104,38 @@ function LayoutContent({ children, currentPageName }) {
   });
   const [showNotifications, setShowNotifications] = React.useState(false);
   const isAdmin = getAdminEmails().includes((currentUser?.email || "").toLowerCase());
+
+  // Ensure a running timer is stopped when the tab/page is closed or hidden.
+  React.useEffect(() => {
+    // If the app reloads while a timer was running, close it immediately.
+    recoverActiveTimer();
+
+    const stopIfActive = (reason) => {
+      const active = getActiveTimer();
+      if (active?.projectId) {
+        stopTimer({ reason });
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        stopIfActive("visibility_hidden");
+      }
+    };
+
+    const onPageHide = () => stopIfActive("pagehide");
+    const onBeforeUnload = () => stopIfActive("beforeunload");
+
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
   
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
