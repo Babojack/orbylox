@@ -55,6 +55,42 @@ export const translations = {
     members: "members",
     deleteProject: "Delete Project",
     deleteProjectConfirm: "Really delete this project?",
+
+    // ProjectsList (extended)
+    decideWhatToDo: "What would you like to do?",
+    chooseOptionToStart: "Choose an option to start",
+    toMyProjects: "To my projects",
+    newShort: "New",
+    projectCreateFailedTitle: "Project could not be created",
+    projectCreateFailedDesc: "Please sign in with Google for cloud storage or check the error.",
+    enterProjectName: "Please enter a project name",
+    retry: "Try again",
+    createFirstProjectCta: "Create first project",
+    hiddenAllTitle: "All projects are hidden",
+    hiddenAllDesc: "Show hidden projects again or create a new one.",
+    showHidden: "Show hidden",
+    editProject: "Edit project",
+    name: "Name",
+    coverImage: "Cover image",
+    membersMax: "Members (max {{max}})",
+    commaSeparated: "Comma-separated.",
+    save: "Save",
+    saving: "Saving…",
+    viewToggleList: "List",
+    viewToggleGrid: "Grid",
+    reset: "Reset",
+    statsLoading: "Stats…",
+    workspace: "Workspace",
+    dragProjectsHere: "Drag projects here",
+    dropProjectsHere: "Drop projects here to pin them to your workspace.",
+    favorites: "Favorites",
+    projects: "Projects",
+    totalTime: "Total time",
+    last: "Last",
+    notTrackedYet: "Not tracked yet",
+    feeds: "Feeds",
+    activeModules: "Active modules",
+    removeFromWorkspace: "Remove from workspace",
     
     // Tasks
     sprintBoard: "Sprint Board",
@@ -386,6 +422,42 @@ export const translations = {
     members: "Mitglieder",
     deleteProject: "Projekt löschen",
     deleteProjectConfirm: "Projekt wirklich löschen?",
+
+    // ProjectsList (extended)
+    decideWhatToDo: "Was möchtest du tun?",
+    chooseOptionToStart: "Wähle eine Option um zu starten",
+    toMyProjects: "Zu meinen Projekten",
+    newShort: "Neu",
+    projectCreateFailedTitle: "Projekt konnte nicht erstellt werden",
+    projectCreateFailedDesc: "Bitte mit Google anmelden für Cloud-Speicher oder Fehler prüfen.",
+    enterProjectName: "Bitte Projektname eingeben",
+    retry: "Erneut versuchen",
+    createFirstProjectCta: "Erstes Projekt erstellen",
+    hiddenAllTitle: "Alle Projekte sind ausgeblendet",
+    hiddenAllDesc: "Blende Projekte wieder ein oder erstelle ein neues.",
+    showHidden: "Ausgeblendete anzeigen",
+    editProject: "Projekt bearbeiten",
+    name: "Name",
+    coverImage: "Cover Image",
+    membersMax: "Members (max {{max}})",
+    commaSeparated: "Kommagetrennt.",
+    save: "Speichern",
+    saving: "Speichert…",
+    viewToggleList: "List",
+    viewToggleGrid: "Grid",
+    reset: "Reset",
+    statsLoading: "Stats…",
+    workspace: "Workspace",
+    dragProjectsHere: "Drag projects here",
+    dropProjectsHere: "Drop projects here to pin them to your workspace.",
+    favorites: "Favorites",
+    projects: "Projekte",
+    totalTime: "Zeit gesamt",
+    last: "Zuletzt",
+    notTrackedYet: "Noch nie getrackt",
+    feeds: "Feeds",
+    activeModules: "Aktive Module",
+    removeFromWorkspace: "Remove from workspace",
     
     // Tasks
     sprintBoard: "Sprint Board",
@@ -682,8 +754,13 @@ export function LanguageProvider({ children }) {
     localStorage.setItem('orbylox_language', language);
   }, [language]);
 
-  const t = (key) => {
-    return translations[language][key] || key;
+  const t = (key, vars = null) => {
+    const template = translations?.[language]?.[key] || translations?.en?.[key] || key;
+    if (!vars) return template;
+    return Object.entries(vars).reduce(
+      (acc, [k, v]) => acc.replaceAll(`{{${k}}}`, String(v)),
+      template
+    );
   };
 
   return (

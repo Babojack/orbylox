@@ -7,9 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { DragDropContext, Draggable } from '@hello-pangea/dnd';
-import { StrictModeDroppable as Droppable } from "@/components/StrictModeDroppable";
-import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, EyeOff, Pencil, GripVertical, LayoutGrid, List } from 'lucide-react';
+import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, EyeOff, Pencil, LayoutGrid, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
@@ -121,7 +119,7 @@ function computeProjectStats({ tasks = [], posts = [], docs = [], canvasItems = 
 function ProjectsListContent() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [showDecisionMenu, setShowDecisionMenu] = useState(true);
+  const [showDecisionMenu, setShowDecisionMenu] = useState(false);
   const [createMode, setCreateMode] = useState(null); // 'project' or 'validation'
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newProject, setNewProject] = useState({ name: "", description: "", cover_image: "" });
@@ -159,20 +157,34 @@ function ProjectsListContent() {
 
   const favoritesKey = storageKey(userEmailLower, "favorites");
   const hiddenKey = storageKey(userEmailLower, "hidden");
-  const orderKey = storageKey(userEmailLower, "order");
-  const workspaceKey = storageKey(userEmailLower, "workspace");
 
   const [favoriteIds, setFavoriteIds] = useState(() => readStringArray(favoritesKey));
   const [hiddenIds, setHiddenIds] = useState(() => readStringArray(hiddenKey));
-  const [orderedIds, setOrderedIds] = useState(() => readStringArray(orderKey));
-  const [workspaceIds, setWorkspaceIds] = useState(() => readStringArray(workspaceKey));
 
   React.useEffect(() => {
     setFavoriteIds(readStringArray(favoritesKey));
     setHiddenIds(readStringArray(hiddenKey));
-    setOrderedIds(readStringArray(orderKey));
-    setWorkspaceIds(readStringArray(workspaceKey));
-  }, [favoritesKey, hiddenKey, orderKey, workspaceKey]);
+  }, [favoritesKey, hiddenKey]);
+
+  // Ask only once after login (per user).
+  React.useEffect(() => {
+    if (!userEmailLower) return;
+    const key = `orbylox_decision_menu_seen_v1:${userEmailLower}`;
+    let seen = false;
+    try {
+      seen = window.localStorage.getItem(key) === "1";
+    } catch {
+      seen = false;
+    }
+    if (!seen) {
+      setShowDecisionMenu(true);
+      try {
+        window.localStorage.setItem(key, "1");
+      } catch {
+        // ignore
+      }
+    }
+  }, [userEmailLower]);
 
   const { data: projects = [], isLoading, isError: projectsError, error: projectsErrorObj, refetch: refetchProjects } = useQuery({
     queryKey: ['projects', userEmailLower],
@@ -225,8 +237,8 @@ function ProjectsListContent() {
     },
     onError: (err) => {
       toast({
-        title: "Projekt konnte nicht erstellt werden",
-        description: err?.message || "Bitte mit Google anmelden für Cloud-Speicher oder Fehler prüfen.",
+        title: t('projectCreateFailedTitle'),
+        description: err?.message || t('projectCreateFailedDesc'),
         variant: "destructive",
       });
     },
@@ -271,8 +283,8 @@ function ProjectsListContent() {
     },
     onError: (err) => {
       toast({
-        title: "Projekt konnte nicht gespeichert werden",
-        description: err?.message || "Bitte erneut versuchen.",
+        title: t('projectCreateFailedTitle'),
+        description: err?.message || t('tryAgain'),
         variant: "destructive",
       });
     },
@@ -350,29 +362,13 @@ function ProjectsListContent() {
     writeStringArray(hiddenKey, uniqNext);
   };
 
-  const persistOrder = (next) => {
-    const uniqNext = uniq(next);
-    setOrderedIds(uniqNext);
-    writeStringArray(orderKey, uniqNext);
-  };
-
-  const persistWorkspace = (next) => {
-    const uniqNext = uniq(next);
-    setWorkspaceIds(uniqNext);
-    writeStringArray(workspaceKey, uniqNext);
-  };
-
   const toggleFavorite = (projectId) => persistFavorites(toggleInArray(favoriteIds, projectId));
   const toggleHidden = (projectId) => persistHidden(toggleInArray(hiddenIds, projectId));
 
   const visibleProjects = useMemo(() => {
     const base = projects.filter((p) => !hiddenIds.includes(p.id));
-    if (!orderedIds.length) return base;
-    const byId = new Map(base.map((p) => [p.id, p]));
-    const ordered = orderedIds.map((id) => byId.get(id)).filter(Boolean);
-    const rest = base.filter((p) => !orderedIds.includes(p.id));
-    return [...ordered, ...rest];
-  }, [projects, hiddenIds, orderedIds]);
+    return base;
+  }, [projects, hiddenIds]);
 
   const favoriteProjects = useMemo(
     () => visibleProjects.filter((p) => favoriteIds.includes(p.id)),
@@ -384,10 +380,7 @@ function ProjectsListContent() {
     [visibleProjects, favoriteIds]
   );
 
-  const workspaceProjects = useMemo(() => {
-    const byId = new Map(visibleProjects.map((p) => [p.id, p]));
-    return workspaceIds.map((id) => byId.get(id)).filter(Boolean);
-  }, [visibleProjects, workspaceIds]);
+  // Workspace removed by request.
 
   const { data: projectStats = {}, isLoading: statsLoading } = useQuery({
     queryKey: ["projectStats", userEmailLower],
@@ -415,36 +408,7 @@ function ProjectsListContent() {
     },
   });
 
-  const onDragEnd = (result) => {
-    const { destination, source, draggableId } = result;
-    if (!destination) return;
-
-    if (source.droppableId === "workspace" && destination.droppableId === "workspace") {
-      const next = [...workspaceIds];
-      next.splice(source.index, 1);
-      next.splice(destination.index, 0, draggableId);
-      persistWorkspace(next);
-      return;
-    }
-
-    if (source.droppableId === "all" && destination.droppableId === "workspace") {
-      persistWorkspace(uniq([...workspaceIds, draggableId]));
-      return;
-    }
-
-    if (source.droppableId === "workspace" && destination.droppableId === "all") {
-      persistWorkspace(workspaceIds.filter((id) => id !== draggableId));
-      return;
-    }
-
-    if (source.droppableId === "all" && destination.droppableId === "all" && viewMode === "list") {
-      const ids = nonFavoriteProjects.map((p) => p.id);
-      const nextIds = [...ids];
-      nextIds.splice(source.index, 1);
-      nextIds.splice(destination.index, 0, draggableId);
-      persistOrder(nextIds);
-    }
-  };
+  // Drag & Drop removed by request.
 
   const handleCoverUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -513,8 +477,8 @@ function ProjectsListContent() {
               className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl"
             >
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">Was möchtest du tun?</h2>
-                <p className="text-slate-500">Wähle eine Option um zu starten</p>
+                <h2 className="text-3xl font-bold text-slate-900 mb-2">{t('decideWhatToDo')}</h2>
+                <p className="text-slate-500">{t('chooseOptionToStart')}</p>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
@@ -546,47 +510,36 @@ function ProjectsListContent() {
                   }`}>
                     <FolderOpen className="w-7 h-7 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-2">Projekt erstellen</h3>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">{t('createProject')}</h3>
                   <p className="text-slate-600 text-sm">
                     {canCreateProject 
-                      ? 'Starte ein neues Projekt mit Tasks, Docs, Chat und mehr'
+                      ? (language === 'de'
+                        ? 'Starte ein neues Projekt mit Tasks, Docs, Chat und mehr'
+                        : 'Start a new project with tasks, docs, chat and more')
                       : `Limit erreicht (${userCreatedProjects.length}/${maxProjects})`}
                   </p>
                 </motion.button>
 
                 {/* Validate Idea Option */}
                 <motion.button
-                  whileHover={canCreateProject ? { scale: 1.03, y: -4 } : {}}
-                  whileTap={canCreateProject ? { scale: 0.98 } : {}}
-                  onClick={() => {
-                    if (!canCreateProject) {
-                      alert(language === 'de' 
-                        ? `❌ Du hast das Limit von ${maxProjects} Projekten erreicht!`
-                        : `❌ You've reached the limit of ${maxProjects} projects!`);
-                      return;
-                    }
-                    setShowDecisionMenu(false);
-                    setCreateMode('validation');
-                    setIsCreateOpen(true);
-                  }}
-                  className={`bg-gradient-to-br from-amber-50 to-orange-50 border-2 rounded-2xl p-6 text-left transition-all group ${
-                    canCreateProject 
-                      ? 'border-amber-200 hover:border-amber-400' 
-                      : 'border-slate-200 opacity-60 cursor-not-allowed'
-                  }`}
+                  disabled
+                  className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-slate-200 rounded-2xl p-6 text-left transition-all opacity-60 cursor-not-allowed relative"
                 >
                   <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform ${
-                    canCreateProject 
-                      ? 'bg-gradient-to-br from-amber-500 to-orange-500 group-hover:scale-110' 
-                      : 'bg-slate-400'
+                    'bg-slate-400'
                   }`}>
                     <Lightbulb className="w-7 h-7 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-2">Idee validieren</h3>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="text-xl font-bold text-slate-900">{language === 'de' ? 'Idee validieren' : 'Validate idea'}</h3>
+                    <span className="text-[10px] font-extrabold tracking-wider px-2 py-1 rounded-full bg-slate-900 text-white">
+                      ALPHA
+                    </span>
+                  </div>
                   <p className="text-slate-600 text-sm">
-                    {canCreateProject 
-                      ? 'Prüfe deine Produktidee mit Lean Startup, Design Thinking & mehr'
-                      : `Limit erreicht (${userCreatedProjects.length}/${maxProjects})`}
+                    {language === 'de'
+                      ? 'Dieses Modul ist in ALPHA und aktuell deaktiviert.'
+                      : 'This module is in ALPHA and currently disabled.'}
                   </p>
                 </motion.button>
               </div>
@@ -597,7 +550,7 @@ function ProjectsListContent() {
                   onClick={() => setShowDecisionMenu(false)}
                   className="text-slate-500 hover:text-slate-700 text-sm underline"
                 >
-                  Zu meinen Projekten →
+                  {t('toMyProjects')} →
                 </button>
               </div>
             </motion.div>
@@ -746,7 +699,7 @@ function ProjectsListContent() {
                   className="w-full bg-indigo-600 hover:bg-indigo-700"
                   onClick={() => {
                     if (!newProject.name?.trim()) {
-                      toast({ title: "Bitte Projektname eingeben", variant: "destructive" });
+                      toast({ title: t('enterProjectName'), variant: "destructive" });
                       return;
                     }
                     createProjectMutation.mutate({ ...newProject, name: newProject.name.trim() });
@@ -770,7 +723,7 @@ function ProjectsListContent() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-indigo-600" />
-                Projekt bearbeiten
+                {t('editProject')}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
@@ -847,7 +800,7 @@ function ProjectsListContent() {
                 title="Ansicht wechseln"
               >
                 {viewMode === "grid" ? <List className="w-4 h-4 mr-2" /> : <LayoutGrid className="w-4 h-4 mr-2" />}
-                {viewMode === "grid" ? "List" : "Grid"}
+                {viewMode === "grid" ? t('viewToggleList') : t('viewToggleGrid')}
               </Button>
               <Button
                 variant="outline"
@@ -855,16 +808,14 @@ function ProjectsListContent() {
                 onClick={() => {
                   persistHidden([]);
                   persistFavorites([]);
-                  persistWorkspace([]);
-                  persistOrder([]);
                 }}
                 title="Ansicht zurücksetzen"
               >
-                Reset
+                {t('reset')}
               </Button>
             </div>
             <div className="text-xs text-slate-500">
-              {statsLoading ? "Stats…" : ""}
+              {statsLoading ? t('statsLoading') : ""}
             </div>
           </div>
         )}
@@ -879,19 +830,15 @@ function ProjectsListContent() {
             <p className="text-slate-600 mb-4 max-w-md mx-auto">
               {projectsErrorObj?.message || "Fehler beim Laden. Bitte prüfe die Verbindung und ob du mit Google angemeldet bist."}
             </p>
-            <Button
-              onClick={() => refetchProjects()}
-              variant="outline"
-              className="mr-2"
-            >
-              Erneut versuchen
+            <Button onClick={() => refetchProjects()} variant="outline" className="mr-2">
+              {t('retry')}
             </Button>
             <Button
               onClick={() => setShowDecisionMenu(true)}
               className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
             >
               <Plus className="w-5 h-5 mr-2" />
-              Erstes Projekt erstellen
+              {t('createFirstProjectCta')}
             </Button>
           </div>
         ) : visibleProjects.length === 0 ? (
@@ -908,7 +855,7 @@ function ProjectsListContent() {
                 className="mr-2"
               >
                 <EyeOff className="w-5 h-5 mr-2" />
-                Ausgeblendete anzeigen ({hiddenIds.length})
+                {t('showHidden')} ({hiddenIds.length})
               </Button>
             )}
             <Button
@@ -920,108 +867,48 @@ function ProjectsListContent() {
             </Button>
           </div>
         ) : (
-          <DragDropContext onDragEnd={onDragEnd}>
-            {/* Workspace */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-700">Workspace</span>
-                  <Badge variant="secondary" className="bg-slate-100 text-slate-600">{workspaceProjects.length}</Badge>
-                </div>
-                <span className="text-xs text-slate-500">Drag projects here</span>
-              </div>
-              <Droppable droppableId="workspace" direction="horizontal">
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="flex gap-3 overflow-x-auto p-3 rounded-2xl border border-slate-200 bg-white"
-                  >
-                    {workspaceProjects.map((project, index) => (
-                      <Draggable draggableId={project.id} index={index} key={project.id}>
-                        {(provided) => (
-                          <div ref={provided.innerRef} {...provided.draggableProps} className="min-w-[260px]">
-                            <Card
-                              className="border-2 border-indigo-100 hover:border-indigo-300 cursor-pointer"
-                              onClick={() => openProject(project)}
-                            >
-                              <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <div {...provided.dragHandleProps} className="text-slate-300 hover:text-slate-500">
-                                      <GripVertical className="w-4 h-4" />
-                                    </div>
-                                    <CardTitle className="text-sm truncate">{project.name}</CardTitle>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); persistWorkspace(workspaceIds.filter((id) => id !== project.id)); }}
-                                    className="text-slate-400 hover:text-red-500"
-                                    title="Remove from workspace"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="pt-0">
-                                <div className="flex items-center justify-between text-xs text-slate-500">
-                                  <span>Feeds: <span className="font-medium text-slate-700">{projectStats?.[project.id]?.posts || 0}</span></span>
-                                  <span>Modules: <span className="font-medium text-slate-700">{projectStats?.[project.id]?.activeModules || 0}</span></span>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                    {workspaceProjects.length === 0 && (
-                      <div className="text-xs text-slate-400 py-6 px-3">Drop projects here to pin them to your workspace.</div>
-                    )}
-                  </div>
-                )}
-              </Droppable>
-            </div>
-
+          <>
             {/* Favorites */}
-            {favoriteProjects.length > 0 && (
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Star className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm font-semibold text-slate-700">Favorites</span>
-                  <Badge variant="secondary" className="bg-amber-50 text-amber-700">{favoriteProjects.length}</Badge>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {favoriteProjects.map((project) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      language={language}
-                      t={t}
-                      isSelectionMode={isSelectionMode}
-                      selectedProjects={selectedProjects}
-                      toggleProjectSelection={toggleProjectSelection}
-                      openProject={openProject}
-                      startProjectAndOpen={startProjectAndOpen}
-                      stopTimer={stopTimer}
-                      getProjectTimer={getProjectTimer}
-                      forceTick={forceTick}
-                      formatDuration={formatDuration}
-                      onToggleFavorite={toggleFavorite}
-                      onToggleHidden={toggleHidden}
-                      onEdit={openEditProject}
-                      isFavorite
-                      stats={projectStats?.[project.id]}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            <AnimatePresence mode="popLayout">
+              {favoriteProjects.length > 0 && (
+                <motion.div layout className="mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Star className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm font-semibold text-slate-700">{t('favorites')}</span>
+                    <Badge variant="secondary" className="bg-amber-50 text-amber-700">{favoriteProjects.length}</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {favoriteProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        language={language}
+                        t={t}
+                        isSelectionMode={isSelectionMode}
+                        selectedProjects={selectedProjects}
+                        toggleProjectSelection={toggleProjectSelection}
+                        openProject={openProject}
+                        startProjectAndOpen={startProjectAndOpen}
+                        stopTimer={stopTimer}
+                        getProjectTimer={getProjectTimer}
+                        forceTick={forceTick}
+                        formatDuration={formatDuration}
+                        onToggleFavorite={toggleFavorite}
+                        onToggleHidden={toggleHidden}
+                        onEdit={openEditProject}
+                        isFavorite
+                        stats={projectStats?.[project.id]}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* All projects */}
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-700">{language === "de" ? "Projekte" : "Projects"}</span>
+                <span className="text-sm font-semibold text-slate-700">{t('projects')}</span>
                 <Badge variant="secondary" className="bg-slate-100 text-slate-600">{nonFavoriteProjects.length}</Badge>
               </div>
               {hiddenIds.length > 0 && (
@@ -1030,89 +917,67 @@ function ProjectsListContent() {
                   size="sm"
                   className="border-slate-300"
                   onClick={() => persistHidden([])}
-                  title="Hidden projects wieder anzeigen"
+                  title={t('showHidden')}
                 >
                   <EyeOff className="w-4 h-4 mr-2" />
-                  Show hidden ({hiddenIds.length})
+                  {t('showHidden')} ({hiddenIds.length})
                 </Button>
               )}
             </div>
 
-            <Droppable droppableId="all">
-              {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps}>
-                  {viewMode === "list" ? (
-                    <div className="space-y-3">
-                      {nonFavoriteProjects.map((project, index) => (
-                        <Draggable draggableId={project.id} index={index} key={project.id}>
-                          {(provided) => (
-                            <div ref={provided.innerRef} {...provided.draggableProps} className="flex items-stretch gap-2">
-                              <div {...provided.dragHandleProps} className="flex items-center px-2 text-slate-300 hover:text-slate-500">
-                                <GripVertical className="w-4 h-4" />
-                              </div>
-                              <div className="flex-1">
-                                <ProjectCard
-                                  project={project}
-                                  language={language}
-                                  t={t}
-                                  isSelectionMode={isSelectionMode}
-                                  selectedProjects={selectedProjects}
-                                  toggleProjectSelection={toggleProjectSelection}
-                                  openProject={openProject}
-                                  startProjectAndOpen={startProjectAndOpen}
-                                  stopTimer={stopTimer}
-                                  getProjectTimer={getProjectTimer}
-                                  forceTick={forceTick}
-                                  formatDuration={formatDuration}
-                                  onToggleFavorite={toggleFavorite}
-                                  onToggleHidden={toggleHidden}
-                                  onEdit={openEditProject}
-                                  isFavorite={false}
-                                  stats={projectStats?.[project.id]}
-                                  compact
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {nonFavoriteProjects.map((project, index) => (
-                        <Draggable draggableId={project.id} index={index} key={project.id}>
-                          {(provided) => (
-                            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                              <ProjectCard
-                                project={project}
-                                language={language}
-                                t={t}
-                                isSelectionMode={isSelectionMode}
-                                selectedProjects={selectedProjects}
-                                toggleProjectSelection={toggleProjectSelection}
-                                openProject={openProject}
-                                startProjectAndOpen={startProjectAndOpen}
-                                stopTimer={stopTimer}
-                                getProjectTimer={getProjectTimer}
-                                forceTick={forceTick}
-                                formatDuration={formatDuration}
-                                onToggleFavorite={toggleFavorite}
-                                onToggleHidden={toggleHidden}
-                                onEdit={openEditProject}
-                                isFavorite={false}
-                                stats={projectStats?.[project.id]}
-                              />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                    </div>
-                  )}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </DragDropContext>
+            {viewMode === "list" ? (
+              <div className="space-y-3">
+                {nonFavoriteProjects.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    language={language}
+                    t={t}
+                    isSelectionMode={isSelectionMode}
+                    selectedProjects={selectedProjects}
+                    toggleProjectSelection={toggleProjectSelection}
+                    openProject={openProject}
+                    startProjectAndOpen={startProjectAndOpen}
+                    stopTimer={stopTimer}
+                    getProjectTimer={getProjectTimer}
+                    forceTick={forceTick}
+                    formatDuration={formatDuration}
+                    onToggleFavorite={toggleFavorite}
+                    onToggleHidden={toggleHidden}
+                    onEdit={openEditProject}
+                    isFavorite={false}
+                    stats={projectStats?.[project.id]}
+                    compact
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {nonFavoriteProjects.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    language={language}
+                    t={t}
+                    isSelectionMode={isSelectionMode}
+                    selectedProjects={selectedProjects}
+                    toggleProjectSelection={toggleProjectSelection}
+                    openProject={openProject}
+                    startProjectAndOpen={startProjectAndOpen}
+                    stopTimer={stopTimer}
+                    getProjectTimer={getProjectTimer}
+                    forceTick={forceTick}
+                    formatDuration={formatDuration}
+                    onToggleFavorite={toggleFavorite}
+                    onToggleHidden={toggleHidden}
+                    onEdit={openEditProject}
+                    isFavorite={false}
+                    stats={projectStats?.[project.id]}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -1148,12 +1013,21 @@ function ProjectCard({
   const activeModules = stats?.activeModules || 0;
 
   return (
-    <Card
-      className={`hover:shadow-xl transition-all duration-300 cursor-pointer group border-2 hover:border-indigo-300 relative ${
-        selectedProjects.includes(project.id) ? 'ring-2 ring-indigo-500 border-indigo-500' : ''
-      }`}
-      onClick={() => isSelectionMode ? toggleProjectSelection(project.id) : openProject(project)}
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 420, damping: 32, mass: 0.8 }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.985 }}
     >
+      <Card
+        className={`hover:shadow-xl transition-all duration-300 cursor-pointer group border-2 hover:border-indigo-300 relative ${
+          selectedProjects.includes(project.id) ? 'ring-2 ring-indigo-500 border-indigo-500' : ''
+        }`}
+        onClick={() => isSelectionMode ? toggleProjectSelection(project.id) : openProject(project)}
+      >
       {isSelectionMode && (
         <div className="absolute top-3 right-3 z-10" onClick={(e) => e.stopPropagation()}>
           <button
@@ -1184,7 +1058,7 @@ function ProjectCard({
           </div>
           {!isSelectionMode && (
             <div className="flex items-center gap-2">
-              <button
+              <motion.button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
@@ -1198,10 +1072,12 @@ function ProjectCard({
                     ? "bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100"
                     : "bg-white border-slate-200 text-slate-400 hover:text-amber-600 hover:border-amber-200"
                 }`}
+                whileTap={{ scale: 0.9, rotate: isFavorite ? -10 : 10 }}
+                whileHover={{ scale: 1.06 }}
               >
                 <Star className="w-4 h-4" />
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
@@ -1210,10 +1086,12 @@ function ProjectCard({
                 }}
                 title="Edit project"
                 className="h-8 w-8 rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center"
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.92 }}
               >
                 <Pencil className="w-4 h-4" />
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
@@ -1222,10 +1100,12 @@ function ProjectCard({
                 }}
                 title="Hide project"
                 className="h-8 w-8 rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center"
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.92 }}
               >
                 <EyeOff className="w-4 h-4" />
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
@@ -1243,9 +1123,11 @@ function ProjectCard({
                     ? "bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
                     : "bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100"
                 }`}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.9 }}
               >
                 {running ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              </button>
+              </motion.button>
               <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
             </div>
           )}
@@ -1268,24 +1150,25 @@ function ProjectCard({
         </div>
         <div className="mt-3 text-xs text-slate-500 flex items-center justify-between">
           <span>
-            {language === "de" ? "Zeit gesamt" : "Total time"}: <span className="font-medium text-slate-700">{formatDuration(totalMs)}</span>
+            {t('totalTime')}: <span className="font-medium text-slate-700">{formatDuration(totalMs)}</span>
           </span>
           <span className="truncate max-w-[55%] text-right">
             {lastWorkedAt
-              ? (language === "de" ? "Zuletzt" : "Last") + ": " + new Date(lastWorkedAt).toLocaleString(language === "de" ? "de" : "en")
-              : (language === "de" ? "Noch nie getrackt" : "Not tracked yet")}
+              ? t('last') + ": " + new Date(lastWorkedAt).toLocaleString(language === "de" ? "de" : "en")
+              : t('notTrackedYet')}
           </span>
         </div>
         <div className="mt-2 flex items-center justify-between text-xs">
           <span className="text-slate-500">
-            Feeds: <span className="font-medium text-slate-700">{feedCount}</span>
+            {t('feeds')}: <span className="font-medium text-slate-700">{feedCount}</span>
           </span>
           <span className="text-slate-500">
-            {language === "de" ? "Aktive Module" : "Active modules"}: <span className="font-medium text-slate-700">{activeModules}</span>
+            {t('activeModules')}: <span className="font-medium text-slate-700">{activeModules}</span>
           </span>
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </motion.div>
   );
 }
 
