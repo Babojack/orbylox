@@ -22,6 +22,33 @@ import {
   Calendar
 } from 'lucide-react';
 
+const URL_IN_TEXT = /(https?:\/\/[^\s]+)/gi;
+
+/** Plain-text comments with long URLs: split into spans + links so layout never overflows. */
+function CommentBody({ text }) {
+  if (!text) return null;
+  const parts = String(text).split(URL_IN_TEXT);
+  return (
+    <div className="text-sm text-slate-700 max-w-full min-w-0 leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] break-words [word-break:break-word]">
+      {parts.map((part, i) =>
+        part.match(/^https?:\/\//i) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-700 break-all align-baseline"
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </div>
+  );
+}
+
 export default function TaskDetailDialog({ 
   task, 
   isOpen, 
@@ -231,7 +258,7 @@ export default function TaskDetailDialog({
                 value={editedTask.description || ''}
                 onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
                 onBlur={() => updateTaskMutation.mutate({ description: editedTask.description })}
-                className="min-h-[100px]"
+                className="min-h-[100px] min-w-0 max-w-full [overflow-wrap:anywhere] break-words"
               />
             </div>
 
@@ -359,7 +386,7 @@ export default function TaskDetailDialog({
                         toggleSubtaskMutation.mutate({ id: subtask.id, completed: checked })
                       }
                     />
-                    <span className={`flex-1 text-sm ${subtask.completed ? 'line-through text-slate-400' : ''}`}>
+                    <span className={`flex-1 min-w-0 text-sm break-words [overflow-wrap:anywhere] ${subtask.completed ? 'line-through text-slate-400' : ''}`}>
                       {subtask.title}
                     </span>
                     <button
@@ -458,49 +485,54 @@ export default function TaskDetailDialog({
 
           {/* Right side - Comments */}
           <div className="w-full lg:w-80 flex flex-col bg-slate-50 border-t lg:border-t-0 min-h-[220px] lg:min-h-0 lg:max-h-none">
-            <div className="p-3 sm:p-4 border-b border-slate-200">
+            <div className="p-3 sm:p-4 border-b border-slate-200 bg-white/80">
               <h3 className="font-semibold text-slate-700 flex items-center gap-2 text-sm sm:text-base">
-                <MessageSquare className="w-4 h-4" />
+                <MessageSquare className="w-4 h-4 shrink-0" />
                 Comments ({comments.length})
               </h3>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 space-y-3 sm:space-y-4">
               {comments.length === 0 ? (
                 <p className="text-sm text-slate-400 text-center py-8">No comments yet</p>
               ) : (
                 comments.map((comment) => (
-                  <div key={comment.id} className="bg-white rounded-lg p-3 shadow-sm min-w-0">
-                    <div className="flex items-center gap-2 mb-2 min-w-0">
-                      <Avatar className="w-6 h-6">
+                  <div
+                    key={comment.id}
+                    className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm min-w-0 max-w-full overflow-hidden"
+                  >
+                    <div className="flex items-start gap-2 mb-3 min-w-0">
+                      <Avatar className="w-7 h-7 shrink-0">
                         <AvatarFallback className="text-xs bg-indigo-100 text-indigo-600">
                           {comment.author_email?.[0]?.toUpperCase() || '?'}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs font-medium text-slate-600 truncate">
-                        {comment.author_email?.split('@')[0] || 'Anonymous'}
-                      </span>
-                      <span className="text-xs text-slate-400 shrink-0">
-                        {new Date(comment.created_date).toLocaleDateString()}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-medium text-slate-700 block truncate">
+                          {comment.author_email?.split('@')[0] || 'Anonymous'}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {new Date(comment.created_date).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-sm text-slate-700 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{comment.content}</p>
+                    <CommentBody text={comment.content} />
                   </div>
                 ))
               )}
             </div>
 
-            <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50">
-              <div className="flex gap-2 items-end">
+            <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <div className="flex gap-2 items-stretch sm:items-end">
                 <Textarea
                   placeholder="Write a comment..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="min-h-[50px] sm:min-h-[60px] resize-none text-sm break-words [overflow-wrap:anywhere]"
+                  className="min-h-[52px] sm:min-h-[60px] min-w-0 flex-1 resize-none text-sm [overflow-wrap:anywhere] break-words"
                 />
                 <Button
                   size="icon"
-                  className="shrink-0 h-[50px] sm:h-[60px] w-10"
+                  className="shrink-0 h-11 w-11 sm:h-12 sm:w-12 self-end rounded-xl"
                   onClick={() => newComment.trim() && addCommentMutation.mutate(newComment.trim())}
                   disabled={!newComment.trim() || addCommentMutation.isPending}
                 >
