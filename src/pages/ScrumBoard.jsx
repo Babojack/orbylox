@@ -71,11 +71,13 @@ export default function ScrumBoard() {
     }
   }, [currentUser, userLoading, userError]);
 
-  // Check if user has access to this project
+  // Check if user has access to this project (emails stored lowercase in Firestore)
   const hasAccess = React.useMemo(() => {
     if (!project || !currentUser) return false;
-    return project.created_by === currentUser.email || 
-           (project.members && project.members.includes(currentUser.email));
+    const mine = (currentUser.email || "").trim().toLowerCase();
+    const owner = project.created_by ? String(project.created_by).trim().toLowerCase() : "";
+    const members = Array.isArray(project.members) ? project.members : [];
+    return owner === mine || members.some((m) => m && String(m).trim().toLowerCase() === mine);
   }, [project, currentUser]);
 
   // Fetch subtasks count for each task

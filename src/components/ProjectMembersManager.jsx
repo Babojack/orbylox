@@ -194,6 +194,11 @@ Your ORBYLOX Team
                   ? `⚠️ Maximale Teilnehmeranzahl erreicht (${MAX_MEMBERS_PER_PROJECT})`
                   : `⚠️ Maximum members limit reached (${MAX_MEMBERS_PER_PROJECT})`)}
           </p>
+          <p className="text-xs text-slate-600 mt-2 leading-snug">
+            {language === 'de'
+              ? 'Wichtig: Die Person muss sich mit Google anmelden — mit genau dieser E-Mail. Ohne Google-Login (Firestore) gibt es keinen Projektzugriff.'
+              : 'Important: They must sign in with Google using exactly this email address. Without Google sign-in (cloud), the project will not appear.'}
+          </p>
         </div>
         
         <div className="space-y-4">

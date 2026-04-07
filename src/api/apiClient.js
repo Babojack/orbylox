@@ -130,6 +130,27 @@ function stripUndefined(obj) {
   );
 }
 
+/**
+ * Firestore rules + queries use lowercase email for `members` / `created_by`.
+ * If admins enter mixed case, invited users get no list match and permission-denied.
+ */
+function normalizeProjectPayloadForSave(obj) {
+  if (!obj || typeof obj !== "object") return obj;
+  const o = { ...obj };
+  if (Array.isArray(o.members)) {
+    o.members = [
+      ...new Set(
+        o.members.map((e) => String(e || "").trim().toLowerCase()).filter(Boolean),
+      ),
+    ];
+  }
+  if (o.created_by != null && typeof o.created_by === "string") {
+    const t = o.created_by.trim().toLowerCase();
+    o.created_by = t || null;
+  }
+  return o;
+}
+
 function sortItems(items, orderBy) {
   if (orderBy === "-created_date") {
     return [...items].sort(
@@ -170,23 +191,31 @@ async function firestoreCreate(db, collectionName, userId, userEmail, data) {
   const now = new Date().toISOString();
   const id = generateId();
   const docRef = doc(db, collectionName, id);
-  const payload = stripUndefined({
+  let raw = {
     userId,
     created_by: userEmail || null,
     created_date: now,
     updated_date: now,
     ...data,
-  });
+  };
+  if (collectionName === "Project") {
+    raw = normalizeProjectPayloadForSave(raw);
+  }
+  const payload = stripUndefined(raw);
   await setDoc(docRef, payload);
   return { id, ...payload };
 }
 
 async function firestoreUpdate(db, collectionName, id, data) {
   const docRef = doc(db, collectionName, id);
-  const updated = stripUndefined({
+  let merged = {
     ...data,
     updated_date: new Date().toISOString(),
-  });
+  };
+  if (collectionName === "Project") {
+    merged = normalizeProjectPayloadForSave(merged);
+  }
+  const updated = stripUndefined(merged);
   await updateDoc(docRef, updated);
   const snap = await getDoc(docRef);
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
@@ -391,6 +420,8 @@ function createEntityApi(entityName) {
     },
     async create(data) {
       await delay();
+      const payload =
+        entityName === "Project" ? normalizeProjectPayloadForSave({ ...data }) : data;
       const user = await getStorageUser();
       if (user?.demo) {
         const items = readCollection(entityName);
@@ -399,7 +430,7 @@ function createEntityApi(entityName) {
           id: generateId(),
           created_date: now,
           updated_date: now,
-          ...data,
+          ...payload,
         };
         items.push(item);
         writeCollection(entityName, items);
@@ -412,7 +443,7 @@ function createEntityApi(entityName) {
           id: generateId(),
           created_date: now,
           updated_date: now,
-          ...data,
+          ...payload,
         };
         items.push(item);
         writeCollection(entityName, items);
@@ -427,14 +458,14 @@ function createEntityApi(entityName) {
           id: generateId(),
           created_date: now,
           updated_date: now,
-          ...data,
+          ...payload,
         };
         items.push(item);
         writeCollection(entityName, items);
         return item;
       }
       try {
-        return await firestoreCreate(firestoreDb, entityName, userId, user.email, data);
+        return await firestoreCreate(firestoreDb, entityName, userId, user.email, payload);
       } catch (err) {
         console.error(`[Firestore] ${entityName}.create fehlgeschlagen:`, err.message);
         if (err.code === "permission-denied" || err.message?.includes("permissions")) {
@@ -447,6 +478,8 @@ function createEntityApi(entityName) {
     },
     async update(id, data) {
       await delay();
+      const patch =
+        entityName === "Project" ? normalizeProjectPayloadForSave({ ...data }) : data;
       const user = await getStorageUser();
       if (user?.demo) {
         const items = readCollection(entityName);
@@ -454,7 +487,7 @@ function createEntityApi(entityName) {
         if (idx === -1) return null;
         const updated = {
           ...items[idx],
-          ...data,
+          ...patch,
           updated_date: new Date().toISOString(),
         };
         items[idx] = updated;
@@ -467,7 +500,7 @@ function createEntityApi(entityName) {
         if (idx === -1) return null;
         const updated = {
           ...items[idx],
-          ...data,
+          ...patch,
           updated_date: new Date().toISOString(),
         };
         items[idx] = updated;
@@ -481,7 +514,7 @@ function createEntityApi(entityName) {
         if (idx === -1) return null;
         const updated = {
           ...items[idx],
-          ...data,
+          ...patch,
           updated_date: new Date().toISOString(),
         };
         items[idx] = updated;
@@ -489,7 +522,7 @@ function createEntityApi(entityName) {
         return updated;
       }
       try {
-        return await firestoreUpdate(firestoreDb, entityName, id, data);
+        return await firestoreUpdate(firestoreDb, entityName, id, patch);
       } catch (err) {
         console.error(`[Firestore] ${entityName}.update fehlgeschlagen:`, err.message);
         if (err.code === "permission-denied" || err.message?.includes("permissions")) {

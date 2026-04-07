@@ -25,7 +25,6 @@ import {
   Rocket
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -164,7 +163,7 @@ function LayoutContent({ children, currentPageName }) {
   const { data: posts = [] } = useQuery({
     queryKey: ['posts', projectId],
     queryFn: async () => {
-      const allPosts = await api.entities.Post.list('-created_date', 100);
+      const allPosts = await api.entities.Post.list('-created_date');
       return allPosts.filter(p => p.project_id === projectId);
     },
     enabled: !!projectId,
@@ -175,7 +174,7 @@ function LayoutContent({ children, currentPageName }) {
   const { data: messages = [] } = useQuery({
     queryKey: ['messages', projectId],
     queryFn: async () => {
-      const allMessages = await api.entities.Message.list('-created_date', 100);
+      const allMessages = await api.entities.Message.list('-created_date');
       return allMessages.filter(m => m.project_id === projectId);
     },
     enabled: !!projectId,
@@ -191,25 +190,25 @@ function LayoutContent({ children, currentPageName }) {
           queryClient.fetchQuery({
             queryKey: ['tasks', projectId],
             queryFn: async () => {
-              const allTasks = await api.entities.Task.list('-updated_date', 200);
+              const allTasks = await api.entities.Task.list('-updated_date');
               return allTasks.filter(t => t.project_id === projectId);
             },
             staleTime: 0
           }),
           queryClient.fetchQuery({
             queryKey: ['allSubtasks', projectId],
-            queryFn: () => api.entities.Subtask.list('-created_date', 500),
+            queryFn: () => api.entities.Subtask.list('-created_date'),
             staleTime: 0
           }),
           queryClient.fetchQuery({
             queryKey: ['allComments', projectId],
-            queryFn: () => api.entities.TaskComment.list('-created_date', 500),
+            queryFn: () => api.entities.TaskComment.list('-created_date'),
             staleTime: 0
           }),
           queryClient.fetchQuery({
             queryKey: ['docs', projectId],
             queryFn: async () => {
-              const allDocs = await api.entities.Document.list('-updated_date', 100);
+              const allDocs = await api.entities.Document.list('-updated_date');
               return allDocs.filter(d => d.project_id === projectId);
             },
             staleTime: 0
@@ -217,7 +216,7 @@ function LayoutContent({ children, currentPageName }) {
           queryClient.fetchQuery({
             queryKey: ['files', projectId, null],
             queryFn: async () => {
-              const allFiles = await api.entities.FileRecord.list('-created_date', 200);
+              const allFiles = await api.entities.FileRecord.list('-created_date');
               return allFiles.filter(f => f.project_id === projectId && !f.folder_id);
             },
             staleTime: 0
@@ -225,7 +224,7 @@ function LayoutContent({ children, currentPageName }) {
           queryClient.fetchQuery({
             queryKey: ['folders', projectId],
             queryFn: async () => {
-              const allFolders = await api.entities.Folder.list('-created_date', 200);
+              const allFolders = await api.entities.Folder.list('-created_date');
               return allFolders.filter(f => f.project_id === projectId);
             },
             staleTime: 0
@@ -233,7 +232,7 @@ function LayoutContent({ children, currentPageName }) {
           queryClient.fetchQuery({
             queryKey: ['customIntegrations', projectId],
             queryFn: async () => {
-              const all = await api.entities.CustomIntegration.list('-created_date', 100);
+              const all = await api.entities.CustomIntegration.list('-created_date');
               return all.filter(i => i.project_id === projectId);
             },
             staleTime: 0
@@ -362,17 +361,7 @@ function LayoutContent({ children, currentPageName }) {
                 const isActive = location.pathname.includes(item.path);
                 const isDisabled = !!item.disabled;
                 const alpha = !!item.alpha;
-                const Wrapper = isDisabled ? "div" : Link;
-                return (
-                  <Wrapper 
-                    key={item.label} 
-                    {...(!isDisabled
-                      ? {
-                          to: createPageUrl(item.path) + location.search,
-                          onClick: () => window.innerWidth < 1024 && setIsSidebarOpen(false),
-                        }
-                      : {})}
-                    className={`
+                const navClassName = `
                       relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ease-out group overflow-hidden
                       ${item.color}
                       ${isDisabled
@@ -380,24 +369,18 @@ function LayoutContent({ children, currentPageName }) {
                         : isActive
                           ? 'ring-2 ring-white/50 shadow-lg scale-[1.01]'
                           : 'hover:scale-[1.02] hover:shadow-xl hover:-translate-y-0.5'}
-                    `}
-                  >
-                    {/* Subtle gradient overlay on hover */}
+                    `;
+                const navBody = (
+                  <>
                     <div className={`absolute inset-0 bg-gradient-to-r from-black/10 to-transparent transition-opacity duration-300 ${
                       isDisabled ? 'opacity-20' : 'opacity-0 group-hover:opacity-100'
                     }`} />
-
-                    {/* Icon */}
                     <item.icon className={`w-6 h-6 text-white relative z-10 transition-transform duration-300 ${
                       isDisabled ? '' : 'group-hover:scale-110'
                     }`} />
-
-                    {/* Label */}
                     <span className="text-sm font-medium text-white relative z-10 flex-1">
                       {item.label}
                     </span>
-
-                    {/* Beta/Alpha badge */}
                     {alpha ? (
                       <span className="px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-extrabold tracking-wider rounded backdrop-blur-sm relative z-10">
                         ALPHA
@@ -407,14 +390,26 @@ function LayoutContent({ children, currentPageName }) {
                         Beta
                       </span>
                     ) : null}
-
-                    {/* Notification badge */}
                     {item.badge > 0 && (
                       <span className="min-w-5 h-5 px-1.5 bg-white text-red-500 text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm relative z-10">
                         {item.badge > 9 ? '9+' : item.badge}
                       </span>
                     )}
-                  </Wrapper>
+                  </>
+                );
+                return isDisabled ? (
+                  <div key={item.label} className={navClassName}>
+                    {navBody}
+                  </div>
+                ) : (
+                  <Link
+                    key={item.label}
+                    to={createPageUrl(item.path) + location.search}
+                    onClick={() => window.innerWidth < 1024 && setIsSidebarOpen(false)}
+                    className={navClassName}
+                  >
+                    {navBody}
+                  </Link>
                 );
               })}
             </div>
@@ -466,32 +461,30 @@ function LayoutContent({ children, currentPageName }) {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-             <Button 
-               variant="ghost" 
-               size="icon" 
-               className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hidden sm:flex"
+             <button
+               type="button"
+               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent hidden sm:flex"
                onClick={toggleTheme}
                title={isDark ? 'Light Mode' : 'Dark Mode'}
              >
                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-             </Button>
-             <Button 
-               variant="ghost" 
-               size="icon" 
-               className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hidden sm:flex"
+             </button>
+             <button
+               type="button"
+               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent hidden sm:flex"
                onClick={() => setLanguage(language === 'en' ? 'de' : 'en')}
                title={language === 'en' ? 'Switch to German' : 'Switch to English'}
              >
                <Languages className="w-5 h-5" />
-             </Button>
+             </button>
              <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>
                <DropdownMenuTrigger asChild>
-                 <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600 relative hidden sm:flex">
+                 <button type="button" className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-accent relative hidden sm:flex">
                    <Bell className="w-5 h-5" />
                    {(newPostsCount + newMessagesCount) > 0 && (
                      <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
                    )}
-                 </Button>
+                 </button>
                </DropdownMenuTrigger>
                <DropdownMenuContent align="end" className="w-72">
                  <div className="px-3 py-2 border-b border-slate-100">

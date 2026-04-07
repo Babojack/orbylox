@@ -57,7 +57,7 @@ function uniq(arr) {
 function clampMembers(members) {
   return uniq(
     (Array.isArray(members) ? members : [])
-      .map((m) => String(m || "").trim())
+      .map((m) => String(m || "").trim().toLowerCase())
       .filter(Boolean)
   ).slice(0, MAX_MEMBERS_PER_PROJECT);
 }
@@ -229,7 +229,7 @@ function ProjectsListContent() {
   const createProjectMutation = useMutation({
     mutationFn: (projectData) => api.entities.Project.create({
       ...projectData,
-      members: user?.email ? [user.email] : []
+      members: user?.email ? [String(user.email).trim().toLowerCase()] : [],
     }),
     onSuccess: (newProj) => {
       const key = ['projects', userEmailLower];
