@@ -162,11 +162,20 @@ button:focus-visible {
   .docs-quill-editor .ql-editor {
     overflow-wrap: anywhere;
     word-break: break-word;
+    padding-bottom: max(5rem, env(safe-area-inset-bottom));
   }
   .docs-quill-editor .ql-container {
     max-width: 100%;
   }
   .docs-quill-editor .ql-toolbar {
     max-width: 100%;
+  }
+
+  @media (max-width: 768px) {
+    .docs-quill-editor .ql-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
   }
 }

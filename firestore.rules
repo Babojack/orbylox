@@ -54,6 +54,28 @@ service cloud.firestore {
         );
     }
 
+    function taskSnap(taskId) {
+      return get(/databases/$(database)/documents/Task/$(taskId));
+    }
+
+    function postSnap(postId) {
+      return get(/databases/$(database)/documents/Post/$(postId));
+    }
+
+    function canAccessTaskId(taskId) {
+      let t = taskSnap(taskId);
+      return exists(/databases/$(database)/documents/Task/$(taskId))
+        && ('project_id' in t.data)
+        && canAccessProjectId(t.data.project_id);
+    }
+
+    function canAccessPostId(postId) {
+      let p = postSnap(postId);
+      return exists(/databases/$(database)/documents/Post/$(postId))
+        && ('project_id' in p.data)
+        && canAccessProjectId(p.data.project_id);
+    }
+
     function isProjectScoped(data) {
       return data != null
         && ('project_id' in data)
@@ -90,6 +112,58 @@ service cloud.firestore {
       return isSignedIn() && isProjectScoped(resource.data) && canAccessProjectId(resource.data.project_id);
     }
 
+    function taskScopedRead(resource) {
+      return isSignedIn()
+        && ('task_id' in resource.data)
+        && resource.data.task_id is string
+        && canAccessTaskId(resource.data.task_id);
+    }
+
+    function taskScopedCreate() {
+      return isSignedIn()
+        && ('task_id' in request.resource.data)
+        && request.resource.data.task_id is string
+        && canAccessTaskId(request.resource.data.task_id);
+    }
+
+    function taskScopedUpdate(resource) {
+      return isSignedIn()
+        && ('task_id' in resource.data)
+        && ('task_id' in request.resource.data)
+        && resource.data.task_id == request.resource.data.task_id
+        && canAccessTaskId(resource.data.task_id);
+    }
+
+    function taskScopedDelete(resource) {
+      return isSignedIn() && ('task_id' in resource.data) && canAccessTaskId(resource.data.task_id);
+    }
+
+    function postScopedRead(resource) {
+      return isSignedIn()
+        && ('post_id' in resource.data)
+        && resource.data.post_id is string
+        && canAccessPostId(resource.data.post_id);
+    }
+
+    function postScopedCreate() {
+      return isSignedIn()
+        && ('post_id' in request.resource.data)
+        && request.resource.data.post_id is string
+        && canAccessPostId(request.resource.data.post_id);
+    }
+
+    function postScopedUpdate(resource) {
+      return isSignedIn()
+        && ('post_id' in resource.data)
+        && ('post_id' in request.resource.data)
+        && resource.data.post_id == request.resource.data.post_id
+        && canAccessPostId(resource.data.post_id);
+    }
+
+    function postScopedDelete(resource) {
+      return isSignedIn() && ('post_id' in resource.data) && canAccessPostId(resource.data.post_id);
+    }
+
     match /Project/{projectId} {
       allow read: if canReadProject(resource);
       allow create: if isSignedIn()
@@ -119,16 +193,16 @@ service cloud.firestore {
       allow delete: if projectScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
     match /Subtask/{docId} {
-      allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if projectScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
-      allow update: if projectScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow delete: if projectScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if projectScopedRead(resource) || taskScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if projectScopedCreate() || taskScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if projectScopedUpdate(resource) || taskScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if projectScopedDelete(resource) || taskScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
     match /TaskComment/{docId} {
-      allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if projectScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
-      allow update: if projectScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow delete: if projectScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if projectScopedRead(resource) || taskScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if projectScopedCreate() || taskScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if projectScopedUpdate(resource) || taskScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if projectScopedDelete(resource) || taskScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
     match /CanvasItem/{docId} {
       allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
@@ -155,10 +229,10 @@ service cloud.firestore {
       allow delete: if projectScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
     match /PostComment/{docId} {
-      allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if projectScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
-      allow update: if projectScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow delete: if projectScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if projectScopedRead(resource) || postScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if projectScopedCreate() || postScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if projectScopedUpdate(resource) || postScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if projectScopedDelete(resource) || postScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
     match /Message/{docId} {
       allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);

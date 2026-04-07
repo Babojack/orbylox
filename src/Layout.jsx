@@ -38,7 +38,7 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
-import { recoverActiveTimer, stopTimer, getActiveTimer, setTrackedTimeSyncHandler } from "@/lib/projectTimer";
+import { startTimer, getActiveTimer, setTrackedTimeSyncHandler } from "@/lib/projectTimer";
 
 const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
 
@@ -104,6 +104,16 @@ function LayoutContent({ children, currentPageName }) {
   const [showNotifications, setShowNotifications] = React.useState(false);
   const isAdmin = getAdminEmails().includes((currentUser?.email || "").toLowerCase());
 
+  const closeSidebar = React.useCallback((e) => {
+    if (e?.stopPropagation) e.stopPropagation();
+    setIsSidebarOpen(false);
+  }, []);
+
+  const toggleSidebar = React.useCallback((e) => {
+    if (e?.stopPropagation) e.stopPropagation();
+    setIsSidebarOpen((prev) => !prev);
+  }, []);
+
   // Persist timer sessions to the Project document (Firestore) so time syncs across devices.
   React.useEffect(() => {
     setTrackedTimeSyncHandler(async ({ projectId, elapsedMs, lastWorkedAt }) => {
@@ -115,38 +125,56 @@ function LayoutContent({ children, currentPageName }) {
         console.error("[timer sync]", e);
       }
     });
-    // If the app reloads while a timer was running, close it immediately (and sync that session).
-    recoverActiveTimer();
-
     return () => setTrackedTimeSyncHandler(null);
   }, [queryClient]);
 
-  // Ensure a running timer is stopped when the tab/page is closed or hidden.
+  // Auto-start timer when user interacts inside a selected project.
   React.useEffect(() => {
-    const stopIfActive = (reason) => {
+    if (!projectId) return;
+
+    const markActivity = (event) => {
+      const target = event?.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("aside")) return;
+      if (target.closest('[data-timer-ignore="true"]')) return;
       const active = getActiveTimer();
-      if (active?.projectId) {
-        stopTimer({ reason });
-      }
+      if (active?.projectId === projectId) return;
+      startTimer(projectId, { source: "project_activity_auto" });
     };
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        stopIfActive("visibility_hidden");
-      }
+    const onKeyDown = (event) => {
+      const active = getActiveTimer();
+      if (active?.projectId === projectId) return;
+      const target = event?.target;
+      if (target instanceof Element && target.closest("aside")) return;
+      startTimer(projectId, { source: "project_typing_auto" });
     };
 
-    const onPageHide = () => stopIfActive("pagehide");
-    const onBeforeUnload = () => stopIfActive("beforeunload");
-
-    window.addEventListener("pagehide", onPageHide);
-    window.addEventListener("beforeunload", onBeforeUnload);
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pointerdown", markActivity, true);
+    window.addEventListener("input", markActivity, true);
+    window.addEventListener("keydown", onKeyDown, true);
 
     return () => {
-      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pointerdown", markActivity, true);
+      window.removeEventListener("input", markActivity, true);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [projectId]);
+
+  // Ask before leaving while timer is running. If user leaves, timer continues running.
+  React.useEffect(() => {
+    const onBeforeUnload = (e) => {
+      const active = getActiveTimer();
+      if (active?.projectId) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+
+    return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
   
@@ -334,8 +362,8 @@ function LayoutContent({ children, currentPageName }) {
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onPointerDown={closeSidebar}
         />
       )}
 
@@ -348,8 +376,9 @@ function LayoutContent({ children, currentPageName }) {
             </div>
           </div>
           <button 
-            onClick={() => setIsSidebarOpen(false)}
-            className="text-slate-400 hover:text-slate-600"
+            type="button"
+            onPointerDown={closeSidebar}
+            className="h-10 w-10 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
           >
             <X className="w-6 h-6" />
           </button>
@@ -448,11 +477,13 @@ function LayoutContent({ children, currentPageName }) {
       {/* Main Content */}
       <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white dark:bg-slate-900 min-h-screen flex flex-col transition-all duration-300`}>
         {/* Header */}
-        <header className="h-16 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white dark:bg-slate-900 z-40">
+        <header className="h-16 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white dark:bg-slate-900 z-50">
           <div className="flex items-center gap-2 md:gap-4">
             <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="text-slate-600 hover:text-slate-900"
+              type="button"
+              onPointerDown={toggleSidebar}
+              className="h-10 w-10 inline-flex items-center justify-center rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95"
+              aria-label="Open navigation menu"
             >
               <Menu className="w-6 h-6" />
             </button>

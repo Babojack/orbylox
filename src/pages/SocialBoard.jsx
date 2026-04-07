@@ -123,6 +123,7 @@ export default function SocialBoard() {
   const addCommentMutation = useMutation({
     mutationFn: ({ postId, content }) => api.entities.PostComment.create({
       post_id: postId,
+      project_id: projectId,
       content,
       author_email: user?.email
     }),
@@ -132,6 +133,7 @@ export default function SocialBoard() {
       const tempComment = {
         id: 'temp_' + Date.now(),
         post_id: postId,
+        project_id: projectId,
         content,
         author_email: user?.email,
         created_date: new Date().toISOString()

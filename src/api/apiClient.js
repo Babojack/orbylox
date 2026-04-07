@@ -165,20 +165,104 @@ function sortItems(items, orderBy) {
   return items;
 }
 
+const PROJECT_SCOPED_COLLECTIONS = new Set([
+  "Post",
+  "Task",
+  "Document",
+  "FileRecord",
+  "Folder",
+  "Message",
+  "CustomIntegration",
+  "CanvasItem",
+  "CanvasConnection",
+  "ProjectBackup",
+  "RestoreRequest",
+  "StartupStep",
+  "StartupJourney",
+  "Event",
+]);
+
+const RELATED_PROJECT_SCOPED_COLLECTIONS = {
+  Subtask: { parentCollection: "Task", foreignKey: "task_id" },
+  TaskComment: { parentCollection: "Task", foreignKey: "task_id" },
+  PostComment: { parentCollection: "Post", foreignKey: "post_id" },
+};
+
+function chunkArray(arr, size = 10) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
+  return out;
+}
+
 async function firestoreList(db, collectionName, userId, orderBy) {
   const coll = collection(db, collectionName);
+  const user = await getStorageUser();
+  const emailLower = (user?.email || "").toLowerCase();
+
+  const projectClauses = [where("userId", "==", userId)];
+  if (emailLower) {
+    projectClauses.push(where("created_by", "==", emailLower));
+    projectClauses.push(where("members", "array-contains", emailLower));
+  }
+
   if (collectionName === "Project") {
-    const user = await getStorageUser();
-    const emailLower = (user?.email || "").toLowerCase();
-    const clauses = [where("userId", "==", userId)];
-    if (emailLower) {
-      clauses.push(where("created_by", "==", emailLower));
-      clauses.push(where("members", "array-contains", emailLower));
-    }
-    const q = query(coll, or(...clauses));
+    const q = query(coll, or(...projectClauses));
     const snap = await getDocs(q);
     const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     return sortItems(items, orderBy);
+  }
+
+  const projectColl = collection(db, "Project");
+  const projectSnap = await getDocs(query(projectColl, or(...projectClauses)));
+  const accessibleProjectIds = [
+    ...new Set(projectSnap.docs.map((d) => d.id).filter(Boolean)),
+  ];
+
+  const dedupe = (items) => [...new Map(items.map((item) => [item.id, item])).values()];
+
+  // Collaboration: for project-scoped entities, list by accessible project ids
+  // so members can see shared content created by other users.
+  if (PROJECT_SCOPED_COLLECTIONS.has(collectionName)) {
+    const ownSnap = await getDocs(query(coll, where("userId", "==", userId)));
+    const ownItems = ownSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (accessibleProjectIds.length === 0) return sortItems(ownItems, orderBy);
+
+    const batches = chunkArray(accessibleProjectIds, 10);
+    const sharedItems = [];
+    for (const ids of batches) {
+      const projectQuery = query(coll, where("project_id", "in", ids));
+      const snap = await getDocs(projectQuery);
+      sharedItems.push(...snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }
+    return sortItems(dedupe([...ownItems, ...sharedItems]), orderBy);
+  }
+
+  // Collections that reference a project indirectly (via task_id / post_id).
+  const relatedCfg = RELATED_PROJECT_SCOPED_COLLECTIONS[collectionName];
+  if (relatedCfg) {
+    const ownSnap = await getDocs(query(coll, where("userId", "==", userId)));
+    const ownItems = ownSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (accessibleProjectIds.length === 0) return sortItems(ownItems, orderBy);
+
+    const parentColl = collection(db, relatedCfg.parentCollection);
+    const projectBatches = chunkArray(accessibleProjectIds, 10);
+    const parentIds = [];
+    for (const ids of projectBatches) {
+      const parentSnap = await getDocs(query(parentColl, where("project_id", "in", ids)));
+      parentIds.push(...parentSnap.docs.map((d) => d.id));
+    }
+    const uniqueParentIds = [...new Set(parentIds.filter(Boolean))];
+    if (uniqueParentIds.length === 0) return sortItems(ownItems, orderBy);
+
+    const parentBatches = chunkArray(uniqueParentIds, 10);
+    const sharedItems = [];
+    for (const ids of parentBatches) {
+      const childSnap = await getDocs(query(coll, where(relatedCfg.foreignKey, "in", ids)));
+      sharedItems.push(...childSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }
+    return sortItems(dedupe([...ownItems, ...sharedItems]), orderBy);
   }
 
   const q = query(coll, where("userId", "==", userId));

@@ -89,6 +89,7 @@ export default function TaskDetailDialog({
   const addCommentMutation = useMutation({
     mutationFn: (content) => api.entities.TaskComment.create({
       task_id: task.id,
+      project_id: projectId,
       content,
       author_email: currentUser?.email
     }),
@@ -96,7 +97,7 @@ export default function TaskDetailDialog({
       await queryClient.cancelQueries(['taskComments', task?.id]);
       const previous = queryClient.getQueryData(['taskComments', task?.id]);
       queryClient.setQueryData(['taskComments', task?.id], old => [
-        { id: 'temp_' + Date.now(), task_id: task.id, content, author_email: currentUser?.email, created_date: new Date().toISOString() },
+        { id: 'temp_' + Date.now(), task_id: task.id, project_id: projectId, content, author_email: currentUser?.email, created_date: new Date().toISOString() },
         ...(old || [])
       ]);
       setNewComment('');
@@ -114,6 +115,7 @@ export default function TaskDetailDialog({
   const addSubtaskMutation = useMutation({
     mutationFn: (title) => api.entities.Subtask.create({
       task_id: task.id,
+      project_id: projectId,
       title,
       completed: false
     }),
@@ -122,7 +124,7 @@ export default function TaskDetailDialog({
       const previous = queryClient.getQueryData(['subtasks', task?.id]);
       queryClient.setQueryData(['subtasks', task?.id], old => [
         ...(old || []),
-        { id: 'temp_' + Date.now(), task_id: task.id, title, completed: false }
+        { id: 'temp_' + Date.now(), task_id: task.id, project_id: projectId, title, completed: false }
       ]);
       setNewSubtask('');
       return { previous };
@@ -206,17 +208,17 @@ export default function TaskDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0 w-[95vw] sm:w-auto">
-        <div className="flex flex-col md:flex-row h-full max-h-[85vh] overflow-auto md:overflow-hidden">
+      <DialogContent className="w-[100vw] h-[100dvh] max-w-none max-h-[100dvh] overflow-hidden p-0 rounded-none border-0 left-0 top-0 translate-x-0 translate-y-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:w-[95vw] sm:max-w-4xl sm:h-[90dvh] sm:max-h-[90dvh] sm:border sm:rounded-lg">
+        <div className="flex flex-col lg:flex-row h-full min-h-0 overflow-hidden">
           {/* Left side - Task details */}
-          <div className="flex-1 p-4 sm:p-6 overflow-y-auto md:border-r border-slate-200 md:max-h-none">
+          <div className="flex-1 min-h-0 min-w-0 p-4 sm:p-6 overflow-y-auto lg:border-r border-slate-200 lg:max-h-none">
             <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl">
+              <DialogTitle className="text-xl min-w-0 pr-8">
                 <Input
                   value={editedTask.title}
                   onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
                   onBlur={() => updateTaskMutation.mutate({ title: editedTask.title })}
-                  className="text-xl font-semibold border-0 p-0 focus-visible:ring-0 shadow-none"
+                  className="text-xl font-semibold border-0 p-0 focus-visible:ring-0 shadow-none min-w-0 break-words [overflow-wrap:anywhere]"
                 />
               </DialogTitle>
             </DialogHeader>
@@ -256,15 +258,15 @@ export default function TaskDetailDialog({
               </div>
               <div className="sm:col-span-2">
                 <label className="text-sm font-medium text-slate-600 mb-2 block">Zugewiesene Personen</label>
-                <div className="flex flex-wrap gap-2 mb-2">
+                <div className="flex flex-wrap gap-2 mb-2 min-w-0">
                   {(editedTask.assignees || []).map((email) => (
-                    <Badge key={email} variant="secondary" className="flex items-center gap-1 pr-1">
+                    <Badge key={email} variant="secondary" className="flex items-center gap-1 pr-1 max-w-full min-w-0">
                       <Avatar className="w-4 h-4">
                         <AvatarFallback className="text-[8px] bg-indigo-100 text-indigo-600">
                           {email[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs">{email.split('@')[0]}</span>
+                      <span className="text-xs truncate max-w-[140px]">{email.split('@')[0]}</span>
                       <button
                         onClick={() => {
                           const newAssignees = (editedTask.assignees || []).filter(e => e !== email);
@@ -398,9 +400,9 @@ export default function TaskDetailDialog({
                 Attachments
               </label>
               
-              <div className="space-y-2 mb-3">
+              <div className="space-y-2 mb-3 min-w-0">
                 {(editedTask.attachments || []).map((att, index) => (
-                  <div key={index} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg group">
+                  <div key={index} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg group min-w-0">
                     <FileText className="w-4 h-4 text-slate-400" />
                     <a 
                       href={att.url} 
@@ -455,7 +457,7 @@ export default function TaskDetailDialog({
           </div>
 
           {/* Right side - Comments */}
-          <div className="w-full md:w-80 flex flex-col bg-slate-50 border-t md:border-t-0 min-h-[200px] md:min-h-0 md:max-h-none">
+          <div className="w-full lg:w-80 flex flex-col bg-slate-50 border-t lg:border-t-0 min-h-[220px] lg:min-h-0 lg:max-h-none">
             <div className="p-3 sm:p-4 border-b border-slate-200">
               <h3 className="font-semibold text-slate-700 flex items-center gap-2 text-sm sm:text-base">
                 <MessageSquare className="w-4 h-4" />
@@ -463,38 +465,38 @@ export default function TaskDetailDialog({
               </h3>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
               {comments.length === 0 ? (
                 <p className="text-sm text-slate-400 text-center py-8">No comments yet</p>
               ) : (
                 comments.map((comment) => (
-                  <div key={comment.id} className="bg-white rounded-lg p-3 shadow-sm">
-                    <div className="flex items-center gap-2 mb-2">
+                  <div key={comment.id} className="bg-white rounded-lg p-3 shadow-sm min-w-0">
+                    <div className="flex items-center gap-2 mb-2 min-w-0">
                       <Avatar className="w-6 h-6">
                         <AvatarFallback className="text-xs bg-indigo-100 text-indigo-600">
                           {comment.author_email?.[0]?.toUpperCase() || '?'}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs font-medium text-slate-600">
+                      <span className="text-xs font-medium text-slate-600 truncate">
                         {comment.author_email?.split('@')[0] || 'Anonymous'}
                       </span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-slate-400 shrink-0">
                         {new Date(comment.created_date).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="text-sm text-slate-700">{comment.content}</p>
+                    <p className="text-sm text-slate-700 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{comment.content}</p>
                   </div>
                 ))
               )}
             </div>
 
-            <div className="p-3 sm:p-4 border-t border-slate-200">
-              <div className="flex gap-2">
+            <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50">
+              <div className="flex gap-2 items-end">
                 <Textarea
                   placeholder="Write a comment..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="min-h-[50px] sm:min-h-[60px] resize-none text-sm"
+                  className="min-h-[50px] sm:min-h-[60px] resize-none text-sm break-words [overflow-wrap:anywhere]"
                 />
                 <Button
                   size="icon"

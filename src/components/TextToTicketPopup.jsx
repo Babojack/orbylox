@@ -127,6 +127,7 @@ Antworte NUR im JSON Format.`,
       for (const subtaskTitle of ticket.subtasks) {
         await api.entities.Subtask.create({
           task_id: task.id,
+          project_id: projectId,
           title: subtaskTitle,
           completed: false
         });

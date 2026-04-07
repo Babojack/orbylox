@@ -47,6 +47,14 @@ export default function MindMap() {
   const [isMobileVertical, setIsMobileVertical] = useState(false); // Track if currently in vertical mode
   const [originalPositions, setOriginalPositions] = useState(null); // Store original positions for restore
 
+  const shouldAutoEditNewNode = useCallback(() => {
+    if (typeof window === 'undefined') return true;
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches;
+    const touchCapable = (navigator?.maxTouchPoints || 0) > 0;
+    // On touch/tablet devices auto-focus opens keyboard and shifts viewport.
+    return !coarsePointer && !touchCapable;
+  }, []);
+
   // ESC-Taste zum Beenden des Vollbild-Modus
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -242,9 +250,6 @@ export default function MindMap() {
     y: node.y + (node.height || 50) / 2
   });
 
-  // Check if mobile
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-
   // Toggle between vertical and original layout
   const toggleVerticalLayout = useCallback(() => {
     if (nodes.length === 0) return;
@@ -347,10 +352,12 @@ export default function MindMap() {
           if (parentId) {
             createConnection.mutate({ from_item_id: parentId, to_item_id: data.id, label: label || null });
           }
-          setTimeout(() => {
-            setEditingNodeId(data.id);
-            setEditText(newNode.content);
-          }, 50);
+          if (shouldAutoEditNewNode()) {
+            setTimeout(() => {
+              setEditingNodeId(data.id);
+              setEditText(newNode.content);
+            }, 50);
+          }
         }
       }
     });
@@ -602,8 +609,10 @@ export default function MindMap() {
       }`}
     >
       
-      {/* Floating Toolbar - Vertical on mobile, horizontal on desktop */}
-      <div className="absolute top-2 sm:top-3 left-2 sm:left-1/2 sm:-translate-x-1/2 z-30">
+      {/* Floating toolbar: always visible while panning/zooming */}
+      <div
+        className={`fixed z-[70] ${isFullscreen ? 'top-2 sm:top-3' : 'top-[4.5rem] sm:top-3'} left-2 sm:left-1/2 sm:-translate-x-1/2`}
+      >
         <div className="bg-white/95 backdrop-blur-xl shadow-2xl border border-slate-200/80 rounded-xl sm:rounded-2xl p-1.5 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-1">
           {/* Add Buttons */}
           <div className="flex sm:flex-row flex-col items-center gap-1">
@@ -667,7 +676,7 @@ export default function MindMap() {
 
       {/* Selected Node Panel - Mobile optimized */}
       {selectedNodeId && !editingNodeId && selectedNode && (
-        <div className="absolute top-14 sm:top-16 left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-30 sm:w-auto">
+        <div className={`fixed ${isFullscreen ? 'top-14 sm:top-16' : 'top-[8.5rem] sm:top-16'} left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-[70] sm:w-auto`}>
           <div className="bg-white/95 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-1 sm:p-2 flex items-center justify-center gap-0.5 sm:gap-2 flex-wrap">
             <Button size="sm" variant="outline" onClick={() => addNode('node', selectedNodeId)} className="gap-1 h-7 px-1.5 sm:px-2 text-xs">
               <Plus className="w-3 h-3" />
@@ -679,23 +688,11 @@ export default function MindMap() {
                 setEditingNodeId(selectedNodeId);
                 setEditText(selectedNode.content || "");
               }}
-              className="h-7 px-1.5 sm:px-2 sm:hidden"
-              title="Text bearbeiten"
-            >
-              <Pencil className="w-3 h-3" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setEditingNodeId(selectedNodeId);
-                setEditText(selectedNode.content || "");
-              }}
-              className="hidden sm:inline-flex h-7 px-1.5 sm:px-2 text-xs"
+              className="inline-flex h-7 px-1.5 sm:px-2 text-xs"
               title="Text bearbeiten"
             >
               <Pencil className="w-3 h-3 sm:mr-1" />
-              <span className="hidden md:inline">Text</span>
+              <span className="hidden sm:inline">Text</span>
             </Button>
             
             {selectedNode.type === 'decision' && (
@@ -888,7 +885,6 @@ export default function MindMap() {
                 }
               }
 
-              const dist = Math.sqrt(dx * dx + dy * dy);
               const midX = (f.x + t.x) / 2;
               const midY = (f.y + t.y) / 2;
 

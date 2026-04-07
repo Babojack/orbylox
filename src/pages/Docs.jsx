@@ -3,7 +3,7 @@ import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { StickyNote, Plus, Trash2, Pin, PinOff, Grid3X3, List, Search, Palette, Smile, MoreVertical, Copy, Archive, Clock } from 'lucide-react';
+import { StickyNote, Plus, Trash2, Pin, PinOff, Search, Palette, MoreVertical, Copy } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 
 const NOTE_COLORS = [
   { name: 'Default', bg: 'bg-white', border: 'border-slate-200', text: 'text-slate-800' },
@@ -49,10 +49,13 @@ export default function Docs() {
     const queryClient = useQueryClient();
     const [selectedDocId, setSelectedDocId] = useState(null);
     const [editTitle, setEditTitle] = useState("");
-    const [viewMode, setViewMode] = useState('timeline'); // 'grid' or 'list' or 'timeline'
+    const viewMode = 'grid';
     const [searchQuery, setSearchQuery] = useState('');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
     const debounceTimer = React.useRef(null);
+    const [dialogViewportHeight, setDialogViewportHeight] = useState(() =>
+      typeof window !== 'undefined' ? window.innerHeight : 800
+    );
 
     const searchParams = new URLSearchParams(window.location.search);
     const projectId = searchParams.get('project');
@@ -175,6 +178,27 @@ export default function Docs() {
     }
   }, [selectedDocId]);
 
+  // Keep dialog height in sync with mobile keyboard/visual viewport.
+  React.useEffect(() => {
+    if (!selectedDocId || typeof window === 'undefined') return;
+
+    const updateViewportHeight = () => {
+      const vh = Math.max(320, Math.floor(window.visualViewport?.height || window.innerHeight));
+      setDialogViewportHeight(vh);
+    };
+
+    updateViewportHeight();
+    window.addEventListener('resize', updateViewportHeight);
+    window.visualViewport?.addEventListener('resize', updateViewportHeight);
+    window.visualViewport?.addEventListener('scroll', updateViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateViewportHeight);
+      window.visualViewport?.removeEventListener('resize', updateViewportHeight);
+      window.visualViewport?.removeEventListener('scroll', updateViewportHeight);
+    };
+  }, [selectedDocId]);
+
   const handleContentChange = (content) => {
     setLocalContent(content);
     if (selectedDoc) {
@@ -195,11 +219,6 @@ export default function Docs() {
     }
   };
 
-  const getColorClasses = (colorName) => {
-    const color = NOTE_COLORS.find(c => c.name === colorName) || NOTE_COLORS[0];
-    return color;
-  };
-
   // Filter and sort notes
   const filteredDocs = docs?.filter(doc => {
     if (!searchQuery) return true;
@@ -218,7 +237,6 @@ export default function Docs() {
   const otherNotes = sortedDocs.filter(d => d.parent_id !== 'pinned');
 
   const NoteCard = ({ doc }) => {
-    const colorClasses = getColorClasses(doc.icon?.startsWith?.('#') ? doc.icon : null);
     const isPinned = doc.parent_id === 'pinned';
     const noteColor = NOTE_COLORS.find(c => c.name === doc.parent_id) || NOTE_COLORS[0];
     
@@ -287,7 +305,7 @@ export default function Docs() {
             <h3 className={`font-semibold line-clamp-2 break-words min-w-0 ${noteColor.text}`}>{doc.title || 'Ohne Titel'}</h3>
           </div>
           <div 
-            className={`text-sm ${noteColor.text} opacity-70 line-clamp-3`}
+            className={`text-sm ${noteColor.text} opacity-70 line-clamp-3 break-words [overflow-wrap:anywhere]`}
             dangerouslySetInnerHTML={{ __html: doc.content?.replace(/<[^>]*>/g, ' ').slice(0, 150) || 'Keine Inhalte...' }}
           />
           <div className="mt-3 text-xs text-slate-400">
@@ -322,7 +340,7 @@ export default function Docs() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full min-w-0 max-w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -333,7 +351,7 @@ export default function Docs() {
           <p className="text-slate-500">{docs?.length || 0} Notizen</p>
         </div>
         
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input 
@@ -343,38 +361,9 @@ export default function Docs() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex border rounded-lg overflow-hidden">
-            <Button 
-              variant={viewMode === 'grid' ? 'default' : 'ghost'} 
-              size="icon"
-              className="rounded-none"
-              onClick={() => setViewMode('grid')}
-              title="Grid"
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </Button>
-            <Button 
-              variant={viewMode === 'list' ? 'default' : 'ghost'} 
-              size="icon"
-              className="rounded-none"
-              onClick={() => setViewMode('list')}
-              title="Liste"
-            >
-              <List className="w-4 h-4" />
-            </Button>
-            <Button 
-              variant={viewMode === 'timeline' ? 'default' : 'ghost'} 
-              size="icon"
-              className="rounded-none"
-              onClick={() => setViewMode('timeline')}
-              title="Timeline"
-            >
-              <Clock className="w-4 h-4" />
-            </Button>
-          </div>
           <Popover open={showTypeSelector} onOpenChange={setShowTypeSelector}>
             <PopoverTrigger asChild>
-              <Button className="bg-yellow-500 hover:bg-yellow-600 text-white">
+              <Button className="bg-yellow-500 hover:bg-yellow-600 text-white shrink-0">
                 <Plus className="w-4 h-4 mr-2" /> Neue Notiz
               </Button>
             </PopoverTrigger>
@@ -399,39 +388,27 @@ export default function Docs() {
       {/* Timeline View */}
       {viewMode === 'timeline' && sortedDocs.length > 0 && (
         <div className="relative">
-          {/* Timeline line */}
-          <div className="absolute left-[6.25rem] sm:left-[8.1rem] top-0 bottom-0 w-0.5 bg-gradient-to-b from-yellow-400 via-yellow-300 to-yellow-200" />
-          
           <div className="space-y-6">
-            {sortedDocs.map((doc, index) => {
+            {sortedDocs.map((doc) => {
               const noteColor = NOTE_COLORS.find(c => c.name === doc.parent_id) || NOTE_COLORS[0];
               const isPinned = doc.parent_id === 'pinned';
               const date = new Date(doc.updated_date || doc.created_date);
               
               return (
-                <div key={doc.id} className="relative flex gap-3 sm:gap-4 pl-0">
-                  {/* Date column - left side */}
-                  <div className="w-20 sm:w-28 flex-shrink-0 text-right pr-2 pt-1">
-                    <div className="text-xs sm:text-sm font-semibold text-slate-700">
+                <div key={doc.id} className="relative flex flex-col gap-2 pl-0">
+                  {/* Date row */}
+                  <div className="w-full text-left pr-0 pl-0 pt-0">
+                    <div className="text-xs font-semibold text-slate-700">
                       {date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}
                     </div>
-                    <div className="text-[10px] sm:text-xs text-slate-400">
+                    <div className="text-[10px] text-slate-400">
                       {date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
-                  
-                  {/* Timeline dot */}
-                  <div className="relative z-10 flex-shrink-0">
-                    <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-xs ${
-                      isPinned ? 'bg-red-500' : 'bg-yellow-400'
-                    }`}>
-                      {isPinned && <Pin className="w-2 h-2 text-white" />}
-                    </div>
-                  </div>
-                  
+
                   {/* Content card */}
                   <div 
-                    className={`flex-1 group cursor-pointer ${noteColor.bg} ${noteColor.border} border-2 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5`}
+                    className={`w-full min-w-0 flex-1 group cursor-pointer ${noteColor.bg} ${noteColor.border} border-2 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5`}
                     onClick={() => { setSelectedDocId(doc.id); setEditTitle(doc.title); }}
                   >
                     {/* Actions */}
@@ -472,7 +449,7 @@ export default function Docs() {
                     
                     {/* Content preview */}
                     <div 
-                      className={`text-sm ${noteColor.text} opacity-70 line-clamp-2`}
+                      className={`text-sm ${noteColor.text} opacity-70 line-clamp-2 break-words [overflow-wrap:anywhere]`}
                       dangerouslySetInnerHTML={{ __html: doc.content?.replace(/<[^>]*>/g, ' ').slice(0, 200) || 'Keine Inhalte...' }}
                     />
                   </div>
@@ -555,7 +532,13 @@ export default function Docs() {
 
       {/* Edit Dialog */}
       <Dialog open={!!selectedDocId} onOpenChange={(open) => !open && setSelectedDocId(null)}>
-        <DialogContent className="flex flex-col p-0 gap-0 h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] rounded-none border-0 sm:border left-0 top-0 translate-x-0 translate-y-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-4xl sm:w-[95vw] sm:h-[min(90dvh,56rem)] sm:max-h-[90dvh] sm:rounded-lg">
+        <DialogContent
+          className="flex flex-col p-0 gap-0 w-full max-w-[100vw] rounded-none border-0 sm:border left-0 top-0 translate-x-0 translate-y-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-4xl sm:w-[95vw] sm:h-[min(90dvh,56rem)] sm:max-h-[90dvh] sm:rounded-lg"
+          style={{
+            height: `${dialogViewportHeight}px`,
+            maxHeight: `${dialogViewportHeight}px`,
+          }}
+        >
           {selectedDoc && (
             <>
               <DialogHeader className="p-4 sm:p-6 pb-0 shrink-0 min-w-0">
@@ -650,7 +633,7 @@ export default function Docs() {
                       theme="snow" 
                       value={localContent} 
                       onChange={handleContentChange}
-                      className="docs-quill-editor h-full border-none max-w-full [&_.ql-container]:border-none [&_.ql-container]:max-w-full [&_.ql-editor]:max-w-full [&_.ql-toolbar]:flex-wrap [&_.ql-toolbar]:border-none [&_.ql-toolbar]:bg-slate-50 [&_.ql-toolbar]:rounded-lg [&_.ql-toolbar]:mb-4 [&_.ql-toolbar]:gap-0.5 [&_.ql-editor]:text-base [&_.ql-editor]:text-slate-700 [&_.ql-editor]:leading-relaxed [&_.ql-editor]:min-h-[min(50dvh,320px)] [&_.ql-editor]:overflow-x-hidden"
+                      className="docs-quill-editor h-full border-none max-w-full [&_.ql-container]:border-none [&_.ql-container]:max-w-full [&_.ql-editor]:max-w-full [&_.ql-toolbar]:flex-wrap [&_.ql-toolbar]:border-none [&_.ql-toolbar]:bg-slate-50 [&_.ql-toolbar]:rounded-lg [&_.ql-toolbar]:mb-4 [&_.ql-toolbar]:gap-0.5 [&_.ql-editor]:text-base [&_.ql-editor]:text-slate-700 [&_.ql-editor]:leading-relaxed [&_.ql-editor]:min-h-[min(36dvh,280px)] sm:[&_.ql-editor]:min-h-[min(50dvh,320px)] [&_.ql-editor]:overflow-x-hidden"
                       modules={{
                         toolbar: [
                           [{ 'header': [1, 2, 3, false] }],
