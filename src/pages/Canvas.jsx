@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ZoomIn, ZoomOut, RotateCcw, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, AlignVerticalJustifyStart } from 'lucide-react';
+import { Plus, Trash2, ZoomIn, ZoomOut, RotateCcw, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, AlignVerticalJustifyStart, Pencil } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -214,15 +214,28 @@ export default function MindMap() {
     // НЕ делаем invalidateQueries
   });
 
-  // Helpers
-  const getCanvasPos = useCallback((e) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    return {
-      x: (e.clientX - rect.left - offset.x) / zoom,
-      y: (e.clientY - rect.top - offset.y) / zoom
-    };
-  }, [offset, zoom]);
+  // Helpers — works for mouse, touch, and pen (PointerEvent)
+  const getClientXY = useCallback((e) => {
+    if (e && typeof e.clientX === "number" && !Number.isNaN(e.clientX)) {
+      return { clientX: e.clientX, clientY: e.clientY };
+    }
+    const te = e?.nativeEvent?.touches?.[0] || e?.nativeEvent?.changedTouches?.[0];
+    if (te) return { clientX: te.clientX, clientY: te.clientY };
+    return { clientX: 0, clientY: 0 };
+  }, []);
+
+  const getCanvasPos = useCallback(
+    (e) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      const { clientX, clientY } = getClientXY(e);
+      return {
+        x: (clientX - rect.left - offset.x) / zoom,
+        y: (clientY - rect.top - offset.y) / zoom,
+      };
+    },
+    [offset, zoom, getClientXY],
+  );
 
   const getCenter = (node) => ({
     x: node.x + (node.width || 160) / 2,
@@ -343,78 +356,105 @@ export default function MindMap() {
     });
   };
 
-  // Mouse handlers
-  const handleMouseDown = (e) => {
-    if (e.target === canvasRef.current || e.target.classList.contains('canvas-bg')) {
+  const handleCanvasPointerDown = useCallback(
+    (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (e.target.closest?.("[data-mindmap-node]")) return;
+      e.preventDefault();
+      try {
+        canvasRef.current?.setPointerCapture?.(e.pointerId);
+      } catch {
+        /* ignore */
+      }
       setIsPanning(true);
-      panStartRef.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+      const { clientX, clientY } = getClientXY(e);
+      panStartRef.current = { x: clientX - offset.x, y: clientY - offset.y };
       setSelectedNodeId(null);
       setNotePanel(null);
-    }
-  };
+    },
+    [offset, getClientXY],
+  );
 
-  const handleMouseMove = useCallback((e) => {
-    const pos = getCanvasPos(e);
-    mousePosRef.current = pos;
+  const handlePointerMove = useCallback(
+    (e) => {
+      const pos = getCanvasPos(e);
+      mousePosRef.current = pos;
 
-    if (isPanning) {
-      setOffset({ x: e.clientX - panStartRef.current.x, y: e.clientY - panStartRef.current.y });
-      return;
-    }
-
-    const dragNode = draggingRef.current;
-    if (dragNode) {
-      setNodes(prev => prev.map(n => 
-        n.id === dragNode.id 
-          ? { ...n, x: pos.x - dragOffsetRef.current.x, y: pos.y - dragOffsetRef.current.y }
-          : n
-      ));
-    }
-    
-    if (connectingFrom) forceRender(n => n + 1);
-  }, [isPanning, getCanvasPos, connectingFrom]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsPanning(false);
-    
-    const dragNode = draggingRef.current;
-    if (dragNode) {
-      const node = nodes.find(n => n.id === dragNode.id);
-      if (node && !String(dragNode.id).startsWith('temp_')) {
-        updateNode.mutate({ id: dragNode.id, data: { x: node.x, y: node.y } });
+      if (isPanning) {
+        const { clientX, clientY } = getClientXY(e);
+        setOffset({ x: clientX - panStartRef.current.x, y: clientY - panStartRef.current.y });
+        return;
       }
-      draggingRef.current = null;
-    }
 
-    if (connectingFrom) {
-      setConnectingFrom(null);
-      setConnectLabel(null);
-    }
-  }, [nodes, connectingFrom, updateNode]);
-
-  const handleNodeMouseDown = useCallback((e, node) => {
-    e.stopPropagation();
-    
-    if (connectingFrom) {
-      if (connectingFrom.id !== node.id) {
-        const exists = connections.some(c => 
-          (c.from_item_id === connectingFrom.id && c.to_item_id === node.id) ||
-          (c.from_item_id === node.id && c.to_item_id === connectingFrom.id)
+      const dragNode = draggingRef.current;
+      if (dragNode) {
+        setNodes((prev) =>
+          prev.map((n) =>
+            n.id === dragNode.id ? { ...n, x: pos.x - dragOffsetRef.current.x, y: pos.y - dragOffsetRef.current.y } : n,
+          ),
         );
-        if (!exists) {
-          createConnection.mutate({ from_item_id: connectingFrom.id, to_item_id: node.id, label: connectLabel });
-        }
       }
-      setConnectingFrom(null);
-      setConnectLabel(null);
-      return;
-    }
 
-    const pos = getCanvasPos(e);
-    draggingRef.current = node;
-    dragOffsetRef.current = { x: pos.x - node.x, y: pos.y - node.y };
-    setSelectedNodeId(node.id);
-  }, [connectingFrom, connectLabel, connections, getCanvasPos, createConnection]);
+      if (connectingFrom) forceRender((n) => n + 1);
+    },
+    [isPanning, getCanvasPos, connectingFrom, getClientXY],
+  );
+
+  const handlePointerUp = useCallback(
+    (e) => {
+      try {
+        canvasRef.current?.releasePointerCapture?.(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      setIsPanning(false);
+
+      const dragNode = draggingRef.current;
+      if (dragNode) {
+        const node = nodes.find((n) => n.id === dragNode.id);
+        if (node && !String(dragNode.id).startsWith("temp_")) {
+          updateNode.mutate({ id: dragNode.id, data: { x: node.x, y: node.y } });
+        }
+        draggingRef.current = null;
+      }
+
+      if (connectingFrom) {
+        setConnectingFrom(null);
+        setConnectLabel(null);
+      }
+    },
+    [nodes, connectingFrom, updateNode],
+  );
+
+  const handleNodePointerDown = useCallback(
+    (e, node) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+
+      if (connectingFrom) {
+        if (connectingFrom.id !== node.id) {
+          const exists = connections.some(
+            (c) =>
+              (c.from_item_id === connectingFrom.id && c.to_item_id === node.id) ||
+              (c.from_item_id === node.id && c.to_item_id === connectingFrom.id),
+          );
+          if (!exists) {
+            createConnection.mutate({ from_item_id: connectingFrom.id, to_item_id: node.id, label: connectLabel });
+          }
+        }
+        setConnectingFrom(null);
+        setConnectLabel(null);
+        return;
+      }
+
+      const pos = getCanvasPos(e);
+      draggingRef.current = node;
+      dragOffsetRef.current = { x: pos.x - node.x, y: pos.y - node.y };
+      setSelectedNodeId(node.id);
+    },
+    [connectingFrom, connectLabel, connections, getCanvasPos, createConnection],
+  );
 
   const handleWheel = useCallback((e) => {
     // Only handle if it's NOT a pinch-to-zoom (ctrlKey is true for pinch on macOS)
@@ -554,11 +594,13 @@ export default function MindMap() {
   }
 
   return (
-    <div className={`relative overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50 touch-none ${
-      isFullscreen 
-        ? 'fixed inset-0 z-[9999] rounded-none w-screen h-screen' 
-        : 'h-[calc(100vh-80px)] sm:h-[calc(100vh-100px)] rounded-xl sm:rounded-2xl'
-    }`}>
+    <div
+      className={`relative overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50 ${
+        isFullscreen
+          ? "fixed inset-0 z-[9999] rounded-none w-screen h-screen"
+          : "h-[calc(100dvh-80px)] min-h-[320px] sm:h-[calc(100vh-100px)] rounded-xl sm:rounded-2xl"
+      }`}
+    >
       
       {/* Floating Toolbar - Vertical on mobile, horizontal on desktop */}
       <div className="absolute top-2 sm:top-3 left-2 sm:left-1/2 sm:-translate-x-1/2 z-30">
@@ -629,6 +671,31 @@ export default function MindMap() {
           <div className="bg-white/95 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-1 sm:p-2 flex items-center justify-center gap-0.5 sm:gap-2 flex-wrap">
             <Button size="sm" variant="outline" onClick={() => addNode('node', selectedNodeId)} className="gap-1 h-7 px-1.5 sm:px-2 text-xs">
               <Plus className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditingNodeId(selectedNodeId);
+                setEditText(selectedNode.content || "");
+              }}
+              className="h-7 px-1.5 sm:px-2 sm:hidden"
+              title="Text bearbeiten"
+            >
+              <Pencil className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditingNodeId(selectedNodeId);
+                setEditText(selectedNode.content || "");
+              }}
+              className="hidden sm:inline-flex h-7 px-1.5 sm:px-2 text-xs"
+              title="Text bearbeiten"
+            >
+              <Pencil className="w-3 h-3 sm:mr-1" />
+              <span className="hidden md:inline">Text</span>
             </Button>
             
             {selectedNode.type === 'decision' && (
@@ -756,19 +823,18 @@ export default function MindMap() {
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className={`w-full h-full canvas-bg ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchMove={(e) => e.stopPropagation()}
+        className={`w-full h-full canvas-bg touch-none ${isPanning ? "cursor-grabbing" : "cursor-grab"}`}
         style={{
-          backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)',
+          touchAction: "none",
+          backgroundImage: "radial-gradient(circle, #cbd5e1 1px, transparent 1px)",
           backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
-          backgroundPosition: `${offset.x}px ${offset.y}px`
+          backgroundPosition: `${offset.x}px ${offset.y}px`,
         }}
+        onPointerDown={handleCanvasPointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onWheel={handleWheel}
       >
         {/* SVG for connections */}
         <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
@@ -911,8 +977,11 @@ export default function MindMap() {
           </g>
         </svg>
 
-        {/* Nodes */}
-        <div style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`, transformOrigin: '0 0', position: 'absolute' }}>
+        {/* Nodes: layer ignores hits except on nodes (pointer-events) so pan works on empty canvas */}
+        <div
+          className="pointer-events-none absolute left-0 top-0 z-[1]"
+          style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`, transformOrigin: "0 0" }}
+        >
           {nodes.map(node => {
             const isSelected = selectedNodeId === node.id;
             const isEditing = editingNodeId === node.id;
@@ -925,10 +994,14 @@ export default function MindMap() {
             return (
               <div
                 key={node.id}
-                className={`absolute select-none ${isSelected ? 'z-50' : 'z-10'}`}
+                data-mindmap-node
+                className={`pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"}`}
                 style={{ left: node.x, top: node.y, width: node.width || 160 }}
-                onMouseDown={(e) => handleNodeMouseDown(e, node)}
-                onDoubleClick={() => { setEditingNodeId(node.id); setEditText(node.content || ''); }}
+                onPointerDown={(e) => handleNodePointerDown(e, node)}
+                onDoubleClick={() => {
+                  setEditingNodeId(node.id);
+                  setEditText(node.content || "");
+                }}
               >
                 {/* Decision diamond shape */}
                 {isDecision ? (
@@ -964,7 +1037,8 @@ export default function MindMap() {
                           autoFocus
                           onClick={(e) => e.stopPropagation()}
                           onMouseDown={(e) => e.stopPropagation()}
-                          className="text-xs text-center bg-white/90 border-0 h-6 w-20"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="text-xs text-center bg-white/90 border-0 h-6 w-20 max-w-[90%]"
                         />
                       ) : (
                         <span 
@@ -983,7 +1057,12 @@ export default function MindMap() {
                     {hasNote && <MessageSquare className="absolute -bottom-1 -right-1 w-4 h-4 text-indigo-600 bg-white rounded-full p-0.5" />}
                     {hasLinkedTask && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); setOpenTaskId(node.linked_task_id); }}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenTaskId(node.linked_task_id);
+                        }}
+                        onPointerDown={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
                         className="absolute -bottom-1 -left-1 w-5 h-5 bg-blue-500 text-white rounded-full p-0.5 flex items-center justify-center hover:bg-blue-600"
                         title={linkedTask?.title || 'Ticket öffnen'}
@@ -1019,23 +1098,29 @@ export default function MindMap() {
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="bg-white/20 border-white/30 text-inherit h-7 text-sm"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="bg-white/20 border-white/30 text-inherit h-7 text-sm max-w-full min-w-0"
                       />
                     ) : (
-                      <div 
-                        className={`font-semibold text-center break-words ${isDone ? 'line-through opacity-80' : ''}`}
-                        style={{ 
+                      <div
+                        className={`font-semibold text-center break-words [overflow-wrap:anywhere] whitespace-pre-wrap max-w-full px-0.5 ${isDone ? "line-through opacity-80" : ""}`}
+                        style={{
                           fontSize: `${Math.max(10, Math.min(14, 180 / Math.max(node.content?.length || 1, 12)))}px`,
-                          wordBreak: 'break-word'
+                          wordBreak: "break-word",
                         }}
                       >
-                        {node.content || 'Doppelklick'}
+                        {node.content || "Doppelklick / Stift"}
                       </div>
                     )}
                     
                     {/* Checkbox в правом верхнем углу */}
                     <button
-                      onClick={(e) => { e.stopPropagation(); toggleDone(node.id); }}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleDone(node.id);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
                       onMouseDown={(e) => e.stopPropagation()}
                       className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center transition-all shadow-md ${
                         isDone 
@@ -1049,7 +1134,12 @@ export default function MindMap() {
                     {hasNote && <MessageSquare className="absolute -bottom-2 -left-2 w-5 h-5 text-indigo-600 bg-white rounded-full p-0.5 shadow" />}
                     {hasLinkedTask && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); setOpenTaskId(node.linked_task_id); }}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenTaskId(node.linked_task_id);
+                        }}
+                        onPointerDown={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
                         className="absolute -bottom-2 right-6 w-5 h-5 bg-blue-500 text-white rounded-full p-0.5 flex items-center justify-center hover:bg-blue-600 shadow"
                         title={linkedTask?.title || 'Ticket öffnen'}
@@ -1063,8 +1153,13 @@ export default function MindMap() {
                 {/* Quick add button */}
                 {isSelected && !isEditing && (
                   <button
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-indigo-600 hover:scale-110"
-                    onClick={(e) => { e.stopPropagation(); addNode('node', node.id); }}
+                    type="button"
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-indigo-600 hover:scale-110 pointer-events-auto"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addNode("node", node.id);
+                    }}
                   >
                     <Plus className="w-3 h-3" />
                   </button>
@@ -1094,9 +1189,9 @@ export default function MindMap() {
         </div>
       )}
 
-      {/* Help - hidden on mobile */}
-      <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 text-[10px] sm:text-xs text-slate-400 bg-white/80 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hidden sm:block">
-        Doppelklick = Bearbeiten • Ziehen = Verschieben • Scroll = Zoom
+      <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-auto text-[10px] sm:text-xs text-slate-500 bg-white/90 backdrop-blur px-2 sm:px-3 py-1.5 rounded-lg pointer-events-none max-w-[calc(100vw-1rem)]">
+        <span className="sm:hidden">Tipp: Knoten antippen → Stift (oben) zum Schreiben • Ziehen verschiebt • 2 Finger zoomen</span>
+        <span className="hidden sm:inline">Doppelklick = Bearbeiten • Ziehen = Verschieben • Scroll = Zoom</span>
       </div>
 
       {/* Task Detail Dialog */}

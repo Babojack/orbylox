@@ -39,7 +39,7 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
-import { recoverActiveTimer, stopTimer, getActiveTimer } from "@/lib/projectTimer";
+import { recoverActiveTimer, stopTimer, getActiveTimer, setTrackedTimeSyncHandler } from "@/lib/projectTimer";
 
 const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
 
@@ -105,11 +105,25 @@ function LayoutContent({ children, currentPageName }) {
   const [showNotifications, setShowNotifications] = React.useState(false);
   const isAdmin = getAdminEmails().includes((currentUser?.email || "").toLowerCase());
 
-  // Ensure a running timer is stopped when the tab/page is closed or hidden.
+  // Persist timer sessions to the Project document (Firestore) so time syncs across devices.
   React.useEffect(() => {
-    // If the app reloads while a timer was running, close it immediately.
+    setTrackedTimeSyncHandler(async ({ projectId, elapsedMs, lastWorkedAt }) => {
+      try {
+        await api.entities.Project.addTrackedTimeSession(projectId, elapsedMs, lastWorkedAt);
+        queryClient.invalidateQueries({ queryKey: ["projects"] });
+        queryClient.invalidateQueries({ queryKey: ["project"] });
+      } catch (e) {
+        console.error("[timer sync]", e);
+      }
+    });
+    // If the app reloads while a timer was running, close it immediately (and sync that session).
     recoverActiveTimer();
 
+    return () => setTrackedTimeSyncHandler(null);
+  }, [queryClient]);
+
+  // Ensure a running timer is stopped when the tab/page is closed or hidden.
+  React.useEffect(() => {
     const stopIfActive = (reason) => {
       const active = getActiveTimer();
       if (active?.projectId) {
@@ -312,7 +326,7 @@ function LayoutContent({ children, currentPageName }) {
     { icon: FileText, label: t('docs'), path: "Docs", color: "bg-amber-500" },
     { icon: Shapes, label: t('canvas'), path: "Canvas", color: "bg-purple-500" },
     { icon: FolderOpen, label: t('files'), path: "FileHub", color: "bg-orange-500" },
-    { icon: Rocket, label: "Startup Builder", path: "StartupBuilder", beta: true, color: "bg-rose-500" },
+    { icon: Rocket, label: "Startup Builder", path: "StartupBuilder", disabled: true, alpha: true, color: "bg-rose-500" },
     { icon: Puzzle, label: language === 'de' ? "Unsere Tools" : "Our Tools", path: "Integrations", color: "bg-cyan-500" },
   ];
 
@@ -346,36 +360,53 @@ function LayoutContent({ children, currentPageName }) {
             <div className="flex flex-col gap-2">
               {navItems.map((item) => {
                 const isActive = location.pathname.includes(item.path);
+                const isDisabled = !!item.disabled;
+                const alpha = !!item.alpha;
+                const Wrapper = isDisabled ? "div" : Link;
                 return (
-                  <Link 
+                  <Wrapper 
                     key={item.label} 
-                    to={createPageUrl(item.path) + location.search}
-                    onClick={() => window.innerWidth < 1024 && setIsSidebarOpen(false)}
+                    {...(!isDisabled
+                      ? {
+                          to: createPageUrl(item.path) + location.search,
+                          onClick: () => window.innerWidth < 1024 && setIsSidebarOpen(false),
+                        }
+                      : {})}
                     className={`
                       relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ease-out group overflow-hidden
                       ${item.color}
-                      ${isActive 
-                        ? 'ring-2 ring-white/50 shadow-lg scale-[1.01]' 
-                        : 'hover:scale-[1.02] hover:shadow-xl hover:-translate-y-0.5'}
+                      ${isDisabled
+                        ? 'opacity-55 cursor-not-allowed saturate-0'
+                        : isActive
+                          ? 'ring-2 ring-white/50 shadow-lg scale-[1.01]'
+                          : 'hover:scale-[1.02] hover:shadow-xl hover:-translate-y-0.5'}
                     `}
                   >
                     {/* Subtle gradient overlay on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className={`absolute inset-0 bg-gradient-to-r from-black/10 to-transparent transition-opacity duration-300 ${
+                      isDisabled ? 'opacity-20' : 'opacity-0 group-hover:opacity-100'
+                    }`} />
 
                     {/* Icon */}
-                    <item.icon className="w-6 h-6 text-white relative z-10 transition-transform duration-300 group-hover:scale-110" />
+                    <item.icon className={`w-6 h-6 text-white relative z-10 transition-transform duration-300 ${
+                      isDisabled ? '' : 'group-hover:scale-110'
+                    }`} />
 
                     {/* Label */}
                     <span className="text-sm font-medium text-white relative z-10 flex-1">
                       {item.label}
                     </span>
 
-                    {/* Beta badge */}
-                    {item.beta && (
+                    {/* Beta/Alpha badge */}
+                    {alpha ? (
+                      <span className="px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-extrabold tracking-wider rounded backdrop-blur-sm relative z-10">
+                        ALPHA
+                      </span>
+                    ) : item.beta ? (
                       <span className="px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded backdrop-blur-sm relative z-10">
                         Beta
                       </span>
-                    )}
+                    ) : null}
 
                     {/* Notification badge */}
                     {item.badge > 0 && (
@@ -383,7 +414,7 @@ function LayoutContent({ children, currentPageName }) {
                         {item.badge > 9 ? '9+' : item.badge}
                       </span>
                     )}
-                  </Link>
+                  </Wrapper>
                 );
               })}
             </div>
@@ -420,7 +451,7 @@ function LayoutContent({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white dark:bg-slate-900 min-h-screen flex flex-col transition-all duration-300`}>
+      <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white dark:bg-slate-900 min-h-screen flex flex-col transition-all duration-300`}>
         {/* Header */}
         <header className="h-16 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white dark:bg-slate-900 z-40">
           <div className="flex items-center gap-2 md:gap-4">
@@ -549,7 +580,7 @@ function LayoutContent({ children, currentPageName }) {
         </header>
 
         {/* Page Content */}
-        <div className="p-4 md:p-6 w-full animate-in fade-in duration-500">
+        <div className="p-4 md:p-6 w-full min-w-0 max-w-full overflow-x-hidden animate-in fade-in duration-500">
            {children}
         </div>
       </main>

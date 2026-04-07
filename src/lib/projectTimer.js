@@ -28,16 +28,41 @@ function writeState(next) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }
 
-export function getProjectTimer(projectId) {
+/** When a timer session ends, synced to Firestore / Project store (see api.entities.Project.addTrackedTimeSession). */
+let trackedTimeSyncHandler = null;
+
+export function setTrackedTimeSyncHandler(fn) {
+  trackedTimeSyncHandler = typeof fn === "function" ? fn : null;
+}
+
+function pickLatestIso(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  try {
+    return new Date(a) > new Date(b) ? a : b;
+  } catch {
+    return b;
+  }
+}
+
+/**
+ * @param {string} projectId
+ * @param {{ tracked_time_ms?: number, last_worked_at?: string } | Record<string, unknown>} [server] — fields from Project entity
+ */
+export function getProjectTimer(projectId, server = {}) {
   const state = readState();
   const total = state.totals?.[projectId] || {};
   const active = state.active?.projectId === projectId ? state.active : null;
+  const localMs = Number.isFinite(total?.totalMs) ? total.totalMs : 0;
+  const serverMs = Number(server?.tracked_time_ms) || 0;
+  const baseMs = Math.max(localMs, serverMs);
+  const lastWorkedAt = pickLatestIso(total?.lastWorkedAt || null, server?.last_worked_at || null);
   return {
     projectId,
     isRunning: !!active,
     startedAt: active?.startedAt || null,
-    totalMs: Number.isFinite(total?.totalMs) ? total.totalMs : 0,
-    lastWorkedAt: total?.lastWorkedAt || null,
+    totalMs: baseMs,
+    lastWorkedAt,
   };
 }
 
@@ -109,7 +134,25 @@ export function stopTimer({ reason = "manual", endAt = Date.now() } = {}) {
   };
 
   writeState(next);
-  return { projectId, elapsedMs, totalMs: nextTotalMs, lastWorkedAt: next.totals[projectId].lastWorkedAt };
+  const result = {
+    projectId,
+    elapsedMs,
+    totalMs: nextTotalMs,
+    lastWorkedAt: next.totals[projectId].lastWorkedAt,
+  };
+  if (trackedTimeSyncHandler && result.projectId && result.elapsedMs > 0) {
+    Promise.resolve(
+      trackedTimeSyncHandler({
+        projectId: result.projectId,
+        elapsedMs: result.elapsedMs,
+        lastWorkedAt: result.lastWorkedAt,
+        reason,
+      }),
+    ).catch((err) => {
+      console.error("[projectTimer] tracked time sync failed", err);
+    });
+  }
+  return result;
 }
 
 export function recoverActiveTimer() {

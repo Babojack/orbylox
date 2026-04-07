@@ -284,7 +284,7 @@ export default function Docs() {
         <div className="p-4 pt-8">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-2xl">{doc.icon || '📝'}</span>
-            <h3 className={`font-semibold truncate ${noteColor.text}`}>{doc.title || 'Ohne Titel'}</h3>
+            <h3 className={`font-semibold line-clamp-2 break-words min-w-0 ${noteColor.text}`}>{doc.title || 'Ohne Titel'}</h3>
           </div>
           <div 
             className={`text-sm ${noteColor.text} opacity-70 line-clamp-3`}
@@ -467,7 +467,7 @@ export default function Docs() {
                     {/* Title with icon */}
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-2xl">{doc.icon || '📝'}</span>
-                      <h3 className={`font-semibold text-lg ${noteColor.text}`}>{doc.title || 'Ohne Titel'}</h3>
+                      <h3 className={`font-semibold text-lg break-words min-w-0 [overflow-wrap:anywhere] ${noteColor.text}`}>{doc.title || 'Ohne Titel'}</h3>
                     </div>
                     
                     {/* Content preview */}
@@ -555,11 +555,11 @@ export default function Docs() {
 
       {/* Edit Dialog */}
       <Dialog open={!!selectedDocId} onOpenChange={(open) => !open && setSelectedDocId(null)}>
-        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] sm:h-[80vh] flex flex-col p-0 gap-0">
+        <DialogContent className="flex flex-col p-0 gap-0 h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] rounded-none border-0 sm:border left-0 top-0 translate-x-0 translate-y-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-4xl sm:w-[95vw] sm:h-[min(90dvh,56rem)] sm:max-h-[90dvh] sm:rounded-lg">
           {selectedDoc && (
             <>
-              <DialogHeader className="p-4 sm:p-6 pb-0 shrink-0">
-                <div className="flex items-center gap-2 sm:gap-3">
+              <DialogHeader className="p-4 sm:p-6 pb-0 shrink-0 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <Popover>
                     <PopoverTrigger asChild>
                       <button className="text-4xl hover:scale-110 transition-transform">
@@ -584,7 +584,7 @@ export default function Docs() {
                     value={editTitle}
                     onChange={handleTitleChange}
                     onBlur={handleTitleBlur}
-                    className="text-2xl font-bold border-none focus-visible:ring-0 px-0 placeholder:text-slate-300 h-auto"
+                    className="text-2xl font-bold border-none focus-visible:ring-0 px-0 placeholder:text-slate-300 h-auto min-w-0 flex-1 break-words"
                     placeholder="Titel der Notiz"
                   />
                 </div>
@@ -643,14 +643,14 @@ export default function Docs() {
                 </div>
               </DialogHeader>
               
-              <div className="flex-1 overflow-hidden">
-                <ScrollArea className="h-full">
-                  <div className="p-4 sm:p-6 pt-4">
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                <ScrollArea className="flex-1 min-h-0 basis-0">
+                  <div className="p-4 sm:p-6 pt-4 min-w-0 max-w-full overflow-x-hidden">
                     <ReactQuill 
                       theme="snow" 
                       value={localContent} 
                       onChange={handleContentChange}
-                      className="h-full border-none [&_.ql-container]:border-none [&_.ql-toolbar]:border-none [&_.ql-toolbar]:bg-slate-50 [&_.ql-toolbar]:rounded-lg [&_.ql-toolbar]:mb-4 [&_.ql-editor]:text-base [&_.ql-editor]:text-slate-700 [&_.ql-editor]:leading-relaxed [&_.ql-editor]:min-h-[300px]"
+                      className="docs-quill-editor h-full border-none max-w-full [&_.ql-container]:border-none [&_.ql-container]:max-w-full [&_.ql-editor]:max-w-full [&_.ql-toolbar]:flex-wrap [&_.ql-toolbar]:border-none [&_.ql-toolbar]:bg-slate-50 [&_.ql-toolbar]:rounded-lg [&_.ql-toolbar]:mb-4 [&_.ql-toolbar]:gap-0.5 [&_.ql-editor]:text-base [&_.ql-editor]:text-slate-700 [&_.ql-editor]:leading-relaxed [&_.ql-editor]:min-h-[min(50dvh,320px)] [&_.ql-editor]:overflow-x-hidden"
                       modules={{
                         toolbar: [
                           [{ 'header': [1, 2, 3, false] }],

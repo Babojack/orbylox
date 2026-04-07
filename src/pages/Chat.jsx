@@ -187,7 +187,7 @@ export default function Chat() {
       currentUser={currentUser}
       projectMembers={projectMembers}
     />
-    <div className="h-[calc(100vh-140px)] flex bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div className="h-[calc(100dvh-140px)] min-h-[280px] flex bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm overflow-hidden max-w-full">
        {/* Sidebar - Channels & Users - Hidden on mobile */}
        <div className={`${showMembers ? 'absolute inset-0 z-50 flex' : 'hidden'} sm:relative sm:flex w-full sm:w-64 bg-slate-50 border-r border-slate-100 flex-col`}>
           <div className="p-3 sm:p-4 border-b border-slate-100 flex justify-between items-center">
@@ -277,7 +277,7 @@ export default function Chat() {
 
                     return (
                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`flex max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'} gap-3`}>
+                            <div className={`flex max-w-[min(100%,28rem)] min-w-0 ${isMe ? 'flex-row-reverse' : 'flex-row'} gap-3`}>
                                 {!isSequence && !isMe && (
                                     <Avatar className="h-8 w-8 mt-1">
                                         <AvatarFallback className="bg-purple-100 text-purple-600">
@@ -285,14 +285,14 @@ export default function Chat() {
                                         </AvatarFallback>
                                     </Avatar>
                                 )}
-                                <div className={isSequence ? (isMe ? 'mr-11' : 'ml-11') : ''}>
+                                <div className={`min-w-0 ${isSequence ? (isMe ? 'mr-11' : 'ml-11') : ''}`}>
                                     {!isSequence && !isMe && (
                                       <div className="text-xs text-slate-400 mb-1 ml-1">
                                         {msg.sender_email?.split('@')[0] || 'User'}
                                       </div>
                                     )}
                                     <div className={`
-                                        p-3 rounded-2xl text-sm shadow-sm
+                                        p-3 rounded-2xl text-sm shadow-sm break-words [overflow-wrap:anywhere]
                                         ${isMe 
                                             ? 'bg-indigo-600 text-white rounded-tr-none' 
                                             : 'bg-slate-100 text-slate-800 rounded-tl-none'}

@@ -282,7 +282,7 @@ export default function SocialBoard() {
 
   if (isLoading) {
     return (
-      <div className="max-w-3xl mx-auto space-y-8">
+      <div className="max-w-3xl mx-auto space-y-8 w-full min-w-0">
         <div className="flex flex-col gap-2">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">{t('projectFeed')}</h2>
           <p className="text-slate-500">Updates, announcements and team discussions.</p>
@@ -296,7 +296,7 @@ export default function SocialBoard() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-8 w-full min-w-0">
       <div className="flex flex-col gap-2">
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">{t('projectFeed')}</h2>
         <p className="text-slate-500">Updates, announcements and team discussions.</p>
@@ -307,7 +307,7 @@ export default function SocialBoard() {
         <div className="p-4 pb-0">
            <Textarea 
             placeholder="What's new?" 
-            className="border-none resize-none focus-visible:ring-0 text-lg min-h-[100px] placeholder:text-slate-300"
+            className="border-none resize-none focus-visible:ring-0 text-lg min-h-[100px] placeholder:text-slate-300 w-full max-w-full min-w-0 [overflow-wrap:anywhere]"
             value={newPostContent}
             onChange={(e) => setNewPostContent(e.target.value)}
           />
@@ -398,7 +398,7 @@ export default function SocialBoard() {
               (url) => typeof url === "string" && url.trim() !== "" && !url.startsWith("blob:")
             );
             return (
-          <Card key={post.id} className="border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+          <Card key={post.id} className="border-slate-100 shadow-sm hover:shadow-md transition-shadow min-w-0 max-w-full overflow-hidden">
             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 border border-slate-100">
@@ -427,8 +427,8 @@ export default function SocialBoard() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </CardHeader>
-            <CardContent className="pb-2">
-              <div className="text-slate-700 whitespace-pre-wrap text-base leading-relaxed">
+            <CardContent className="pb-2 min-w-0 overflow-x-hidden">
+              <div className="text-slate-700 whitespace-pre-wrap text-base leading-relaxed break-words [overflow-wrap:anywhere]">
                 {post.content}
               </div>
               {safePostImages.length > 0 ? (
@@ -514,7 +514,7 @@ export default function SocialBoard() {
                            addCommentMutation.mutate({ postId: post.id, content: newComments[post.id] });
                          }
                        }}
-                       className="flex-1"
+                       className="flex-1 min-w-0"
                      />
                      <Button 
                        size="sm"
@@ -538,12 +538,12 @@ export default function SocialBoard() {
                           <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeedFromEmail(comment.author_email)}`} />
                            <AvatarFallback className="text-xs">{comment.author_email?.[0]}</AvatarFallback>
                          </Avatar>
-                         <div className="flex-1">
+                         <div className="flex-1 min-w-0">
                            <div className="flex items-center gap-2">
                              <span className="text-xs font-medium text-slate-700">{comment.author_email?.split('@')[0]}</span>
                              <span className="text-xs text-slate-400">{format(new Date(comment.created_date), 'MMM d, h:mm a')}</span>
                            </div>
-                           <p className="text-sm text-slate-600">{comment.content}</p>
+                           <p className="text-sm text-slate-600 break-words [overflow-wrap:anywhere]">{comment.content}</p>
                          </div>
                        </div>
                      ))}

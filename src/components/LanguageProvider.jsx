@@ -85,12 +85,23 @@ export const translations = {
     dropProjectsHere: "Drop projects here to pin them to your workspace.",
     favorites: "Favorites",
     projects: "Projects",
+    projectsMine: "My projects",
+    projectsSharedWithMe: "Shared with me",
+    projectsSharedHint: "You were invited as a member. Editing project settings is only available to the owner.",
+    noOwnProjectsYet: "You don’t have your own projects yet — create one with “New” above.",
     totalTime: "Total time",
     last: "Last",
     notTrackedYet: "Not tracked yet",
     feeds: "Feeds",
     activeModules: "Active modules",
     removeFromWorkspace: "Remove from workspace",
+    timerSyncedHint:
+      "Tracked time is saved when you stop the timer or leave the tab. Open the project list on another device and refresh to see the same totals (Google sign-in required).",
+    projectDoneBadge: "Done",
+    markProjectDone: "Mark project as done",
+    markProjectActive: "Mark project as active",
+    projectMarkDoneLabel: "Project completed",
+    projectMarkDoneHint: "Done projects stay visible; you can reopen them anytime.",
     
     // Tasks
     sprintBoard: "Sprint Board",
@@ -452,12 +463,24 @@ export const translations = {
     dropProjectsHere: "Drop projects here to pin them to your workspace.",
     favorites: "Favorites",
     projects: "Projekte",
+    projectsMine: "Meine Projekte",
+    projectsSharedWithMe: "Mit mir geteilt",
+    projectsSharedHint:
+      "Du bist als Mitglied eingeladen. Projekteinstellungen bearbeiten nur der/die Ersteller:in.",
+    noOwnProjectsYet: "Du hast noch keine eigenen Projekte — leg oben mit „Neu“ eines an.",
     totalTime: "Zeit gesamt",
     last: "Zuletzt",
     notTrackedYet: "Noch nie getrackt",
     feeds: "Feeds",
     activeModules: "Aktive Module",
     removeFromWorkspace: "Remove from workspace",
+    timerSyncedHint:
+      "Die erfasste Zeit wird gespeichert, wenn du den Timer stoppst oder den Tab verlässt. Auf dem anderen Gerät Projektliste öffnen und aktualisieren – dieselben Minuten erscheinen (Anmeldung mit Google nötig).",
+    projectDoneBadge: "Erledigt",
+    markProjectDone: "Projekt als erledigt markieren",
+    markProjectActive: "Projekt wieder aktiv",
+    projectMarkDoneLabel: "Projekt abgeschlossen",
+    projectMarkDoneHint: "Erledigte Projekte bleiben sichtbar; du kannst sie jederzeit wieder öffnen.",
     
     // Tasks
     sprintBoard: "Sprint Board",

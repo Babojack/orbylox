@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, EyeOff, Pencil, LayoutGrid, List } from 'lucide-react';
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, EyeOff, Pencil, LayoutGrid, List, CheckCircle2, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
@@ -58,6 +60,17 @@ function clampMembers(members) {
       .map((m) => String(m || "").trim())
       .filter(Boolean)
   ).slice(0, MAX_MEMBERS_PER_PROJECT);
+}
+
+/** Owner: Ersteller (E-Mail) oder Firebase-UID auf dem Dokument. */
+function isProjectMine(project, userEmailLower, userUid) {
+  if (userEmailLower && project?.created_by && String(project.created_by).toLowerCase() === userEmailLower) {
+    return true;
+  }
+  if (userUid && project?.userId === userUid) {
+    return true;
+  }
+  return false;
 }
 
 function computeProjectStats({ tasks = [], posts = [], docs = [], canvasItems = [], files = [], messages = [] }) {
@@ -132,7 +145,7 @@ function ProjectsListContent() {
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editProjectId, setEditProjectId] = useState(null);
-  const [editDraft, setEditDraft] = useState({ name: "", description: "", cover_image: "", members: [] });
+  const [editDraft, setEditDraft] = useState({ name: "", description: "", cover_image: "", members: [], is_done: false });
   const [editingCoverUpload, setEditingCoverUpload] = useState(false);
 
   React.useEffect(() => {
@@ -271,15 +284,17 @@ function ProjectsListContent() {
 
   const updateProjectMutation = useMutation({
     mutationFn: ({ id, data }) => api.entities.Project.update(id, data),
-    onSuccess: (updated) => {
+    onSuccess: (updated, variables) => {
       const key = ['projects', userEmailLower];
       queryClient.setQueryData(key, (old) => {
         const list = Array.isArray(old) ? old : [];
         return list.map((p) => (p.id === updated.id ? { ...p, ...updated } : p));
       });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      setIsEditOpen(false);
-      setEditProjectId(null);
+      if (variables?.closeEdit !== false) {
+        setIsEditOpen(false);
+        setEditProjectId(null);
+      }
     },
     onError: (err) => {
       toast({
@@ -328,8 +343,17 @@ function ProjectsListContent() {
       description: project?.description || "",
       cover_image: project?.cover_image || "",
       members: clampMembers(project?.members || []),
+      is_done: !!project?.is_done,
     });
     setIsEditOpen(true);
+  };
+
+  const toggleProjectDone = (project) => {
+    updateProjectMutation.mutate({
+      id: project.id,
+      data: { is_done: !project.is_done },
+      closeEdit: false,
+    });
   };
 
   const handleEditCoverUpload = async (e) => {
@@ -370,14 +394,34 @@ function ProjectsListContent() {
     return base;
   }, [projects, hiddenIds]);
 
-  const favoriteProjects = useMemo(
-    () => visibleProjects.filter((p) => favoriteIds.includes(p.id)),
-    [visibleProjects, favoriteIds]
+  const myVisibleProjects = useMemo(
+    () => visibleProjects.filter((p) => isProjectMine(p, userEmailLower, user?.uid)),
+    [visibleProjects, userEmailLower, user?.uid]
   );
 
-  const nonFavoriteProjects = useMemo(
-    () => visibleProjects.filter((p) => !favoriteIds.includes(p.id)),
-    [visibleProjects, favoriteIds]
+  const sharedVisibleProjects = useMemo(
+    () => visibleProjects.filter((p) => !isProjectMine(p, userEmailLower, user?.uid)),
+    [visibleProjects, userEmailLower, user?.uid]
+  );
+
+  const myFavoriteProjects = useMemo(
+    () => myVisibleProjects.filter((p) => favoriteIds.includes(p.id)),
+    [myVisibleProjects, favoriteIds]
+  );
+
+  const myNonFavoriteProjects = useMemo(
+    () => myVisibleProjects.filter((p) => !favoriteIds.includes(p.id)),
+    [myVisibleProjects, favoriteIds]
+  );
+
+  const sharedFavoriteProjects = useMemo(
+    () => sharedVisibleProjects.filter((p) => favoriteIds.includes(p.id)),
+    [sharedVisibleProjects, favoriteIds]
+  );
+
+  const sharedNonFavoriteProjects = useMemo(
+    () => sharedVisibleProjects.filter((p) => !favoriteIds.includes(p.id)),
+    [sharedVisibleProjects, favoriteIds]
   );
 
   // Workspace removed by request.
@@ -563,6 +607,11 @@ function ProjectsListContent() {
         {user && !user.uid && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
             Data is stored only on this device. Sign in with Google to save to the cloud (Firestore).
+          </div>
+        )}
+        {user?.uid && (
+          <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
+            {t('timerSyncedHint')}
           </div>
         )}
         <div className="flex justify-between items-center mb-8">
@@ -769,6 +818,19 @@ function ProjectsListContent() {
                 />
                 <p className="text-xs text-slate-500 mt-1">Kommagetrennt.</p>
               </div>
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="edit-project-done" className="text-sm font-medium text-slate-800">
+                    {t('projectMarkDoneLabel')}
+                  </Label>
+                  <p className="text-xs text-slate-500">{t('projectMarkDoneHint')}</p>
+                </div>
+                <Switch
+                  id="edit-project-done"
+                  checked={!!editDraft.is_done}
+                  onCheckedChange={(checked) => setEditDraft((d) => ({ ...d, is_done: checked }))}
+                />
+              </div>
               <Button
                 type="button"
                 className="w-full bg-indigo-600 hover:bg-indigo-700"
@@ -779,6 +841,7 @@ function ProjectsListContent() {
                     description: editDraft.description,
                     cover_image: editDraft.cover_image || "",
                     members: clampMembers(editDraft.members),
+                    is_done: !!editDraft.is_done,
                   };
                   updateProjectMutation.mutate({ id: editProjectId, data: payload });
                 }}
@@ -868,17 +931,205 @@ function ProjectsListContent() {
           </div>
         ) : (
           <>
-            {/* Favorites */}
-            <AnimatePresence mode="popLayout">
-              {favoriteProjects.length > 0 && (
-                <motion.div layout className="mb-6">
+            {/* Meine Projekte */}
+            <div className="mb-10 space-y-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="w-5 h-5 text-indigo-600 shrink-0" />
+                  <span className="text-base font-semibold text-slate-800">{t('projectsMine')}</span>
+                  <Badge variant="secondary" className="bg-indigo-50 text-indigo-800">
+                    {myVisibleProjects.length}
+                  </Badge>
+                </div>
+                {hiddenIds.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-300"
+                    onClick={() => persistHidden([])}
+                    title={t('showHidden')}
+                  >
+                    <EyeOff className="w-4 h-4 mr-2" />
+                    {t('showHidden')} ({hiddenIds.length})
+                  </Button>
+                )}
+              </div>
+
+              {myVisibleProjects.length === 0 ? (
+                <p className="text-sm text-slate-500 py-2">{t('noOwnProjectsYet')}</p>
+              ) : (
+                <>
+                  <AnimatePresence mode="popLayout">
+                    {myFavoriteProjects.length > 0 && (
+                      <motion.div layout className="mb-6">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Star className="w-4 h-4 text-amber-500" />
+                          <span className="text-sm font-semibold text-slate-700">{t('favorites')}</span>
+                          <Badge variant="secondary" className="bg-amber-50 text-amber-700">
+                            {myFavoriteProjects.length}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {myFavoriteProjects.map((project) => (
+                            <ProjectCard
+                              key={project.id}
+                              project={project}
+                              language={language}
+                              t={t}
+                              isSelectionMode={isSelectionMode}
+                              selectedProjects={selectedProjects}
+                              toggleProjectSelection={toggleProjectSelection}
+                              openProject={openProject}
+                              startProjectAndOpen={startProjectAndOpen}
+                              stopTimer={stopTimer}
+                              getProjectTimer={getProjectTimer}
+                              forceTick={forceTick}
+                              formatDuration={formatDuration}
+                              onToggleFavorite={toggleFavorite}
+                              onToggleHidden={toggleHidden}
+                              onEdit={openEditProject}
+                              onToggleDone={toggleProjectDone}
+                              isOwner
+                              isFavorite
+                              stats={projectStats?.[project.id]}
+                            />
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <div className="flex items-center gap-2 mb-2">
-                    <Star className="w-4 h-4 text-amber-500" />
-                    <span className="text-sm font-semibold text-slate-700">{t('favorites')}</span>
-                    <Badge variant="secondary" className="bg-amber-50 text-amber-700">{favoriteProjects.length}</Badge>
+                    <span className="text-sm font-semibold text-slate-700">{t('projects')}</span>
+                    <Badge variant="secondary" className="bg-slate-100 text-slate-600">
+                      {myNonFavoriteProjects.length}
+                    </Badge>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {favoriteProjects.map((project) => (
+
+                  {viewMode === "list" ? (
+                    <div className="space-y-3">
+                      {myNonFavoriteProjects.map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          project={project}
+                          language={language}
+                          t={t}
+                          isSelectionMode={isSelectionMode}
+                          selectedProjects={selectedProjects}
+                          toggleProjectSelection={toggleProjectSelection}
+                          openProject={openProject}
+                          startProjectAndOpen={startProjectAndOpen}
+                          stopTimer={stopTimer}
+                          getProjectTimer={getProjectTimer}
+                          forceTick={forceTick}
+                          formatDuration={formatDuration}
+                          onToggleFavorite={toggleFavorite}
+                          onToggleHidden={toggleHidden}
+                          onEdit={openEditProject}
+                          onToggleDone={toggleProjectDone}
+                          isOwner
+                          isFavorite={false}
+                          stats={projectStats?.[project.id]}
+                          compact
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {myNonFavoriteProjects.map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          project={project}
+                          language={language}
+                          t={t}
+                          isSelectionMode={isSelectionMode}
+                          selectedProjects={selectedProjects}
+                          toggleProjectSelection={toggleProjectSelection}
+                          openProject={openProject}
+                          startProjectAndOpen={startProjectAndOpen}
+                          stopTimer={stopTimer}
+                          getProjectTimer={getProjectTimer}
+                          forceTick={forceTick}
+                          formatDuration={formatDuration}
+                          onToggleFavorite={toggleFavorite}
+                          onToggleHidden={toggleHidden}
+                          onEdit={openEditProject}
+                          onToggleDone={toggleProjectDone}
+                          isOwner
+                          isFavorite={false}
+                          stats={projectStats?.[project.id]}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Mit mir geteilt */}
+            {sharedVisibleProjects.length > 0 && (
+              <div className="mb-6 space-y-4 border-t border-slate-200 pt-10">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Share2 className="w-5 h-5 text-sky-600 shrink-0" />
+                    <span className="text-base font-semibold text-slate-800">{t('projectsSharedWithMe')}</span>
+                    <Badge variant="secondary" className="bg-sky-50 text-sky-800">
+                      {sharedVisibleProjects.length}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">{t('projectsSharedHint')}</p>
+                </div>
+
+                <AnimatePresence mode="popLayout">
+                  {sharedFavoriteProjects.length > 0 && (
+                    <motion.div layout className="mb-6">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Star className="w-4 h-4 text-amber-500" />
+                        <span className="text-sm font-semibold text-slate-700">{t('favorites')}</span>
+                        <Badge variant="secondary" className="bg-amber-50 text-amber-700">
+                          {sharedFavoriteProjects.length}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {sharedFavoriteProjects.map((project) => (
+                          <ProjectCard
+                            key={project.id}
+                            project={project}
+                            language={language}
+                            t={t}
+                            isSelectionMode={isSelectionMode}
+                            selectedProjects={selectedProjects}
+                            toggleProjectSelection={toggleProjectSelection}
+                            openProject={openProject}
+                            startProjectAndOpen={startProjectAndOpen}
+                            stopTimer={stopTimer}
+                            getProjectTimer={getProjectTimer}
+                            forceTick={forceTick}
+                            formatDuration={formatDuration}
+                            onToggleFavorite={toggleFavorite}
+                            onToggleHidden={toggleHidden}
+                            onEdit={openEditProject}
+                            onToggleDone={toggleProjectDone}
+                            isOwner={false}
+                            isFavorite
+                            stats={projectStats?.[project.id]}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-semibold text-slate-700">{t('projects')}</span>
+                  <Badge variant="secondary" className="bg-slate-100 text-slate-600">
+                    {sharedNonFavoriteProjects.length}
+                  </Badge>
+                </div>
+
+                {viewMode === "list" ? (
+                  <div className="space-y-3">
+                    {sharedNonFavoriteProjects.map((project) => (
                       <ProjectCard
                         key={project.id}
                         project={project}
@@ -896,85 +1147,42 @@ function ProjectsListContent() {
                         onToggleFavorite={toggleFavorite}
                         onToggleHidden={toggleHidden}
                         onEdit={openEditProject}
-                        isFavorite
+                        onToggleDone={toggleProjectDone}
+                        isOwner={false}
+                        isFavorite={false}
+                        stats={projectStats?.[project.id]}
+                        compact
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {sharedNonFavoriteProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        language={language}
+                        t={t}
+                        isSelectionMode={isSelectionMode}
+                        selectedProjects={selectedProjects}
+                        toggleProjectSelection={toggleProjectSelection}
+                        openProject={openProject}
+                        startProjectAndOpen={startProjectAndOpen}
+                        stopTimer={stopTimer}
+                        getProjectTimer={getProjectTimer}
+                        forceTick={forceTick}
+                        formatDuration={formatDuration}
+                        onToggleFavorite={toggleFavorite}
+                        onToggleHidden={toggleHidden}
+                        onEdit={openEditProject}
+                        onToggleDone={toggleProjectDone}
+                        isOwner={false}
+                        isFavorite={false}
                         stats={projectStats?.[project.id]}
                       />
                     ))}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* All projects */}
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-700">{t('projects')}</span>
-                <Badge variant="secondary" className="bg-slate-100 text-slate-600">{nonFavoriteProjects.length}</Badge>
-              </div>
-              {hiddenIds.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-slate-300"
-                  onClick={() => persistHidden([])}
-                  title={t('showHidden')}
-                >
-                  <EyeOff className="w-4 h-4 mr-2" />
-                  {t('showHidden')} ({hiddenIds.length})
-                </Button>
-              )}
-            </div>
-
-            {viewMode === "list" ? (
-              <div className="space-y-3">
-                {nonFavoriteProjects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    language={language}
-                    t={t}
-                    isSelectionMode={isSelectionMode}
-                    selectedProjects={selectedProjects}
-                    toggleProjectSelection={toggleProjectSelection}
-                    openProject={openProject}
-                    startProjectAndOpen={startProjectAndOpen}
-                    stopTimer={stopTimer}
-                    getProjectTimer={getProjectTimer}
-                    forceTick={forceTick}
-                    formatDuration={formatDuration}
-                    onToggleFavorite={toggleFavorite}
-                    onToggleHidden={toggleHidden}
-                    onEdit={openEditProject}
-                    isFavorite={false}
-                    stats={projectStats?.[project.id]}
-                    compact
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {nonFavoriteProjects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    language={language}
-                    t={t}
-                    isSelectionMode={isSelectionMode}
-                    selectedProjects={selectedProjects}
-                    toggleProjectSelection={toggleProjectSelection}
-                    openProject={openProject}
-                    startProjectAndOpen={startProjectAndOpen}
-                    stopTimer={stopTimer}
-                    getProjectTimer={getProjectTimer}
-                    forceTick={forceTick}
-                    formatDuration={formatDuration}
-                    onToggleFavorite={toggleFavorite}
-                    onToggleHidden={toggleHidden}
-                    onEdit={openEditProject}
-                    isFavorite={false}
-                    stats={projectStats?.[project.id]}
-                  />
-                ))}
+                )}
               </div>
             )}
           </>
@@ -1000,11 +1208,13 @@ function ProjectCard({
   onToggleFavorite,
   onToggleHidden,
   onEdit,
+  onToggleDone,
+  isOwner = true,
   isFavorite,
   stats,
   compact = false,
 }) {
-  const timer = getProjectTimer(project.id);
+  const timer = getProjectTimer(project.id, project);
   const running = timer.isRunning;
   const totalMs = timer.totalMs + (running ? Math.max(0, Date.now() - timer.startedAt) : 0);
   const lastWorkedAt = timer.lastWorkedAt;
@@ -1023,7 +1233,11 @@ function ProjectCard({
       whileTap={{ scale: 0.985 }}
     >
       <Card
-        className={`hover:shadow-xl transition-all duration-300 cursor-pointer group border-2 hover:border-indigo-300 relative ${
+        className={`hover:shadow-xl transition-all duration-300 cursor-pointer group border-2 relative ${
+          project.is_done
+            ? "border-emerald-200/80 hover:border-emerald-300 bg-emerald-50/30"
+            : "hover:border-indigo-300"
+        } ${
           selectedProjects.includes(project.id) ? 'ring-2 ring-indigo-500 border-indigo-500' : ''
         }`}
         onClick={() => isSelectionMode ? toggleProjectSelection(project.id) : openProject(project)}
@@ -1057,7 +1271,28 @@ function ProjectCard({
             <FolderOpen className="w-6 h-6 text-white" />
           </div>
           {!isSelectionMode && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {isOwner && (
+                <motion.button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleDone(project);
+                    forceTick((v) => v + 1);
+                  }}
+                  title={project.is_done ? t('markProjectActive') : t('markProjectDone')}
+                  className={`h-8 w-8 rounded-full border flex items-center justify-center transition-colors ${
+                    project.is_done
+                      ? "bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200"
+                      : "bg-white border-slate-200 text-slate-400 hover:text-emerald-600 hover:border-emerald-200"
+                  }`}
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.92 }}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                </motion.button>
+              )}
               <motion.button
                 type="button"
                 onClick={(e) => {
@@ -1077,20 +1312,22 @@ function ProjectCard({
               >
                 <Star className="w-4 h-4" />
               </motion.button>
-              <motion.button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onEdit(project);
-                }}
-                title="Edit project"
-                className="h-8 w-8 rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center"
-                whileHover={{ scale: 1.06 }}
-                whileTap={{ scale: 0.92 }}
-              >
-                <Pencil className="w-4 h-4" />
-              </motion.button>
+              {isOwner && (
+                <motion.button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEdit(project);
+                  }}
+                  title="Edit project"
+                  className="h-8 w-8 rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center"
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.92 }}
+                >
+                  <Pencil className="w-4 h-4" />
+                </motion.button>
+              )}
               <motion.button
                 type="button"
                 onClick={(e) => {
@@ -1132,7 +1369,14 @@ function ProjectCard({
             </div>
           )}
         </div>
-        <CardTitle className={compact ? "text-base" : "text-xl"}>{project.name}</CardTitle>
+        <CardTitle className={`${compact ? "text-base" : "text-xl"} flex items-center gap-2 flex-wrap`}>
+          <span>{project.name}</span>
+          {project.is_done && (
+            <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 font-semibold shrink-0">
+              {t('projectDoneBadge')}
+            </Badge>
+          )}
+        </CardTitle>
         <CardDescription className="line-clamp-2">
           {project.description || t('noDescription')}
         </CardDescription>

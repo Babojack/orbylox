@@ -18,6 +18,7 @@ import {
   query,
   where,
   or,
+  increment,
 } from "firebase/firestore";
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -187,6 +188,34 @@ async function firestoreUpdate(db, collectionName, id, data) {
     updated_date: new Date().toISOString(),
   });
   await updateDoc(docRef, updated);
+  const snap = await getDoc(docRef);
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+/** Adds completed session time to a project (atomic on Firestore for multi-device sync). */
+async function mergeProjectTrackedTimeLocal(id, deltaMs, lastWorkedAtIso) {
+  const items = readCollection("Project");
+  const idx = items.findIndex((i) => i.id === id);
+  if (idx === -1) return null;
+  const prev = Number(items[idx].tracked_time_ms) || 0;
+  const updated = {
+    ...items[idx],
+    tracked_time_ms: prev + deltaMs,
+    last_worked_at: lastWorkedAtIso || new Date().toISOString(),
+    updated_date: new Date().toISOString(),
+  };
+  items[idx] = updated;
+  writeCollection("Project", items);
+  return updated;
+}
+
+async function firestoreAddProjectTrackedTime(db, projectId, deltaMs, lastWorkedAtIso) {
+  const docRef = doc(db, "Project", projectId);
+  await updateDoc(docRef, {
+    tracked_time_ms: increment(deltaMs),
+    last_worked_at: lastWorkedAtIso || new Date().toISOString(),
+    updated_date: new Date().toISOString(),
+  });
   const snap = await getDoc(docRef);
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
@@ -509,6 +538,8 @@ function createEntityApi(entityName) {
   };
 }
 
+const projectEntityBase = createEntityApi("Project");
+
 export const api = {
   // Simple local auth: one demo user kept in localStorage
   auth: {
@@ -737,7 +768,42 @@ export const api = {
     },
   },
   entities: {
-    Project: createEntityApi("Project"),
+    Project: {
+      ...projectEntityBase,
+      /**
+       * Persists a finished timer session so totals sync across devices (Firestore increment).
+       * @param {string} id project id
+       * @param {number} elapsedMs session length in ms
+       * @param {string} [lastWorkedAtIso]
+       */
+      async addTrackedTimeSession(id, elapsedMs, lastWorkedAtIso) {
+        const ms = Math.max(0, Math.floor(Number(elapsedMs) || 0));
+        if (!id || ms <= 0) return null;
+        await delay();
+        const user = await getStorageUser();
+        if (user?.demo) {
+          return mergeProjectTrackedTimeLocal(id, ms, lastWorkedAtIso);
+        }
+        if (!hasFirebaseConfig || !firestoreDb || !user) {
+          return mergeProjectTrackedTimeLocal(id, ms, lastWorkedAtIso);
+        }
+        const userId = getStorageUserId(user);
+        if (!userId) {
+          return mergeProjectTrackedTimeLocal(id, ms, lastWorkedAtIso);
+        }
+        try {
+          return await firestoreAddProjectTrackedTime(firestoreDb, id, ms, lastWorkedAtIso);
+        } catch (err) {
+          console.error("[Firestore] Project.addTrackedTimeSession fehlgeschlagen:", err.message);
+          if (err.code === "permission-denied" || err.message?.includes("permissions")) {
+            throw new Error(
+              "Missing or insufficient permissions. Bitte Firestore-Regeln in der Firebase Console deployen (siehe firestore.rules).",
+            );
+          }
+          throw err;
+        }
+      },
+    },
     ProductIdea: createEntityApi("ProductIdea"),
     Post: createEntityApi("Post"),
     Task: createEntityApi("Task"),

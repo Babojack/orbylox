@@ -18,6 +18,7 @@ export default function FileHub() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [currentFolderId, setCurrentFolderId] = useState(null);
@@ -85,10 +86,11 @@ export default function FileHub() {
       });
     },
     onMutate: async (file) => {
+      setUploadingCount((c) => c + 1);
       await queryClient.cancelQueries(['files', projectId, currentFolderId]);
       const previous = queryClient.getQueryData(['files', projectId, currentFolderId]);
       const tempFile = {
-        id: 'temp_' + Date.now(),
+        id: 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2),
         name: file.name,
         type: file.type,
         size: file.size,
@@ -105,6 +107,7 @@ export default function FileHub() {
     },
     onSettled: () => {
       queryClient.invalidateQueries(['files', projectId, currentFolderId]);
+      setUploadingCount((c) => Math.max(0, c - 1));
     }
   });
 
@@ -184,10 +187,10 @@ export default function FileHub() {
   });
 
   const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      uploadMutation.mutate(file);
-    }
+    const selected = Array.from(e.target.files || []);
+    selected.forEach((file) => uploadMutation.mutate(file));
+    // allow selecting same file again
+    e.target.value = '';
   };
 
   const handleDrop = (e) => {
@@ -321,8 +324,8 @@ export default function FileHub() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 w-full min-w-0 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 min-w-0">
         <div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Dateien</h2>
             <p className="text-slate-500 text-sm sm:text-base">Verwalten Sie Dateien und Dokumente</p>
@@ -359,16 +362,19 @@ export default function FileHub() {
                 className="bg-indigo-600 hover:bg-indigo-700 flex-1 sm:flex-none text-xs sm:text-sm"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploadMutation.isPending}
+                disabled={uploadingCount > 25}
             >
                 <UploadCloud className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">{uploadMutation.isPending ? 'Hochladen...' : 'Datei hochladen'}</span>
-                <span className="sm:hidden">{uploadMutation.isPending ? '...' : 'Upload'}</span>
+                <span className="hidden sm:inline">
+                  {uploadingCount > 0 ? `Hochladen… (${uploadingCount})` : 'Dateien hochladen'}
+                </span>
+                <span className="sm:hidden">{uploadingCount > 0 ? `…(${uploadingCount})` : 'Upload'}</span>
             </Button>
             <input 
                 type="file" 
                 ref={fileInputRef} 
                 className="hidden" 
+                multiple
                 onChange={handleFileSelect}
             />
             <Button 
