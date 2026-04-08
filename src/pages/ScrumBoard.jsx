@@ -4,7 +4,7 @@ import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Draggable } from '@hello-pangea/dnd';
 import { StrictModeDroppable as Droppable } from "@/components/StrictModeDroppable";
-import { Plus, MoreVertical, Calendar, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter } from 'lucide-react';
+import { Plus, MoreVertical, Calendar, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, Tags } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,14 +22,42 @@ const COLUMNS = {
   done: { label: "Done", color: "bg-green-50" }
 };
 
+function sortTasksByBoardOrder(taskList) {
+  return [...taskList].sort((a, b) => {
+    const ao = Number.isFinite(Number(a.board_order))
+      ? Number(a.board_order)
+      : Number.MAX_SAFE_INTEGER;
+    const bo = Number.isFinite(Number(b.board_order))
+      ? Number(b.board_order)
+      : Number.MAX_SAFE_INTEGER;
+    if (ao !== bo) return ao - bo;
+    return (
+      new Date(a.created_date || 0).getTime() -
+      new Date(b.created_date || 0).getTime()
+    );
+  });
+}
+
+function parseTagsFromInput(str) {
+  if (!str || typeof str !== "string") return [];
+  return [
+    ...new Set(
+      str
+        .split(/[,;]/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
 export default function ScrumBoard() {
     const queryClient = useQueryClient();
     const [isNewTaskOpen, setIsNewTaskOpen] = React.useState(false);
-    const [newTask, setNewTask] = React.useState({ title: "", priority: "medium", assignee_email: "" });
+    const [newTask, setNewTask] = React.useState({ title: "", priority: "medium", assignee_email: "", tagsInput: "" });
     const [selectedTask, setSelectedTask] = React.useState(null);
     const [viewMode, setViewMode] = React.useState('board'); // 'board' | 'timeline' | 'people'
     const [filterAssignee, setFilterAssignee] = React.useState(null); // null = all
-    const [taskOrder, setTaskOrder] = React.useState({}); // Store order per column
+    const [filterTag, setFilterTag] = React.useState(null); // null = all tags
     const [dustEffect, setDustEffect] = React.useState({ active: false, x: 0, y: 0 });
 
     const searchParams = new URLSearchParams(window.location.search);
@@ -105,27 +133,15 @@ export default function ScrumBoard() {
     return Array.from(assignees);
   }, [currentUser?.email, projectMembers]);
 
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status, ...data }) => api.entities.Task.update(id, { status, ...data }),
-    onMutate: async ({ id, status }) => {
-      await queryClient.cancelQueries(['tasks', projectId]);
-      const previousTasks = queryClient.getQueryData(['tasks', projectId]);
-      
-      queryClient.setQueryData(['tasks', projectId], (old) =>
-        old?.map(task => task.id === id ? { ...task, status } : task) || []
-      );
-      
-      return { previousTasks };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousTasks) {
-        queryClient.setQueryData(['tasks', projectId], context.previousTasks);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries(['tasks', projectId]);
-    }
-  });
+  const allProjectTags = React.useMemo(() => {
+    const s = new Set();
+    (tasks || []).forEach((t) => {
+      (t.tags || []).forEach((tag) => {
+        if (typeof tag === "string" && tag.trim()) s.add(tag.trim());
+      });
+    });
+    return Array.from(s).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }, [tasks]);
 
   const deleteTaskMutation = useMutation({
     mutationFn: (taskId) => api.entities.Task.delete(taskId),
@@ -143,22 +159,74 @@ export default function ScrumBoard() {
     }
   });
 
+  const reorderTasksMutation = useMutation({
+    mutationFn: async (updates) => {
+      await Promise.all(
+        updates.map(({ id, patch }) => api.entities.Task.update(id, patch)),
+      );
+    },
+    onMutate: async (updates) => {
+      await queryClient.cancelQueries({ queryKey: ["tasks", projectId] });
+      const previousTasks = queryClient.getQueryData(["tasks", projectId]);
+      queryClient.setQueryData(["tasks", projectId], (old) => {
+        const map = new Map((old || []).map((t) => [t.id, { ...t }]));
+        updates.forEach(({ id, patch }) => {
+          if (map.has(id)) {
+            map.set(id, { ...map.get(id), ...patch });
+          }
+        });
+        return Array.from(map.values());
+      });
+      return { previousTasks };
+    },
+    onError: (err, updates, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["tasks", projectId], context.previousTasks);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+    },
+  });
+
   const createTaskMutation = useMutation({
-    mutationFn: (taskData) => api.entities.Task.create({
-        ...taskData,
+    mutationFn: (taskData) => {
+      const todoTasks = (tasks || []).filter((t) => t.status === "todo");
+      const maxOrder = todoTasks.reduce(
+        (m, t) => Math.max(m, Number(t.board_order) || 0),
+        -1,
+      );
+      const { tagsInput, ...rest } = taskData;
+      const tags = parseTagsFromInput(tagsInput || "");
+      return api.entities.Task.create({
+        ...rest,
         project_id: projectId,
-        status: "todo"
-    }),
+        status: "todo",
+        board_order: maxOrder + 1,
+        tags,
+      });
+    },
     onMutate: async (taskData) => {
       await queryClient.cancelQueries(['tasks', projectId]);
       const previousTasks = queryClient.getQueryData(['tasks', projectId]);
       const tempId = 'temp_' + Date.now();
+      const { tagsInput: _tagsIn, ...rest } = taskData;
+      const tags = parseTagsFromInput(taskData.tagsInput || "");
+      const todoN = (previousTasks || []).filter((t) => t.status === "todo").length;
       queryClient.setQueryData(['tasks', projectId], old => [
         ...(old || []),
-        { ...taskData, id: tempId, project_id: projectId, status: 'todo', created_date: new Date().toISOString() }
+        {
+          ...rest,
+          tags,
+          id: tempId,
+          project_id: projectId,
+          status: 'todo',
+          board_order: todoN,
+          created_date: new Date().toISOString(),
+        },
       ]);
       setIsNewTaskOpen(false);
-      setNewTask({ title: "", priority: "medium", assignee_email: "" });
+      setNewTask({ title: "", priority: "medium", assignee_email: "", tagsInput: "" });
       return { previousTasks };
     },
     onError: (err, variables, context) => {
@@ -208,19 +276,29 @@ export default function ScrumBoard() {
     }
     newDestTasks.splice(destination.index, 0, movedTask);
 
-    // Update order state
-    setTaskOrder(prev => ({
-      ...prev,
-      [source.droppableId]: newSourceTasks.map(t => t.id),
-      [destination.droppableId]: newDestTasks.map(t => t.id)
-    }));
-    
-    // Update status if column changed
-    if (destination.droppableId !== source.droppableId) {
-      updateStatusMutation.mutate({ 
-        id: draggableId, 
-        status: destination.droppableId 
+    const updates = [];
+    if (source.droppableId === destination.droppableId) {
+      newSourceTasks.forEach((t, i) => {
+        if (Number(t.board_order) !== i) {
+          updates.push({ id: t.id, patch: { board_order: i } });
+        }
       });
+    } else {
+      newSourceTasks.forEach((t, i) => {
+        const patch = { board_order: i, status: source.droppableId };
+        if (Number(t.board_order) !== i || t.status !== source.droppableId) {
+          updates.push({ id: t.id, patch });
+        }
+      });
+      newDestTasks.forEach((t, i) => {
+        const patch = { board_order: i, status: destination.droppableId };
+        if (Number(t.board_order) !== i || t.status !== destination.droppableId) {
+          updates.push({ id: t.id, patch });
+        }
+      });
+    }
+    if (updates.length > 0) {
+      reorderTasksMutation.mutate(updates);
     }
   };
 
@@ -232,28 +310,12 @@ export default function ScrumBoard() {
         (t.assignees?.includes(filterAssignee)) || (t.assignee_email === filterAssignee)
       );
     }
-    
-    // Apply custom order if exists
-    const order = taskOrder[status];
-    if (order && order.length > 0) {
-      const orderedTasks = [];
-      const remaining = [...filtered];
-      
-      order.forEach(id => {
-        const idx = remaining.findIndex(t => t.id === id);
-        if (idx !== -1) {
-          orderedTasks.push(remaining[idx]);
-          remaining.splice(idx, 1);
-        }
-      });
-      
-      // Add any new tasks that aren't in the order yet
-      return [...orderedTasks, ...remaining];
+    if (filterTag) {
+      filtered = filtered.filter((t) =>
+        Array.isArray(t.tags) ? t.tags.includes(filterTag) : false,
+      );
     }
-    
-    // Default: sort by priority
-    const priorityOrder = { high: 0, medium: 1, low: 2 };
-    return filtered.sort((a, b) => (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1));
+    return sortTasksByBoardOrder(filtered);
   };
 
   const getTasksByStatus = (status) => {
@@ -303,6 +365,13 @@ export default function ScrumBoard() {
             >
               <UserIcon className="w-4 h-4" />
             </button>
+            <button
+              onClick={() => setViewMode('tags')}
+              className={`p-1.5 rounded ${viewMode === 'tags' ? 'bg-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              title="Nach Kategorie (Tags)"
+            >
+              <Tags className="w-4 h-4" />
+            </button>
           </div>
           {/* Assignee Filter */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
@@ -328,6 +397,38 @@ export default function ScrumBoard() {
               </button>
             ))}
           </div>
+          {viewMode === "board" && allProjectTags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 bg-slate-100 rounded-lg p-1 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setFilterTag(null)}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  !filterTag
+                    ? "bg-white shadow-sm text-indigo-600"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Alle Tags
+              </button>
+              {allProjectTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() =>
+                    setFilterTag(filterTag === tag ? null : tag)
+                  }
+                  className={`max-w-[140px] truncate px-2 py-1 rounded text-xs font-medium transition-colors ${
+                    filterTag === tag
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-white/80"
+                  }`}
+                  title={tag}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex gap-2 sm:gap-3 order-2 sm:order-1 w-full sm:w-auto">
           <Dialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen}>
@@ -381,6 +482,16 @@ export default function ScrumBoard() {
                             {allAssignees.length === 0 && " • Go to Settings to add team"}
                         </div>
                     </div>
+                    <div>
+                        <label className="text-xs font-medium text-slate-600 mb-1 block">Tags / Kategorien</label>
+                        <Input
+                          placeholder="z. B. Scope & Struktur, MVP (Komma getrennt)"
+                          value={newTask.tagsInput}
+                          onChange={(e) =>
+                            setNewTask({ ...newTask, tagsInput: e.target.value })
+                          }
+                        />
+                    </div>
                     <Button 
                         className="w-full bg-indigo-600"
                         onClick={() => createTaskMutation.mutate(newTask)}
@@ -415,6 +526,119 @@ export default function ScrumBoard() {
           onTaskClick={setSelectedTask} 
           allAssignees={allAssignees}
         />
+      ) : viewMode === 'tags' ? (
+        <div className="space-y-6 max-w-4xl mx-auto pb-8">
+          {allProjectTags.map((tag) => {
+            const inTag = sortTasksByBoardOrder(
+              (tasks || []).filter((t) => (t.tags || []).includes(tag)),
+            );
+            if (inTag.length === 0) return null;
+            return (
+              <div
+                key={tag}
+                className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-4 sm:p-5 shadow-sm"
+              >
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2 min-w-0">
+                    <Tags className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <span className="truncate">{tag}</span>
+                  </h3>
+                  <Badge variant="secondary" className="shrink-0">{inTag.length}</Badge>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {inTag.map((task) => (
+                    <button
+                      key={task.id}
+                      type="button"
+                      onClick={() => setSelectedTask(task)}
+                      className="text-left p-3 rounded-xl border border-slate-100 dark:border-slate-600 hover:border-indigo-200 dark:hover:border-indigo-500 hover:bg-indigo-50/60 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-snug line-clamp-2">
+                        {task.title}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded font-medium ${
+                            task.status === "done"
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                              : task.status === "in_progress"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                                : task.status === "review"
+                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                                  : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                          }`}
+                        >
+                          {COLUMNS[task.status]?.label || task.status}
+                        </span>
+                        <span
+                          className={`text-[10px] uppercase ${
+                            task.priority === "high"
+                              ? "text-red-600"
+                              : task.priority === "medium"
+                                ? "text-orange-600"
+                                : "text-blue-600"
+                          }`}
+                        >
+                          {task.priority}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {sortTasksByBoardOrder(
+            (tasks || []).filter((t) => !t.tags || t.tags.length === 0),
+          ).length > 0 && (
+            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-900/30 p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-slate-600 dark:text-slate-400">
+                  Ohne Kategorie
+                </h3>
+                <Badge variant="outline">
+                  {
+                    sortTasksByBoardOrder(
+                      (tasks || []).filter((t) => !t.tags || t.tags.length === 0),
+                    ).length
+                  }
+                </Badge>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {sortTasksByBoardOrder(
+                  (tasks || []).filter((t) => !t.tags || t.tags.length === 0),
+                ).map((task) => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    onClick={() => setSelectedTask(task)}
+                    className="text-left p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/60 hover:border-indigo-200 transition-colors"
+                  >
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100 line-clamp-2">
+                      {task.title}
+                    </p>
+                    <span
+                      className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded ${
+                        task.status === "done"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {COLUMNS[task.status]?.label || task.status}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {allProjectTags.length === 0 &&
+            (tasks || []).every((t) => !t.tags?.length) && (
+              <p className="text-center text-slate-400 py-12 text-sm">
+                Noch keine Tags. Bearbeite ein Ticket und füge Kategorien hinzu,
+                oder erstelle ein Task mit Tags.
+              </p>
+            )}
+        </div>
       ) : viewMode === 'people' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {allAssignees.map(email => {
@@ -603,9 +827,25 @@ export default function ScrumBoard() {
                                       <MoreVertical className="w-3 h-3" />
                                   </Button>
                               </div>
-                              <p className="text-sm font-medium text-slate-800 leading-snug mb-3">
+                              <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-snug mb-3">
                                   {task.title}
                               </p>
+                              {(task.tags?.length > 0) && (
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                  {task.tags.slice(0, 3).map((tg) => (
+                                    <span
+                                      key={tg}
+                                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200 max-w-[120px] truncate"
+                                      title={tg}
+                                    >
+                                      {tg}
+                                    </span>
+                                  ))}
+                                  {task.tags.length > 3 && (
+                                    <span className="text-[10px] text-slate-400">+{task.tags.length - 3}</span>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Task indicators */}
                               <div className="flex items-center gap-3 text-xs text-slate-400 mb-3">

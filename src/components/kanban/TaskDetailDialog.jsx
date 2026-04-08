@@ -61,12 +61,17 @@ export default function TaskDetailDialog({
   const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState('');
   const [newSubtask, setNewSubtask] = useState('');
+  const [newTagText, setNewTagText] = useState('');
   const [editedTask, setEditedTask] = useState(null);
   const [uploading, setUploading] = useState(false);
 
   React.useEffect(() => {
     if (task) {
-      setEditedTask({ ...task });
+      setEditedTask({
+        ...task,
+        tags: Array.isArray(task.tags) ? [...task.tags] : [],
+      });
+      setNewTagText('');
     }
   }, [task]);
 
@@ -262,12 +267,86 @@ export default function TaskDetailDialog({
               />
             </div>
 
+            {/* Tags / categories */}
+            <div className="mb-6">
+              <label className="text-sm font-medium text-slate-600 mb-2 block">Tags / Kategorien</label>
+              <p className="text-xs text-slate-500 mb-2">
+                Gleiche Tags gruppieren Tickets in der Ansicht „Nach Kategorie“.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-3 min-w-0">
+                {(editedTask.tags || []).map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className="flex items-center gap-1 pr-1 max-w-full"
+                  >
+                    <span className="truncate max-w-[200px]" title={tag}>
+                      {tag}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newTags = (editedTask.tags || []).filter((x) => x !== tag);
+                        setEditedTask({ ...editedTask, tags: newTags });
+                        updateTaskMutation.mutate({ tags: newTags });
+                      }}
+                      className="ml-0.5 hover:text-red-500 rounded p-0.5"
+                      aria-label={`Tag ${tag} entfernen`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  placeholder="z. B. Scope & Struktur"
+                  value={newTagText}
+                  onChange={(e) => setNewTagText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const t = newTagText.trim();
+                      if (!t) return;
+                      if ((editedTask.tags || []).includes(t)) {
+                        setNewTagText("");
+                        return;
+                      }
+                      const newTags = [...(editedTask.tags || []), t];
+                      setEditedTask({ ...editedTask, tags: newTags });
+                      updateTaskMutation.mutate({ tags: newTags });
+                      setNewTagText("");
+                    }
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const t = newTagText.trim();
+                    if (!t) return;
+                    if ((editedTask.tags || []).includes(t)) {
+                      setNewTagText("");
+                      return;
+                    }
+                    const newTags = [...(editedTask.tags || []), t];
+                    setEditedTask({ ...editedTask, tags: newTags });
+                    updateTaskMutation.mutate({ tags: newTags });
+                    setNewTagText("");
+                  }}
+                >
+                  Hinzufügen
+                </Button>
+              </div>
+            </div>
+
             {/* Priority, Assignee & Dates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
               <div>
                 <label className="text-sm font-medium text-slate-600 mb-2 block">Priority</label>
                 <Select
-                  value={editedTask.priority}
+                  value={editedTask.priority || "medium"}
                   onValueChange={(v) => {
                     setEditedTask({ ...editedTask, priority: v });
                     updateTaskMutation.mutate({ priority: v });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Ticket, Loader2, Sparkles } from 'lucide-react';
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/apiClient";
 
 function buildFallbackTitle(selection) {
@@ -35,6 +35,7 @@ function normalizeTicketSuggestion(raw, selection) {
 }
 
 export default function TextToTicketPopup({ projectId }) {
+  const queryClient = useQueryClient();
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
     queryFn: () => api.auth.me()
@@ -114,14 +115,24 @@ Antworte NUR im JSON Format.`,
 
       const ticket = normalizeTicketSuggestion(response, selection);
 
+      const cachedTasks = queryClient.getQueryData(["tasks", projectId]) || [];
+      const todoTasks = cachedTasks.filter((t) => t.status === "todo");
+      const maxOrder = todoTasks.reduce(
+        (m, t) => Math.max(m, Number(t.board_order) || 0),
+        -1,
+      );
+
       // Create the task
       const task = await api.entities.Task.create({
         title: ticket.title,
         description: selection,
         project_id: projectId,
         status: 'todo',
-        priority: 'medium'
+        priority: 'medium',
+        board_order: maxOrder + 1,
+        tags: [],
       });
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
 
       // Create subtasks if available
       for (const subtaskTitle of ticket.subtasks) {
