@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createPageUrl } from "@/utils";
 import { api } from "@/api/apiClient";
+import { hasFirebaseConfig } from "@/lib/firebase";
+import { useProjectRealtimeSync } from "@/hooks/useProjectRealtimeSync";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
@@ -86,6 +88,17 @@ function LayoutContent({ children, currentPageName }) {
         }
         return user;
       }
+    });
+
+    useProjectRealtimeSync({
+      queryClient,
+      projectId,
+      currentUser,
+      enabled:
+        !!projectId &&
+        !!currentUser?.uid &&
+        hasFirebaseConfig,
+      t,
     });
   // Mobile: closed by default, Desktop: open by default
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(() => {

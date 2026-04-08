@@ -1,5 +1,6 @@
 import React from 'react';
 import { api } from "@/api/apiClient";
+import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Draggable } from '@hello-pangea/dnd';
 import { StrictModeDroppable as Droppable } from "@/components/StrictModeDroppable";
@@ -34,6 +35,12 @@ export default function ScrumBoard() {
     const searchParams = new URLSearchParams(window.location.search);
     const projectId = searchParams.get('project');
 
+  const { data: currentUser, isLoading: userLoading, isError: userError } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => api.auth.me(),
+    retry: false
+  });
+
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks', projectId],
     queryFn: async () => {
@@ -43,7 +50,8 @@ export default function ScrumBoard() {
     initialData: [],
     staleTime: 0,
     refetchOnMount: 'always',
-    refetchInterval: 5000,
+    refetchInterval:
+      currentUser?.uid && hasFirebaseConfig ? false : 5000,
     enabled: !!projectId
   });
 
@@ -57,12 +65,6 @@ export default function ScrumBoard() {
   });
 
   const projectMembers = Array.isArray(project?.members) ? project.members : [];
-  
-  const { data: currentUser, isLoading: userLoading, isError: userError } = useQuery({
-    queryKey: ['currentUser'],
-    queryFn: () => api.auth.me(),
-    retry: false
-  });
 
   // Redirect to login if not authenticated
   React.useEffect(() => {

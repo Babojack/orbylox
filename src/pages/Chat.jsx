@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from "@/api/apiClient";
+import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Send, Paperclip, Smile, Trash2, Users, Video } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,8 @@ export default function Chat() {
       const allMessages = await api.entities.Message.list('created_date', 200);
       return allMessages.filter(m => m.project_id === projectId);
     },
-    refetchInterval: 2000,
+    refetchInterval:
+      user?.uid && hasFirebaseConfig ? false : 4000,
     staleTime: 1000,
     initialData: [],
     enabled: !!projectId
