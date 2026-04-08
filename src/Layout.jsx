@@ -1,6 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { de as dateFnsDe, enUS as dateFnsEn } from "date-fns/locale";
 import { 
   LayoutGrid, 
   ListTodo, 
@@ -35,7 +37,10 @@ import {
 import { createPageUrl } from "@/utils";
 import { api } from "@/api/apiClient";
 import { hasFirebaseConfig } from "@/lib/firebase";
-import { useProjectRealtimeSync } from "@/hooks/useProjectRealtimeSync";
+import {
+  useProjectRealtimeSync,
+  teamActivityPathForEntity,
+} from "@/hooks/useProjectRealtimeSync";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
@@ -66,6 +71,39 @@ const RANDOM_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Ella',
 ];
 
+function teamActivityLucideIcon(entityName) {
+  switch (entityName) {
+    case "Post":
+    case "PostComment":
+      return LayoutGrid;
+    case "Message":
+      return MessageSquare;
+    case "Task":
+    case "Subtask":
+    case "TaskComment":
+      return ListTodo;
+    case "Document":
+      return FileText;
+    case "FileRecord":
+    case "Folder":
+      return FolderOpen;
+    case "CanvasItem":
+    case "CanvasConnection":
+      return Shapes;
+    case "CustomIntegration":
+      return Puzzle;
+    case "Event":
+      return CalendarDays;
+    case "StartupStep":
+    case "StartupJourney":
+      return Rocket;
+    case "ProductIdea":
+      return Lightbulb;
+    default:
+      return Bell;
+  }
+}
+
 function LayoutContent({ children, currentPageName }) {
     const { isDark, toggleTheme } = useTheme();
     const location = useLocation();
@@ -90,16 +128,6 @@ function LayoutContent({ children, currentPageName }) {
       }
     });
 
-    useProjectRealtimeSync({
-      queryClient,
-      projectId,
-      currentUser,
-      enabled:
-        !!projectId &&
-        !!currentUser?.uid &&
-        hasFirebaseConfig,
-      t,
-    });
   // Mobile: closed by default, Desktop: open by default
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(() => {
     return typeof window !== 'undefined' && window.innerWidth >= 1024;
@@ -115,7 +143,45 @@ function LayoutContent({ children, currentPageName }) {
     } catch { return {}; }
   });
   const [showNotifications, setShowNotifications] = React.useState(false);
+  const [teamActivityItems, setTeamActivityItems] = React.useState([]);
   const isAdmin = getAdminEmails().includes((currentUser?.email || "").toLowerCase());
+
+  React.useEffect(() => {
+    setTeamActivityItems([]);
+  }, [projectId]);
+
+  const onTeamActivity = useCallback(({ entityName, messageKey }) => {
+    setTeamActivityItems((prev) =>
+      [
+        {
+          id: `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+          entityName,
+          messageKey,
+          at: Date.now(),
+          read: false,
+        },
+        ...prev,
+      ].slice(0, 40),
+    );
+  }, []);
+
+  useProjectRealtimeSync({
+    queryClient,
+    projectId,
+    currentUser,
+    enabled: !!projectId && !!currentUser?.uid && hasFirebaseConfig,
+    onTeamActivity,
+  });
+
+  const teamActivityUnread = teamActivityItems.filter((i) => !i.read).length;
+  const dateLocale = language === "de" ? dateFnsDe : dateFnsEn;
+
+  const handleNotificationsOpenChange = React.useCallback((open) => {
+    setShowNotifications(open);
+    if (open) {
+      setTeamActivityItems((prev) => prev.map((x) => ({ ...x, read: true })));
+    }
+  }, []);
 
   const closeSidebar = React.useCallback((e) => {
     if (e?.stopPropagation) e.stopPropagation();
@@ -521,40 +587,75 @@ function LayoutContent({ children, currentPageName }) {
              >
                <Languages className="w-5 h-5" />
              </button>
-             <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>
+             <DropdownMenu open={showNotifications} onOpenChange={handleNotificationsOpenChange}>
                <DropdownMenuTrigger asChild>
-                 <button type="button" className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-accent relative hidden sm:flex">
+                 <button type="button" className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent relative" aria-label={t('notifications')}>
                    <Bell className="w-5 h-5" />
-                   {(newPostsCount + newMessagesCount) > 0 && (
-                     <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                   {(newPostsCount + newMessagesCount + teamActivityUnread) > 0 && (
+                     <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
                    )}
                  </button>
                </DropdownMenuTrigger>
-               <DropdownMenuContent align="end" className="w-72">
-                 <div className="px-3 py-2 border-b border-slate-100">
-                   <p className="font-medium text-sm text-slate-900">{t('notifications')}</p>
+               <DropdownMenuContent align="end" className="w-80 sm:w-96 max-w-[calc(100vw-2rem)] max-h-[min(24rem,calc(100vh-6rem))] overflow-y-auto p-0 dark:border-slate-700 dark:bg-slate-900">
+                 <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10">
+                   <p className="font-medium text-sm text-slate-900 dark:text-slate-100">{t('notifications')}</p>
                  </div>
-                 {newPostsCount > 0 && (
-                   <DropdownMenuItem asChild>
-                     <Link to={createPageUrl('SocialBoard') + location.search} className="cursor-pointer flex items-center gap-2">
-                       <LayoutGrid className="w-4 h-4 text-indigo-500" />
-                       <span>{newPostsCount} neue Beiträge</span>
-                     </Link>
-                   </DropdownMenuItem>
-                 )}
-                 {newMessagesCount > 0 && (
-                   <DropdownMenuItem asChild>
-                     <Link to={createPageUrl('Chat') + location.search} className="cursor-pointer flex items-center gap-2">
-                       <MessageSquare className="w-4 h-4 text-indigo-500" />
-                       <span>{newMessagesCount} neue Nachrichten</span>
-                     </Link>
-                   </DropdownMenuItem>
-                 )}
-                 {(newPostsCount + newMessagesCount) === 0 && (
-                   <div className="px-3 py-4 text-center text-sm text-slate-400">
-                     {t('noNotifications')}
-                   </div>
-                 )}
+                 <div className="py-1">
+                   {newPostsCount > 0 && (
+                     <DropdownMenuItem asChild>
+                       <Link to={createPageUrl('SocialBoard') + location.search} className="cursor-pointer flex items-center gap-2">
+                         <LayoutGrid className="w-4 h-4 text-indigo-500 shrink-0" />
+                         <span className="text-sm">{t('notificationFeedUnread', { count: newPostsCount })}</span>
+                       </Link>
+                     </DropdownMenuItem>
+                   )}
+                   {newMessagesCount > 0 && (
+                     <DropdownMenuItem asChild>
+                       <Link to={createPageUrl('Chat') + location.search} className="cursor-pointer flex items-center gap-2">
+                         <MessageSquare className="w-4 h-4 text-indigo-500 shrink-0" />
+                         <span className="text-sm">{t('notificationChatUnread', { count: newMessagesCount })}</span>
+                       </Link>
+                     </DropdownMenuItem>
+                   )}
+                   {teamActivityItems.length > 0 && (
+                     <>
+                       <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                         {t('notificationTeamHeading')}
+                       </div>
+                       {teamActivityItems.map((item) => {
+                         const path = teamActivityPathForEntity(item.entityName);
+                         const Icon = teamActivityLucideIcon(item.entityName);
+                         const rel = formatDistanceToNow(item.at, { addSuffix: true, locale: dateLocale });
+                         return (
+                           <DropdownMenuItem key={item.id} asChild>
+                             <Link
+                               to={createPageUrl(path) + location.search}
+                               className={`cursor-pointer flex gap-3 items-start py-2.5 ${item.read ? 'opacity-70' : ''}`}
+                               onClick={() => setShowNotifications(false)}
+                             >
+                               <Icon className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                               <span className="flex-1 min-w-0 text-sm leading-snug text-slate-800 dark:text-slate-100">
+                                 {t(item.messageKey)}
+                                 <span className="block text-xs text-slate-400 dark:text-slate-500 mt-1">{rel}</span>
+                               </span>
+                             </Link>
+                           </DropdownMenuItem>
+                         );
+                       })}
+                       <DropdownMenuItem
+                         className="text-xs text-slate-500 focus:text-slate-700 dark:text-slate-400 cursor-pointer justify-center"
+                         onSelect={() => setTeamActivityItems([])}
+                       >
+                         {t('notificationClearTeam')}
+                       </DropdownMenuItem>
+                     </>
+                   )}
+                   {newPostsCount === 0 && newMessagesCount === 0 && teamActivityItems.length === 0 && (
+                     <div className="px-3 py-8 text-center text-sm text-slate-400">
+                       {t('noNotifications')}
+                     </div>
+                   )}
+                 </div>
                </DropdownMenuContent>
              </DropdownMenu>
 

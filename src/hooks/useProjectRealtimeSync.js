@@ -7,7 +7,6 @@ import {
   where,
 } from "firebase/firestore";
 import { db, hasFirebaseConfig } from "@/lib/firebase";
-import { toast } from "@/components/ui/use-toast";
 
 const SCOPED_COLLECTIONS = [
   "Post",
@@ -143,7 +142,7 @@ function invalidateForEntity(queryClient, projectId, entityName) {
   }
 }
 
-function toastTranslationKey(entityName) {
+export function teamActivityMessageKey(entityName) {
   switch (entityName) {
     case "Post":
       return "liveNotifyFeed";
@@ -178,27 +177,63 @@ function toastTranslationKey(entityName) {
 }
 
 /**
- * Keeps TanStack Query in sync with Firestore for the current project and shows
- * toasts for changes made by other collaborators (Firebase auth with uid only).
+ * Maps a Firestore collection name to the app route for the notification link.
+ */
+export function teamActivityPathForEntity(entityName) {
+  switch (entityName) {
+    case "Post":
+    case "PostComment":
+      return "SocialBoard";
+    case "Message":
+      return "Chat";
+    case "Task":
+    case "Subtask":
+    case "TaskComment":
+      return "ScrumBoard";
+    case "Document":
+      return "Docs";
+    case "FileRecord":
+    case "Folder":
+      return "FileHub";
+    case "CanvasItem":
+    case "CanvasConnection":
+      return "Canvas";
+    case "CustomIntegration":
+      return "Integrations";
+    case "Event":
+      return "Calendar";
+    case "StartupStep":
+    case "StartupJourney":
+      return "StartupBuilder";
+    case "ProductIdea":
+      return "ProductValidation";
+    default:
+      return "SocialBoard";
+  }
+}
+
+/**
+ * Keeps TanStack Query in sync with Firestore for the current project and
+ * reports collaborator activity via onTeamActivity (Firebase auth with uid only).
  */
 export function useProjectRealtimeSync({
   queryClient,
   projectId,
   currentUser,
   enabled,
-  t,
+  onTeamActivity,
 }) {
   const projectDataRef = useRef(null);
-  const toastTimerRef = useRef(null);
-  const pendingToastRef = useRef(null);
-  const suppressToastsUntilRef = useRef(0);
+  const activityTimerRef = useRef(null);
+  const pendingActivityRef = useRef(null);
+  const suppressActivityUntilRef = useRef(0);
   const timerOnlyDebounceRef = useRef(null);
-  const tRef = useRef(t);
-  tRef.current = t;
+  const onTeamActivityRef = useRef(onTeamActivity);
+  onTeamActivityRef.current = onTeamActivity;
 
   useEffect(() => {
     projectDataRef.current = null;
-    suppressToastsUntilRef.current = Date.now() + 900;
+    suppressActivityUntilRef.current = Date.now() + 900;
   }, [projectId]);
 
   useEffect(() => {
@@ -208,21 +243,19 @@ export function useProjectRealtimeSync({
 
     const unsubs = [];
 
-    const scheduleToast = (entityName) => {
+    const scheduleActivity = (entityName) => {
       if (TOAST_SILENT.has(entityName)) return;
-      const key = toastTranslationKey(entityName);
-      pendingToastRef.current = key;
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      toastTimerRef.current = setTimeout(() => {
-        toastTimerRef.current = null;
-        const k = pendingToastRef.current;
-        pendingToastRef.current = null;
-        if (!k || Date.now() < suppressToastsUntilRef.current) return;
-        const tr = tRef.current;
-        toast({
-          title: tr("liveNotifyTitle"),
-          description: tr(k),
-        });
+      const cb = onTeamActivityRef.current;
+      if (typeof cb !== "function") return;
+      const messageKey = teamActivityMessageKey(entityName);
+      pendingActivityRef.current = { entityName, messageKey };
+      if (activityTimerRef.current) clearTimeout(activityTimerRef.current);
+      activityTimerRef.current = setTimeout(() => {
+        activityTimerRef.current = null;
+        const payload = pendingActivityRef.current;
+        pendingActivityRef.current = null;
+        if (!payload || Date.now() < suppressActivityUntilRef.current) return;
+        onTeamActivityRef.current?.(payload);
       }, 450);
     };
 
@@ -245,7 +278,7 @@ export function useProjectRealtimeSync({
             (c) => !isActorSelf(c.doc.data(), currentUser),
           );
           if (!fromOthers.length) return;
-          scheduleToast(entityName);
+          scheduleActivity(entityName);
         },
         (err) => {
           console.warn("[Realtime]", entityName, err?.message || err);
@@ -293,7 +326,7 @@ export function useProjectRealtimeSync({
 
     return () => {
       unsubs.forEach((u) => u());
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (activityTimerRef.current) clearTimeout(activityTimerRef.current);
       if (timerOnlyDebounceRef.current) {
         clearTimeout(timerOnlyDebounceRef.current);
       }
