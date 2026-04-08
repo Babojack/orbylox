@@ -45,6 +45,7 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
+import { PageTransition } from "@/components/PageTransition";
 import { startTimer, getActiveTimer, setTrackedTimeSyncHandler } from "@/lib/projectTimer";
 
 const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
@@ -182,6 +183,8 @@ function LayoutContent({ children, currentPageName }) {
       setTeamActivityItems((prev) => prev.map((x) => ({ ...x, read: true })));
     }
   }, []);
+
+  const pageTransitionKey = `${location.pathname}${location.search}|${language}`;
 
   const closeSidebar = React.useCallback((e) => {
     if (e?.stopPropagation) e.stopPropagation();
@@ -419,8 +422,12 @@ function LayoutContent({ children, currentPageName }) {
   
   // Don't show layout on projects list page or standalone pages
   if (currentPageName === 'ProjectsList' || currentPageName === 'index' || currentPageName === 'Landing' || currentPageName === 'Profile' || currentPageName === 'Subscription' || currentPageName === 'Impressum' || currentPageName === 'AdminUsers') {
-        return children;
-      }
+    return (
+      <PageTransition pageKey={pageTransitionKey} className="min-h-screen w-full">
+        {children}
+      </PageTransition>
+    );
+  }
   
   if (!projectId) {
     return null;
@@ -437,17 +444,17 @@ function LayoutContent({ children, currentPageName }) {
   ];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900 flex text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900">
+    <div className="min-h-screen bg-white dark:bg-slate-900 flex text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900 transition-colors duration-300 ease-out">
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity duration-200 ease-out motion-reduce:transition-none"
           onPointerDown={closeSidebar}
         />
       )}
 
       {/* Sidebar */}
-      <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 dark:border-slate-800 flex flex-col fixed lg:fixed h-full bg-white dark:bg-slate-900 z-50 transition-transform duration-300`}>
+      <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 dark:border-slate-800 flex flex-col fixed lg:fixed h-full bg-white dark:bg-slate-900 z-50 transition-transform duration-300 ease-out motion-reduce:transition-none`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="text-[11px] sm:text-xs font-extrabold tracking-[0.08em] leading-tight text-slate-900 dark:text-slate-100">
@@ -470,7 +477,7 @@ function LayoutContent({ children, currentPageName }) {
                 const isDisabled = !!item.disabled;
                 const alpha = !!item.alpha;
                 const navClassName = `
-                      relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ease-out group overflow-hidden
+                      relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ease-out motion-reduce:transition-none group overflow-hidden
                       ${item.color}
                       ${isDisabled
                         ? 'opacity-55 cursor-not-allowed saturate-0'
@@ -554,9 +561,9 @@ function LayoutContent({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white dark:bg-slate-900 min-h-screen flex flex-col transition-all duration-300`}>
+      <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white dark:bg-slate-900 min-h-screen flex flex-col transition-[margin] duration-300 ease-out motion-reduce:transition-none`}>
         {/* Header */}
-        <header className="h-16 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white dark:bg-slate-900 z-50">
+        <header className="h-16 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-50 transition-colors duration-300 ease-out motion-reduce:transition-none">
           <div className="flex items-center gap-2 md:gap-4">
             <button 
               type="button"
@@ -573,7 +580,7 @@ function LayoutContent({ children, currentPageName }) {
           <div className="flex items-center gap-2 md:gap-4">
              <button
                type="button"
-               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent hidden sm:flex"
+               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent hidden sm:flex transition-colors duration-200 ease-out motion-reduce:transition-none"
                onClick={toggleTheme}
                title={isDark ? 'Light Mode' : 'Dark Mode'}
              >
@@ -581,7 +588,7 @@ function LayoutContent({ children, currentPageName }) {
              </button>
              <button
                type="button"
-               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent hidden sm:flex"
+               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent hidden sm:flex transition-colors duration-200 ease-out motion-reduce:transition-none"
                onClick={() => setLanguage(language === 'en' ? 'de' : 'en')}
                title={language === 'en' ? 'Switch to German' : 'Switch to English'}
              >
@@ -589,7 +596,7 @@ function LayoutContent({ children, currentPageName }) {
              </button>
              <DropdownMenu open={showNotifications} onOpenChange={handleNotificationsOpenChange}>
                <DropdownMenuTrigger asChild>
-                 <button type="button" className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent relative" aria-label={t('notifications')}>
+                 <button type="button" className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent relative transition-colors duration-200 ease-out motion-reduce:transition-none" aria-label={t('notifications')}>
                    <Bell className="w-5 h-5" />
                    {(newPostsCount + newMessagesCount + teamActivityUnread) > 0 && (
                      <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
@@ -718,8 +725,10 @@ function LayoutContent({ children, currentPageName }) {
         </header>
 
         {/* Page Content */}
-        <div className="p-4 md:p-6 w-full min-w-0 max-w-full overflow-x-hidden animate-in fade-in duration-500">
-           {children}
+        <div className="p-4 md:p-6 w-full min-w-0 max-w-full overflow-x-hidden flex-1">
+          <PageTransition pageKey={pageTransitionKey} className="w-full min-w-0 max-w-full">
+            {children}
+          </PageTransition>
         </div>
       </main>
 
