@@ -180,8 +180,14 @@ const PROJECT_SCOPED_COLLECTIONS = new Set([
   "StartupStep",
   "StartupJourney",
   "Event",
+  // Listed by project_id so queries match firestore.rules projectScopedRead.
+  // (Foreign-key + get(Parent) in rules breaks list queries for many clients.)
+  "PostComment",
+  "TaskComment",
+  "Subtask",
 ]);
 
+/** Legacy rows without project_id: reachable via parent id + rules postScopedRead/taskScopedRead. */
 const RELATED_PROJECT_SCOPED_COLLECTIONS = {
   Subtask: { parentCollection: "Task", foreignKey: "task_id" },
   TaskComment: { parentCollection: "Task", foreignKey: "task_id" },
@@ -236,33 +242,45 @@ async function firestoreList(db, collectionName, userId, orderBy) {
       const snap = await getDocs(projectQuery);
       sharedItems.push(...snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     }
-    return sortItems(dedupe([...ownItems, ...sharedItems]), orderBy);
-  }
+    const merged = dedupe([...ownItems, ...sharedItems]);
 
-  // Collections that reference a project indirectly (via task_id / post_id).
-  const relatedCfg = RELATED_PROJECT_SCOPED_COLLECTIONS[collectionName];
-  if (relatedCfg) {
-    const ownSnap = await getDocs(query(coll, where("userId", "==", userId)));
-    const ownItems = ownSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    if (accessibleProjectIds.length === 0) return sortItems(ownItems, orderBy);
-
-    const parentColl = collection(db, relatedCfg.parentCollection);
-    const projectBatches = chunkArray(accessibleProjectIds, 10);
-    const parentIds = [];
-    for (const ids of projectBatches) {
-      const parentSnap = await getDocs(query(parentColl, where("project_id", "in", ids)));
-      parentIds.push(...parentSnap.docs.map((d) => d.id));
+    const relatedCfg = RELATED_PROJECT_SCOPED_COLLECTIONS[collectionName];
+    if (!relatedCfg) {
+      return sortItems(merged, orderBy);
     }
-    const uniqueParentIds = [...new Set(parentIds.filter(Boolean))];
-    if (uniqueParentIds.length === 0) return sortItems(ownItems, orderBy);
 
-    const parentBatches = chunkArray(uniqueParentIds, 10);
-    const sharedItems = [];
-    for (const ids of parentBatches) {
-      const childSnap = await getDocs(query(coll, where(relatedCfg.foreignKey, "in", ids)));
-      sharedItems.push(...childSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    // Merge legacy child rows that have task_id/post_id but no project_id (other users' rows).
+    try {
+      const parentColl = collection(db, relatedCfg.parentCollection);
+      const projectBatches = chunkArray(accessibleProjectIds, 10);
+      const parentIds = [];
+      for (const ids of projectBatches) {
+        const parentSnap = await getDocs(
+          query(parentColl, where("project_id", "in", ids)),
+        );
+        parentIds.push(...parentSnap.docs.map((d) => d.id));
+      }
+      const uniqueParentIds = [...new Set(parentIds.filter(Boolean))];
+      if (uniqueParentIds.length === 0) {
+        return sortItems(merged, orderBy);
+      }
+
+      const parentBatches = chunkArray(uniqueParentIds, 10);
+      const legacyItems = [];
+      for (const ids of parentBatches) {
+        const childSnap = await getDocs(
+          query(coll, where(relatedCfg.foreignKey, "in", ids)),
+        );
+        legacyItems.push(...childSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      }
+      return sortItems(dedupe([...merged, ...legacyItems]), orderBy);
+    } catch (err) {
+      console.warn(
+        `[Firestore] ${collectionName} legacy parent-key list skipped:`,
+        err?.message || err,
+      );
+      return sortItems(merged, orderBy);
     }
-    return sortItems(dedupe([...ownItems, ...sharedItems]), orderBy);
   }
 
   const q = query(coll, where("userId", "==", userId));
