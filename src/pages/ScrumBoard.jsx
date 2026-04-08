@@ -4,7 +4,7 @@ import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Draggable } from '@hello-pangea/dnd';
 import { StrictModeDroppable as Droppable } from "@/components/StrictModeDroppable";
-import { Plus, MoreVertical, Calendar, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, Tags } from 'lucide-react';
+import { Plus, MoreVertical, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -31,6 +31,9 @@ function sortTasksByBoardOrder(taskList) {
       ? Number(b.board_order)
       : Number.MAX_SAFE_INTEGER;
     if (ao !== bo) return ao - bo;
+    const asi = Number(a.stack_index) || 0;
+    const bsi = Number(b.stack_index) || 0;
+    if (asi !== bsi) return asi - bsi;
     return (
       new Date(a.created_date || 0).getTime() -
       new Date(b.created_date || 0).getTime()
@@ -50,6 +53,219 @@ function parseTagsFromInput(str) {
   ];
 }
 
+const DEFAULT_STACK_LABEL = "Stapel";
+
+function newStackUuid() {
+  return crypto.randomUUID();
+}
+
+function groupConsecutiveStacks(sortedTasks) {
+  const out = [];
+  let i = 0;
+  while (i < sortedTasks.length) {
+    const t = sortedTasks[i];
+    const sid = t?.kanban_stack_id;
+    if (!sid || typeof sid !== "string") {
+      out.push({ stackId: null, tasks: [t] });
+      i++;
+      continue;
+    }
+    const chunk = [t];
+    i++;
+    while (i < sortedTasks.length && sortedTasks[i]?.kanban_stack_id === sid) {
+      chunk.push(sortedTasks[i]);
+      i++;
+    }
+    if (chunk.length < 2) {
+      for (const x of chunk) out.push({ stackId: null, tasks: [x] });
+    } else {
+      out.push({ stackId: sid, tasks: chunk });
+    }
+  }
+  return out;
+}
+
+function isStackExpanded(stackOpen, stackId) {
+  return stackOpen[stackId] !== false;
+}
+
+function buildFlatDragItems(groups, stackOpen) {
+  const flat = [];
+  for (const g of groups) {
+    if (g.stackId && g.tasks.length >= 2 && !isStackExpanded(stackOpen, g.stackId)) {
+      flat.push({
+        task: g.tasks[0],
+        meta: { kind: "stack-collapsed", group: g },
+      });
+    } else if (g.stackId && g.tasks.length >= 2) {
+      for (const t of g.tasks) {
+        flat.push({
+          task: t,
+          meta: { kind: "stack-expanded", group: g },
+        });
+      }
+    } else {
+      for (const t of g.tasks) {
+        flat.push({
+          task: t,
+          meta: { kind: "single", group: g },
+        });
+      }
+    }
+  }
+  return flat.map((x, index) => ({ ...x, index }));
+}
+
+function expandFlatToTaskIds(flatItems) {
+  const ids = [];
+  for (const f of flatItems) {
+    if (f.meta.kind === "stack-collapsed") {
+      for (const t of f.meta.group.tasks) ids.push(t.id);
+    } else {
+      ids.push(f.task.id);
+    }
+  }
+  return ids;
+}
+
+function flatDestIndexToExpandedInsertPos(flatItems, destFlatIndex) {
+  let pos = 0;
+  for (let i = 0; i < destFlatIndex && i < flatItems.length; i++) {
+    const f = flatItems[i];
+    if (f.meta.kind === "stack-collapsed") {
+      pos += f.meta.group.tasks.length;
+    } else {
+      pos += 1;
+    }
+  }
+  return pos;
+}
+
+function flatSourceIndexToBlockIds(flatItems, sourceFlatIndex) {
+  const f = flatItems[sourceFlatIndex];
+  if (!f) return [];
+  if (f.meta.kind === "stack-collapsed") {
+    return f.meta.group.tasks.map((t) => t.id);
+  }
+  return [f.task.id];
+}
+
+function mergeTaskPatches(updates) {
+  const m = new Map();
+  for (const { id, patch } of updates) {
+    m.set(id, { ...(m.get(id) || {}), ...patch });
+  }
+  return Array.from(m.entries()).map(([id, patch]) => ({ id, patch }));
+}
+
+/** Fixes split / orphan stack ids on column order; mutates taskById */
+function sanitizeStackGeometry(orderedIds, taskById) {
+  const patches = [];
+  const get = (id) => taskById.get(id);
+
+  const findRuns = () => {
+    const rs = [];
+    let idx = 0;
+    while (idx < orderedIds.length) {
+      const sid = get(orderedIds[idx])?.kanban_stack_id;
+      if (!sid) {
+        idx++;
+        continue;
+      }
+      let j = idx;
+      while (
+        j + 1 < orderedIds.length &&
+        get(orderedIds[j + 1])?.kanban_stack_id === sid
+      ) {
+        j++;
+      }
+      rs.push({ start: idx, end: j, sid });
+      idx = j + 1;
+    }
+    return rs;
+  };
+
+  let runs = findRuns();
+  const bySid = new Map();
+  for (const r of runs) {
+    if (!bySid.has(r.sid)) bySid.set(r.sid, []);
+    bySid.get(r.sid).push(r);
+  }
+
+  for (const [, rlist] of bySid) {
+    if (rlist.length > 1) {
+      for (let ri = 1; ri < rlist.length; ri++) {
+        const newSid = newStackUuid();
+        const label =
+          get(orderedIds[rlist[ri].start])?.kanban_stack_label ||
+          DEFAULT_STACK_LABEL;
+        for (let k = rlist[ri].start; k <= rlist[ri].end; k++) {
+          const id = orderedIds[k];
+          patches.push({
+            id,
+            patch: { kanban_stack_id: newSid, kanban_stack_label: label },
+          });
+          taskById.set(id, {
+            ...get(id),
+            kanban_stack_id: newSid,
+            kanban_stack_label: label,
+          });
+        }
+      }
+    }
+  }
+
+  runs = findRuns();
+  for (const r of runs) {
+    if (r.end === r.start) {
+      const id = orderedIds[r.start];
+      patches.push({
+        id,
+        patch: {
+          kanban_stack_id: null,
+          kanban_stack_label: null,
+          stack_index: 0,
+        },
+      });
+      taskById.set(id, {
+        ...get(id),
+        kanban_stack_id: null,
+        kanban_stack_label: null,
+        stack_index: 0,
+      });
+    }
+  }
+
+  return patches;
+}
+
+function finalizeColumnOrderPatches(orderedIds, taskById, status) {
+  const stackPatches = sanitizeStackGeometry(orderedIds, taskById);
+  const reorderPatches = [];
+  let lastSid = null;
+  let stackSeq = 0;
+  for (let i = 0; i < orderedIds.length; i++) {
+    const id = orderedIds[i];
+    const t = taskById.get(id);
+    if (!t) continue;
+    const sid = t.kanban_stack_id || null;
+    if (sid && sid === lastSid) stackSeq++;
+    else {
+      stackSeq = 0;
+      lastSid = sid;
+    }
+    reorderPatches.push({
+      id,
+      patch: {
+        board_order: i,
+        status,
+        stack_index: sid ? stackSeq : 0,
+      },
+    });
+  }
+  return [...stackPatches, ...reorderPatches];
+}
+
 export default function ScrumBoard() {
     const queryClient = useQueryClient();
     const [isNewTaskOpen, setIsNewTaskOpen] = React.useState(false);
@@ -57,7 +273,8 @@ export default function ScrumBoard() {
     const [selectedTask, setSelectedTask] = React.useState(null);
     const [viewMode, setViewMode] = React.useState('board'); // 'board' | 'timeline' | 'people'
     const [filterAssignee, setFilterAssignee] = React.useState(null); // null = all
-    const [filterTag, setFilterTag] = React.useState(null); // null = all tags
+    /** kanban_stack_id -> false means collapsed (iOS-style stack) */
+    const [stackOpen, setStackOpen] = React.useState({});
     const [dustEffect, setDustEffect] = React.useState({ active: false, x: 0, y: 0 });
 
     const searchParams = new URLSearchParams(window.location.search);
@@ -133,16 +350,6 @@ export default function ScrumBoard() {
     return Array.from(assignees);
   }, [currentUser?.email, projectMembers]);
 
-  const allProjectTags = React.useMemo(() => {
-    const s = new Set();
-    (tasks || []).forEach((t) => {
-      (t.tags || []).forEach((tag) => {
-        if (typeof tag === "string" && tag.trim()) s.add(tag.trim());
-      });
-    });
-    return Array.from(s).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-  }, [tasks]);
-
   const deleteTaskMutation = useMutation({
     mutationFn: (taskId) => api.entities.Task.delete(taskId),
     onMutate: async (taskId) => {
@@ -161,16 +368,18 @@ export default function ScrumBoard() {
 
   const reorderTasksMutation = useMutation({
     mutationFn: async (updates) => {
+      const merged = mergeTaskPatches(updates);
       await Promise.all(
-        updates.map(({ id, patch }) => api.entities.Task.update(id, patch)),
+        merged.map(({ id, patch }) => api.entities.Task.update(id, patch)),
       );
     },
     onMutate: async (updates) => {
+      const merged = mergeTaskPatches(updates);
       await queryClient.cancelQueries({ queryKey: ["tasks", projectId] });
       const previousTasks = queryClient.getQueryData(["tasks", projectId]);
       queryClient.setQueryData(["tasks", projectId], (old) => {
         const map = new Map((old || []).map((t) => [t.id, { ...t }]));
-        updates.forEach(({ id, patch }) => {
+        merged.forEach(({ id, patch }) => {
           if (map.has(id)) {
             map.set(id, { ...map.get(id), ...patch });
           }
@@ -204,6 +413,9 @@ export default function ScrumBoard() {
         status: "todo",
         board_order: maxOrder + 1,
         tags,
+        stack_index: 0,
+        kanban_stack_id: null,
+        kanban_stack_label: null,
       });
     },
     onMutate: async (taskData) => {
@@ -237,90 +449,210 @@ export default function ScrumBoard() {
     }
   });
 
+  const getTasksForColumnFiltered = React.useCallback(
+    (status) => {
+      let filtered = tasks?.filter((t) => t.status === status) || [];
+      if (filterAssignee) {
+        filtered = filtered.filter(
+          (t) =>
+            t.assignees?.includes(filterAssignee) ||
+            t.assignee_email === filterAssignee,
+        );
+      }
+      return filtered;
+    },
+    [tasks, filterAssignee],
+  );
+
+  const getSortedColumnIds = React.useCallback(
+    (status) =>
+      sortTasksByBoardOrder(getTasksForColumnFiltered(status)).map((t) => t.id),
+    [getTasksForColumnFiltered],
+  );
+
+  const renameStackLabel = React.useCallback(
+    (stackId, raw) => {
+      const label = (raw || "").trim() || DEFAULT_STACK_LABEL;
+      const affected = (tasks || []).filter((t) => t.kanban_stack_id === stackId);
+      if (!affected.length) return;
+      const updates = affected.map((t) => ({
+        id: t.id,
+        patch: { kanban_stack_label: label },
+      }));
+      reorderTasksMutation.mutate(mergeTaskPatches(updates));
+    },
+    [tasks, reorderTasksMutation],
+  );
+
   const onDragEnd = (result) => {
+    if (result.reason === "CANCEL") return;
+
+    const dustAtDroppable = (droppableId, indexHint) => {
+      if (!droppableId) return;
+      const escapedId = droppableId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const dropElement = document.querySelector(
+        `[data-rbd-droppable-id="${escapedId}"]`,
+      );
+      if (dropElement) {
+        const rect = dropElement.getBoundingClientRect();
+        setDustEffect({
+          active: true,
+          x: rect.left + rect.width / 2,
+          y: rect.top + (indexHint + 1) * 80,
+        });
+        setTimeout(() => setDustEffect({ active: false, x: 0, y: 0 }), 600);
+      }
+    };
+
+    if (result.combine?.draggableId) {
+      const draggedId = result.draggableId;
+      const targetId = result.combine.draggableId;
+      if (draggedId === targetId) return;
+
+      const srcTask = tasks.find((t) => t.id === draggedId);
+      const tgtTask = tasks.find((t) => t.id === targetId);
+      if (!srcTask || !tgtTask) return;
+
+      dustAtDroppable(result.combine.droppableId, result.source.index);
+
+      const destStatus = tgtTask.status;
+      const srcStatus = srcTask.status;
+      const taskById = new Map((tasks || []).map((t) => [t.id, { ...t }]));
+
+      const finalSid = tgtTask.kanban_stack_id || newStackUuid();
+      const finalLabel =
+        tgtTask.kanban_stack_label ||
+        srcTask.kanban_stack_label ||
+        DEFAULT_STACK_LABEL;
+
+      let destIds = getSortedColumnIds(destStatus).filter((id) => id !== draggedId);
+
+      const anchorIdx = destIds.indexOf(targetId);
+      if (anchorIdx === -1) return;
+
+      const tgtBefore = taskById.get(targetId);
+      const walkSid = tgtBefore?.kanban_stack_id;
+      let insertAt = anchorIdx + 1;
+      if (walkSid) {
+        let blockEnd = anchorIdx;
+        while (
+          blockEnd + 1 < destIds.length &&
+          taskById.get(destIds[blockEnd + 1])?.kanban_stack_id === walkSid
+        ) {
+          blockEnd++;
+        }
+        insertAt = blockEnd + 1;
+      }
+
+      destIds = [
+        ...destIds.slice(0, insertAt),
+        draggedId,
+        ...destIds.slice(insertAt),
+      ];
+
+      taskById.set(draggedId, {
+        ...taskById.get(draggedId),
+        status: destStatus,
+        kanban_stack_id: finalSid,
+        kanban_stack_label: finalLabel,
+      });
+      taskById.set(targetId, {
+        ...taskById.get(targetId),
+        kanban_stack_id: finalSid,
+        kanban_stack_label: finalLabel,
+      });
+      for (const id of destIds) {
+        const t = taskById.get(id);
+        if (t?.kanban_stack_id === finalSid) {
+          taskById.set(id, { ...t, kanban_stack_label: finalLabel });
+        }
+      }
+
+      const patches = [];
+      if (srcStatus !== destStatus) {
+        const srcIds = getSortedColumnIds(srcStatus).filter(
+          (id) => id !== draggedId,
+        );
+        patches.push(...finalizeColumnOrderPatches(srcIds, taskById, srcStatus));
+      }
+      patches.push(...finalizeColumnOrderPatches(destIds, taskById, destStatus));
+
+      reorderTasksMutation.mutate(mergeTaskPatches(patches));
+      setStackOpen((prev) => ({ ...prev, [finalSid]: true }));
+      return;
+    }
+
     if (!result.destination) return;
+
     const { draggableId, source, destination } = result;
-    
-    // Show dust effect at drop location
-    const dropElement = document.querySelector(`[data-rbd-droppable-id="${destination.droppableId}"]`);
-    if (dropElement) {
-      const rect = dropElement.getBoundingClientRect();
-      setDustEffect({
-        active: true,
-        x: rect.left + rect.width / 2,
-        y: rect.top + (destination.index + 1) * 100 // Approximate position
-      });
-      setTimeout(() => setDustEffect({ active: false, x: 0, y: 0 }), 600);
-    }
 
-    // Get current order for both columns
-    const sourceColumnTasks = getTasksByStatusRaw(source.droppableId);
-    const destColumnTasks = source.droppableId === destination.droppableId 
-      ? sourceColumnTasks 
-      : getTasksByStatusRaw(destination.droppableId);
+    dustAtDroppable(destination.droppableId, destination.index);
 
-    // Find the task being moved
-    const movedTask = sourceColumnTasks[source.index];
-    if (!movedTask) return;
+    const srcCol = source.droppableId;
+    const dstCol = destination.droppableId;
 
-    // Remove from source
-    const newSourceTasks = [...sourceColumnTasks];
-    newSourceTasks.splice(source.index, 1);
+    const srcSorted = sortTasksByBoardOrder(getTasksForColumnFiltered(srcCol));
+    const srcGroups = groupConsecutiveStacks(srcSorted);
+    const flatSrc = buildFlatDragItems(srcGroups, stackOpen);
 
-    // Add to destination
-    let newDestTasks;
-    if (source.droppableId === destination.droppableId) {
-      newDestTasks = newSourceTasks;
-    } else {
-      newDestTasks = [...destColumnTasks];
-    }
-    newDestTasks.splice(destination.index, 0, movedTask);
+    if (flatSrc[source.index]?.task?.id !== draggableId) return;
 
-    const updates = [];
-    if (source.droppableId === destination.droppableId) {
-      newSourceTasks.forEach((t, i) => {
-        if (Number(t.board_order) !== i) {
-          updates.push({ id: t.id, patch: { board_order: i } });
-        }
-      });
-    } else {
-      newSourceTasks.forEach((t, i) => {
-        const patch = { board_order: i, status: source.droppableId };
-        if (Number(t.board_order) !== i || t.status !== source.droppableId) {
-          updates.push({ id: t.id, patch });
-        }
-      });
-      newDestTasks.forEach((t, i) => {
-        const patch = { board_order: i, status: destination.droppableId };
-        if (Number(t.board_order) !== i || t.status !== destination.droppableId) {
-          updates.push({ id: t.id, patch });
-        }
-      });
-    }
-    if (updates.length > 0) {
-      reorderTasksMutation.mutate(updates);
-    }
-  };
+    const blockIds = flatSourceIndexToBlockIds(flatSrc, source.index);
+    const flatWithoutSource = flatSrc.filter((_, idx) => idx !== source.index);
 
-  // Get raw tasks without ordering
-  const getTasksByStatusRaw = (status) => {
-    let filtered = tasks?.filter(t => t.status === status) || [];
-    if (filterAssignee) {
-      filtered = filtered.filter(t => 
-        (t.assignees?.includes(filterAssignee)) || (t.assignee_email === filterAssignee)
+    if (srcCol === dstCol) {
+      const insertPos = flatDestIndexToExpandedInsertPos(
+        flatWithoutSource,
+        destination.index,
       );
-    }
-    if (filterTag) {
-      filtered = filtered.filter((t) =>
-        Array.isArray(t.tags) ? t.tags.includes(filterTag) : false,
+      let expanded = expandFlatToTaskIds(flatSrc);
+      for (const id of blockIds) {
+        const ix = expanded.indexOf(id);
+        if (ix !== -1) expanded.splice(ix, 1);
+      }
+      expanded.splice(insertPos, 0, ...blockIds);
+
+      const taskById = new Map((tasks || []).map((t) => [t.id, { ...t }]));
+      const patches = finalizeColumnOrderPatches(
+        expanded,
+        taskById,
+        srcCol,
       );
+      reorderTasksMutation.mutate(mergeTaskPatches(patches));
+      return;
     }
-    return sortTasksByBoardOrder(filtered);
+
+    const taskById = new Map((tasks || []).map((t) => [t.id, { ...t }]));
+    for (const id of blockIds) {
+      taskById.set(id, { ...taskById.get(id), status: dstCol });
+    }
+
+    let srcExpanded = expandFlatToTaskIds(flatSrc);
+    for (const id of blockIds) {
+      const ix = srcExpanded.indexOf(id);
+      if (ix !== -1) srcExpanded.splice(ix, 1);
+    }
+
+    const dstSorted = sortTasksByBoardOrder(getTasksForColumnFiltered(dstCol));
+    const flatDst = buildFlatDragItems(
+      groupConsecutiveStacks(dstSorted),
+      stackOpen,
+    );
+    const insertPos = flatDestIndexToExpandedInsertPos(
+      flatDst,
+      destination.index,
+    );
+    let destExpanded = expandFlatToTaskIds(flatDst);
+    destExpanded.splice(insertPos, 0, ...blockIds);
+
+    const patches = [
+      ...finalizeColumnOrderPatches(srcExpanded, taskById, srcCol),
+      ...finalizeColumnOrderPatches(destExpanded, taskById, dstCol),
+    ];
+    reorderTasksMutation.mutate(mergeTaskPatches(patches));
   };
 
-  const getTasksByStatus = (status) => {
-    return getTasksByStatusRaw(status);
-  };
+  const columnTaskCount = (status) => getTasksForColumnFiltered(status).length;
 
   const getSubtasksInfo = (taskId) => {
     const taskSubtasks = allSubtasks.filter(s => s.task_id === taskId);
@@ -341,7 +673,14 @@ export default function ScrumBoard() {
     <div className="min-h-[calc(100vh-120px)] flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
       <div className="flex items-center gap-3 order-1 sm:order-2 flex-wrap">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Kanban Board</h2>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Kanban Board</h2>
+            {viewMode === 'board' && (
+              <p className="text-xs text-slate-500 font-normal leading-snug max-w-md">
+                Genau die <strong className="font-medium text-slate-600">weißen Karten</strong> in den Spalten: eine auf die andere ziehen → Stapel. Hinweis steht auch unter jeder Spaltenüberschrift.
+              </p>
+            )}
+          </div>
           {/* View Toggle */}
           <div className="flex bg-slate-100 rounded-lg p-1">
             <button
@@ -364,13 +703,6 @@ export default function ScrumBoard() {
               title="Personen Ansicht"
             >
               <UserIcon className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('tags')}
-              className={`p-1.5 rounded ${viewMode === 'tags' ? 'bg-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              title="Nach Kategorie (Tags)"
-            >
-              <Tags className="w-4 h-4" />
             </button>
           </div>
           {/* Assignee Filter */}
@@ -397,38 +729,6 @@ export default function ScrumBoard() {
               </button>
             ))}
           </div>
-          {viewMode === "board" && allProjectTags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1 bg-slate-100 rounded-lg p-1 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setFilterTag(null)}
-                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                  !filterTag
-                    ? "bg-white shadow-sm text-indigo-600"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                Alle Tags
-              </button>
-              {allProjectTags.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() =>
-                    setFilterTag(filterTag === tag ? null : tag)
-                  }
-                  className={`max-w-[140px] truncate px-2 py-1 rounded text-xs font-medium transition-colors ${
-                    filterTag === tag
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-white/80"
-                  }`}
-                  title={tag}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <div className="flex gap-2 sm:gap-3 order-2 sm:order-1 w-full sm:w-auto">
           <Dialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen}>
@@ -483,9 +783,9 @@ export default function ScrumBoard() {
                         </div>
                     </div>
                     <div>
-                        <label className="text-xs font-medium text-slate-600 mb-1 block">Tags / Kategorien</label>
+                        <label className="text-xs font-medium text-slate-600 mb-1 block">Tags (optional)</label>
                         <Input
-                          placeholder="z. B. Scope & Struktur, MVP (Komma getrennt)"
+                          placeholder="Komma-getrennt, z. B. Bug, Frontend"
                           value={newTask.tagsInput}
                           onChange={(e) =>
                             setNewTask({ ...newTask, tagsInput: e.target.value })
@@ -526,119 +826,6 @@ export default function ScrumBoard() {
           onTaskClick={setSelectedTask} 
           allAssignees={allAssignees}
         />
-      ) : viewMode === 'tags' ? (
-        <div className="space-y-6 max-w-4xl mx-auto pb-8">
-          {allProjectTags.map((tag) => {
-            const inTag = sortTasksByBoardOrder(
-              (tasks || []).filter((t) => (t.tags || []).includes(tag)),
-            );
-            if (inTag.length === 0) return null;
-            return (
-              <div
-                key={tag}
-                className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-4 sm:p-5 shadow-sm"
-              >
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2 min-w-0">
-                    <Tags className="w-4 h-4 text-indigo-500 shrink-0" />
-                    <span className="truncate">{tag}</span>
-                  </h3>
-                  <Badge variant="secondary" className="shrink-0">{inTag.length}</Badge>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {inTag.map((task) => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      onClick={() => setSelectedTask(task)}
-                      className="text-left p-3 rounded-xl border border-slate-100 dark:border-slate-600 hover:border-indigo-200 dark:hover:border-indigo-500 hover:bg-indigo-50/60 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-snug line-clamp-2">
-                        {task.title}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded font-medium ${
-                            task.status === "done"
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-                              : task.status === "in_progress"
-                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                                : task.status === "review"
-                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
-                                  : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                          }`}
-                        >
-                          {COLUMNS[task.status]?.label || task.status}
-                        </span>
-                        <span
-                          className={`text-[10px] uppercase ${
-                            task.priority === "high"
-                              ? "text-red-600"
-                              : task.priority === "medium"
-                                ? "text-orange-600"
-                                : "text-blue-600"
-                          }`}
-                        >
-                          {task.priority}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-          {sortTasksByBoardOrder(
-            (tasks || []).filter((t) => !t.tags || t.tags.length === 0),
-          ).length > 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-900/30 p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-slate-600 dark:text-slate-400">
-                  Ohne Kategorie
-                </h3>
-                <Badge variant="outline">
-                  {
-                    sortTasksByBoardOrder(
-                      (tasks || []).filter((t) => !t.tags || t.tags.length === 0),
-                    ).length
-                  }
-                </Badge>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {sortTasksByBoardOrder(
-                  (tasks || []).filter((t) => !t.tags || t.tags.length === 0),
-                ).map((task) => (
-                  <button
-                    key={task.id}
-                    type="button"
-                    onClick={() => setSelectedTask(task)}
-                    className="text-left p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/60 hover:border-indigo-200 transition-colors"
-                  >
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100 line-clamp-2">
-                      {task.title}
-                    </p>
-                    <span
-                      className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded ${
-                        task.status === "done"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {COLUMNS[task.status]?.label || task.status}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {allProjectTags.length === 0 &&
-            (tasks || []).every((t) => !t.tags?.length) && (
-              <p className="text-center text-slate-400 py-12 text-sm">
-                Noch keine Tags. Bearbeite ein Ticket und füge Kategorien hinzu,
-                oder erstelle ein Task mit Tags.
-              </p>
-            )}
-        </div>
       ) : viewMode === 'people' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {allAssignees.map(email => {
@@ -770,50 +957,184 @@ export default function ScrumBoard() {
       ) : (
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 flex-1 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
-          {Object.entries(COLUMNS).map(([columnId, config]) => (
-            <div key={columnId} className="flex-shrink-0 w-[80vw] sm:flex-1 sm:w-auto sm:min-w-[250px] flex flex-col bg-slate-50/50 rounded-2xl border border-slate-100/60 snap-center sm:snap-align-none min-h-[60vh]">
+          {Object.entries(COLUMNS).map(([columnId, config]) => {
+            const sorted = sortTasksByBoardOrder(
+              getTasksForColumnFiltered(columnId),
+            );
+            const groups = groupConsecutiveStacks(sorted);
+            const flat = buildFlatDragItems(groups, stackOpen);
+            return (
+            <div key={columnId} className="flex-shrink-0 w-[80vw] sm:flex-1 sm:w-auto sm:min-w-[260px] flex flex-col bg-slate-50/50 rounded-2xl border border-slate-100/60 snap-center sm:snap-align-none min-h-[60vh]">
               <div className={`p-4 border-b border-slate-100 rounded-t-2xl ${config.color} bg-opacity-40`}>
                 <div className="flex justify-between items-center">
                     <h3 className="font-semibold text-slate-700">{config.label}</h3>
                     <Badge variant="secondary" className="bg-white text-slate-500 shadow-sm">
-                        {getTasksByStatus(columnId).length}
+                        {columnTaskCount(columnId)}
                     </Badge>
                 </div>
+                <p className="text-[11px] text-slate-500 mt-2 leading-snug">
+                  Karte auf eine andere <strong className="font-medium text-slate-600">dieser Karten</strong> ziehen und dort loslassen — dann wird ein Stapel (wie iOS-Apps).
+                </p>
               </div>
-              
-              <Droppable droppableId={columnId}>
-                {(provided, snapshot) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className={`flex-1 p-3 space-y-3 overflow-y-auto transition-colors ${snapshot.isDraggingOver ? 'bg-slate-100/50' : ''}`}
-                  >
-                    {getTasksByStatus(columnId).map((task, index) => {
+
+              <div className="flex-1 p-2 overflow-y-auto min-h-[120px]">
+                <Droppable
+                  droppableId={columnId}
+                  type="BOARD_TASK"
+                  isCombineEnabled
+                  direction="vertical"
+                >
+                  {(provided, snapshot) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      className={`min-h-[72px] space-y-2 transition-colors ${
+                        snapshot.isDraggingOver
+                          ? "bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl px-1 py-1"
+                          : ""
+                      }`}
+                    >
+                      {flat.length === 0 && (
+                        <p className="text-xs text-slate-400 text-center py-8 px-3 leading-relaxed">
+                          Lege ein Ticket auf ein anderes — es entsteht ein Stapel, den du benennen und auf- und zuklappen kannst.
+                        </p>
+                      )}
+                      {flat.map((row) => {
+                      const { task, index, meta } = row;
                       const subtasksInfo = getSubtasksInfo(task.id);
                       const commentsCount = getCommentsCount(task.id);
                       const attachmentsCount = (task.attachments || []).length;
+                      const stackId = meta.group?.stackId;
+                      const stackCount = meta.group?.tasks?.length || 0;
+                      const stackLabel =
+                        meta.group?.tasks?.[0]?.kanban_stack_label ||
+                        task.kanban_stack_label ||
+                        DEFAULT_STACK_LABEL;
+                      const showStackChrome =
+                        !!stackId &&
+                        (meta.kind === "stack-collapsed" ||
+                          (meta.kind === "stack-expanded" &&
+                            meta.group.tasks[0].id === task.id));
+                      const compact = meta.kind === "stack-collapsed";
+                      const stackIndent =
+                        meta.kind === "stack-expanded" ? "ml-1 pl-2 border-l-2 border-indigo-200/70" : "";
 
                       return (
-                        <Draggable key={task.id} draggableId={task.id} index={index}>
-                          {(provided, snapshot) => (
+                        <React.Fragment key={`${task.id}-${index}`}>
+                          {showStackChrome && (
+                            <div
+                              className="rounded-lg border border-indigo-200/90 bg-indigo-50/60 dark:bg-indigo-950/30 px-2 py-1.5 flex items-center gap-2"
+                              onClick={(e) => e.stopPropagation()}
+                              onPointerDown={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                className="shrink-0 p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
+                                aria-label="Stapel auf- oder zuklappen"
+                                onClick={() =>
+                                  setStackOpen((p) => {
+                                    const expanded = p[stackId] !== false;
+                                    return { ...p, [stackId]: !expanded };
+                                  })
+                                }
+                              >
+                                {isStackExpanded(stackOpen, stackId) ? (
+                                  <ChevronDown className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
+                                )}
+                              </button>
+                              <Layers className="w-4 h-4 text-indigo-600 shrink-0" />
+                              <Input
+                                className="h-7 text-xs flex-1 min-w-0 bg-white/90 dark:bg-slate-900/40 border-indigo-200 dark:border-indigo-800"
+                                defaultValue={stackLabel}
+                                title="Stapel-Name"
+                                onBlur={(e) =>
+                                  renameStackLabel(stackId, e.target.value)
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") e.currentTarget.blur();
+                                }}
+                              />
+                              <Badge
+                                variant="secondary"
+                                className="shrink-0 text-[10px] tabular-nums"
+                              >
+                                {stackCount}
+                              </Badge>
+                            </div>
+                          )}
+                          <div className={stackIndent}>
+                        <Draggable draggableId={task.id} index={index}>
+                          {(provided, snapshot) => {
+                            const isCombineDropTarget = Boolean(snapshot.combineTargetFor);
+                            const isDraggingCombinable =
+                              snapshot.isDragging && snapshot.combineWith;
+                            return (
                             <div
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              className={`
-                                  bg-white p-4 rounded-xl border-2 shadow-sm 
-                                  hover:shadow-md transition-all group cursor-pointer
-                                  ${snapshot.isDragging ? 'shadow-2xl scale-110 ring-2 ring-indigo-500/50 rotate-2 z-50' : ''}
-                                  ${task.priority === 'high' && !snapshot.isDragging ? 'border-red-200 animate-pulse-border' : 'border-slate-100'}
+                              className={compact
+                                ? `relative bg-white dark:bg-slate-800 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 cursor-grab active:cursor-grabbing hover:border-indigo-300 ${
+                                    snapshot.isDragging ? "shadow-lg ring-2 ring-indigo-400 z-50" : ""
+                                  } ${
+                                    isCombineDropTarget
+                                      ? "ring-2 ring-indigo-500 border-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/40 scale-[1.02]"
+                                      : ""
+                                  }`
+                                : `
+                                  relative bg-white dark:bg-slate-800 p-4 rounded-xl border-2 shadow-sm 
+                                  hover:shadow-md transition-all group cursor-grab active:cursor-grabbing
+                                  ${snapshot.isDragging ? 'shadow-2xl scale-105 ring-2 ring-indigo-500/50 z-50' : ''}
+                                  ${task.priority === 'high' && !snapshot.isDragging ? 'border-red-200 animate-pulse-border' : 'border-slate-100 dark:border-slate-600'}
+                                  ${
+                                    isCombineDropTarget
+                                      ? "!ring-2 !ring-indigo-500 !border-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/35"
+                                      : ""
+                                  }
+                                  ${
+                                    isDraggingCombinable
+                                      ? "ring-2 ring-amber-400 border-amber-300"
+                                      : ""
+                                  }
                               `}
                               style={{
                                 ...provided.draggableProps.style,
-                                ...(task.priority === 'high' && !snapshot.isDragging ? {
+                                ...(task.priority === 'high' && !snapshot.isDragging && !compact ? {
                                   animation: 'pulse-border 2s ease-in-out infinite'
                                 } : {})
                               }}
                               onClick={() => setSelectedTask(task)}
                             >
+                              {isCombineDropTarget && (
+                                <div className="absolute inset-0 rounded-[inherit] pointer-events-none flex items-center justify-center z-10 bg-indigo-600/10 backdrop-blur-[0.5px]">
+                                  <span className="text-[11px] font-semibold text-indigo-800 dark:text-indigo-100 px-2 py-1 rounded-md bg-white/90 dark:bg-slate-900/90 shadow border border-indigo-200 dark:border-indigo-600">
+                                    Loslassen → Stapel
+                                  </span>
+                                </div>
+                              )}
+                              {compact ? (
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Badge variant="outline" className={`
+                                      shrink-0 ${task.priority === 'high' ? 'text-red-600 border-red-100 bg-red-50' : 
+                                        task.priority === 'medium' ? 'text-orange-600 border-orange-100 bg-orange-50' : 
+                                        'text-blue-600 border-blue-100 bg-blue-50'}
+                                      text-[9px] px-1.5 py-0 h-5 uppercase border-0
+                                  `}>
+                                      {task.priority}
+                                  </Badge>
+                                  <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate flex-1 min-w-0">
+                                      {task.title}
+                                  </p>
+                                  {stackCount > 1 && (
+                                    <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 h-5 border-indigo-200 text-indigo-700 bg-indigo-50">
+                                      {stackCount}
+                                    </Badge>
+                                  )}
+                                </div>
+                              ) : (
+                              <>
                               <div className="flex justify-between items-start mb-2">
                                   <Badge variant="outline" className={`
                                       ${task.priority === 'high' ? 'text-red-600 border-red-100 bg-red-50' : 
@@ -832,7 +1153,7 @@ export default function ScrumBoard() {
                               </p>
                               {(task.tags?.length > 0) && (
                                 <div className="flex flex-wrap gap-1 mb-2">
-                                  {task.tags.slice(0, 3).map((tg) => (
+                                  {task.tags.slice(0, 4).map((tg) => (
                                     <span
                                       key={tg}
                                       className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200 max-w-[120px] truncate"
@@ -841,13 +1162,12 @@ export default function ScrumBoard() {
                                       {tg}
                                     </span>
                                   ))}
-                                  {task.tags.length > 3 && (
-                                    <span className="text-[10px] text-slate-400">+{task.tags.length - 3}</span>
+                                  {task.tags.length > 4 && (
+                                    <span className="text-[10px] text-slate-400">+{task.tags.length - 4}</span>
                                   )}
                                 </div>
                               )}
 
-                              {/* Task indicators */}
                               <div className="flex items-center gap-3 text-xs text-slate-400 mb-3">
                                 {subtasksInfo.total > 0 && (
                                   <span className="flex items-center gap-1">
@@ -869,11 +1189,11 @@ export default function ScrumBoard() {
                                 )}
                               </div>
 
-                              <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-50 dark:border-slate-700">
                                   <div className="flex items-center gap-1">
                                       {(task.assignees?.length > 0 || task.assignee_email) ? (
                                           <div className="flex -space-x-2">
-                                              {(task.assignees?.length > 0 ? task.assignees : [task.assignee_email]).slice(0, 3).map((email, i) => (
+                                              {(task.assignees?.length > 0 ? task.assignees : [task.assignee_email]).slice(0, 3).map((email) => (
                                                   <Avatar key={email} className="w-6 h-6 border-2 border-white">
                                                       <AvatarFallback className="text-[10px] bg-indigo-100 text-indigo-600">
                                                           {email?.[0]?.toUpperCase()}
@@ -891,17 +1211,28 @@ export default function ScrumBoard() {
                                       )}
                                   </div>
                               </div>
+                              <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1.5 pt-1 border-t border-dashed border-slate-100 dark:border-slate-700/80">
+                                <Layers className="w-3 h-3 shrink-0 opacity-70" />
+                                <span>Zum Stapeln: Karte auf eine <strong className="font-medium text-slate-500">andere Karte</strong> ziehen.</span>
+                              </p>
+                              </>
+                              )}
                             </div>
-                          )}
+                            );
+                          }}
                         </Draggable>
+                          </div>
+                        </React.Fragment>
                       );
                     })}
                     {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+                    </div>
+                  )}
+                </Droppable>
+              </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </DragDropContext>
       )}

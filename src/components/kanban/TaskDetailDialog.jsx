@@ -271,7 +271,7 @@ export default function TaskDetailDialog({
             <div className="mb-6">
               <label className="text-sm font-medium text-slate-600 mb-2 block">Tags / Kategorien</label>
               <p className="text-xs text-slate-500 mb-2">
-                Gleiche Tags gruppieren Tickets in der Ansicht „Nach Kategorie“.
+                Tags helfen beim Filtern und auf der Karte zur schnellen Orientierung.
               </p>
               <div className="flex flex-wrap gap-2 mb-3 min-w-0">
                 {(editedTask.tags || []).map((tag) => (
