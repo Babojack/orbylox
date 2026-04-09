@@ -276,6 +276,7 @@ export default function ScrumBoard() {
     /** kanban_stack_id -> false means collapsed (iOS-style stack) */
     const [stackOpen, setStackOpen] = React.useState({});
     const [dustEffect, setDustEffect] = React.useState({ active: false, x: 0, y: 0 });
+    const [dndPersistWarning, setDndPersistWarning] = React.useState(null);
     /** @hello-pangea/dnd liefert beim Loslassen manchmal kein `combine`, obwohl die UI Combine zeigt — letzter Stand aus onDragUpdate. */
     const lastCombineRef = React.useRef(null);
 
@@ -376,6 +377,7 @@ export default function ScrumBoard() {
       );
     },
     onMutate: async (updates) => {
+      setDndPersistWarning(null);
       const merged = mergeTaskPatches(updates);
       await queryClient.cancelQueries({ queryKey: ["tasks", projectId] });
       const previousTasks = queryClient.getQueryData(["tasks", projectId]);
@@ -391,11 +393,22 @@ export default function ScrumBoard() {
       return { previousTasks };
     },
     onError: (err, updates, context) => {
+      const msg = String(err?.message || err || "");
+      console.error("[Kanban] Persist reorder/stack failed:", err);
+      const isPerm =
+        msg.toLowerCase().includes("missing or insufficient permissions") ||
+        msg.toLowerCase().includes("permission-denied");
+      if (isPerm) {
+        setDndPersistWarning(
+          "Dein Account hat aktuell keine Firestore-Berechtigung zum Speichern. Die Änderung bleibt nur lokal sichtbar (bis Reload).",
+        );
+        return;
+      }
       if (context?.previousTasks) {
         queryClient.setQueryData(["tasks", projectId], context.previousTasks);
       }
     },
-    onSettled: () => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
     },
   });
@@ -835,6 +848,12 @@ export default function ScrumBoard() {
           </Button>
         </div>
       </div>
+
+      {dndPersistWarning && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2 text-sm">
+          {dndPersistWarning}
+        </div>
+      )}
 
       {viewMode === 'timeline' ? (
         <TimelineView 
