@@ -998,7 +998,7 @@ export default function ScrumBoard() {
                 </div>
               </div>
 
-              <div className="flex-1 p-2 overflow-y-auto min-h-[120px]">
+              <div className="flex-1 p-2 min-h-[120px]">
                 <Droppable
                   droppableId={columnId}
                   type="BOARD_TASK"
