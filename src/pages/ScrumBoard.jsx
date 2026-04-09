@@ -283,6 +283,17 @@ export default function ScrumBoard() {
     const searchParams = new URLSearchParams(window.location.search);
     const projectId = searchParams.get('project');
 
+  // @hello-pangea/dnd does not support nested scroll containers.
+  // In the board view we disable window scrolling and use a single scroll container.
+  React.useEffect(() => {
+    if (viewMode !== "board") return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [viewMode]);
+
   const { data: currentUser, isLoading: userLoading, isError: userError } = useQuery({
     queryKey: ['currentUser'],
     queryFn: () => api.auth.me(),
@@ -709,7 +720,7 @@ export default function ScrumBoard() {
   if (project && !hasAccess) return <div className="flex items-center justify-center h-[70vh] text-red-500"><AlertCircle className="mr-2" /> No access to this project</div>;
 
   return (
-    <div className="min-h-[calc(100vh-120px)] flex flex-col">
+    <div className="min-h-[calc(100vh-120px)] flex flex-col overflow-hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
       <div className="flex items-center gap-3 order-1 sm:order-2 flex-wrap">
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -1004,7 +1015,7 @@ export default function ScrumBoard() {
         }}
         onDragEnd={onDragEnd}
       >
-        <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 flex-1 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
+        <div className="flex gap-3 sm:gap-4 overflow-auto pb-4 flex-1 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
           {Object.entries(COLUMNS).map(([columnId, config]) => {
             const sorted = sortTasksByBoardOrder(
               getTasksForColumnFiltered(columnId),
