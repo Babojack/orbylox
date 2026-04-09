@@ -185,7 +185,6 @@ function LayoutContent({ children, currentPageName }) {
   }, []);
 
   const pageTransitionKey = `${location.pathname}${location.search}|${language}`;
-  const isScrumBoard = currentPageName === "ScrumBoard" || location.pathname.includes("/ScrumBoard");
 
   const closeSidebar = React.useCallback((e) => {
     if (e?.stopPropagation) e.stopPropagation();
@@ -562,7 +561,7 @@ function LayoutContent({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white dark:bg-slate-900 h-screen overflow-hidden flex flex-col transition-[margin] duration-300 ease-out motion-reduce:transition-none`}>
+      <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white dark:bg-slate-900 min-h-screen flex flex-col transition-[margin] duration-300 ease-out motion-reduce:transition-none`}>
         {/* Header */}
         <header className="h-16 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-50 transition-colors duration-300 ease-out motion-reduce:transition-none">
           <div className="flex items-center gap-2 md:gap-4">
@@ -726,7 +725,7 @@ function LayoutContent({ children, currentPageName }) {
         </header>
 
         {/* Page Content */}
-        <div className={`p-4 md:p-6 w-full min-w-0 max-w-full overflow-x-hidden flex-1 ${isScrumBoard ? "overflow-hidden" : "overflow-y-auto"}`}>
+        <div className="p-4 md:p-6 w-full min-w-0 max-w-full overflow-x-hidden flex-1 overflow-y-auto">
           <PageTransition pageKey={pageTransitionKey} className="w-full min-w-0 max-w-full">
             {children}
           </PageTransition>
