@@ -526,11 +526,16 @@ export default function ScrumBoard() {
     };
 
     const combineFromLib = result.combine?.draggableId ? result.combine : null;
+    // NOTE: For real combine drops, `destination` is typically null.
+    // However, we sometimes end up with a reorder destination even though the UI
+    // indicated combining. In that case we fall back to the last seen combine.
+    const resolvedDropZoneId =
+      result.destination?.droppableId || result.source?.droppableId || null;
     const combineFallback =
       result.reason === "DROP" &&
-      result.destination &&
       lastCombineRef.current &&
-      result.destination.droppableId === lastCombineRef.current.droppableId &&
+      resolvedDropZoneId &&
+      resolvedDropZoneId === lastCombineRef.current.droppableId &&
       String(result.draggableId) !== String(lastCombineRef.current.draggableId)
         ? lastCombineRef.current
         : null;
