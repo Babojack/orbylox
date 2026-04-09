@@ -276,6 +276,8 @@ export default function ScrumBoard() {
     /** kanban_stack_id -> false means collapsed (iOS-style stack) */
     const [stackOpen, setStackOpen] = React.useState({});
     const [dustEffect, setDustEffect] = React.useState({ active: false, x: 0, y: 0 });
+    /** @hello-pangea/dnd liefert beim Loslassen manchmal kein `combine`, obwohl die UI Combine zeigt — letzter Stand aus onDragUpdate. */
+    const lastCombineRef = React.useRef(null);
 
     const searchParams = new URLSearchParams(window.location.search);
     const projectId = searchParams.get('project');
@@ -485,7 +487,13 @@ export default function ScrumBoard() {
   );
 
   const onDragEnd = (result) => {
-    if (result.reason === "CANCEL") return;
+    if (result.reason === "CANCEL") {
+      lastCombineRef.current = null;
+      return;
+    }
+
+    const findTaskById = (id) =>
+      (tasks || []).find((t) => String(t.id) === String(id));
 
     const dustAtDroppable = (droppableId, indexHint) => {
       if (!droppableId) return;
@@ -504,16 +512,29 @@ export default function ScrumBoard() {
       }
     };
 
-    if (result.combine?.draggableId) {
+    const combineFromLib = result.combine?.draggableId ? result.combine : null;
+    const combineFallback =
+      result.reason === "DROP" &&
+      result.destination &&
+      lastCombineRef.current &&
+      result.destination.droppableId === lastCombineRef.current.droppableId &&
+      String(result.draggableId) !== String(lastCombineRef.current.draggableId)
+        ? lastCombineRef.current
+        : null;
+    const effectiveCombine = combineFromLib || combineFallback;
+
+    lastCombineRef.current = null;
+
+    if (effectiveCombine?.draggableId) {
       const draggedId = result.draggableId;
-      const targetId = result.combine.draggableId;
+      const targetId = effectiveCombine.draggableId;
       if (draggedId === targetId) return;
 
-      const srcTask = tasks.find((t) => t.id === draggedId);
-      const tgtTask = tasks.find((t) => t.id === targetId);
+      const srcTask = findTaskById(draggedId);
+      const tgtTask = findTaskById(targetId);
       if (!srcTask || !tgtTask) return;
 
-      dustAtDroppable(result.combine.droppableId, result.source.index);
+      dustAtDroppable(effectiveCombine.droppableId, result.source.index);
 
       const destStatus = tgtTask.status;
       const srcStatus = srcTask.status;
@@ -595,7 +616,7 @@ export default function ScrumBoard() {
     const srcGroups = groupConsecutiveStacks(srcSorted);
     const flatSrc = buildFlatDragItems(srcGroups, stackOpen);
 
-    if (flatSrc[source.index]?.task?.id !== draggableId) return;
+    if (String(flatSrc[source.index]?.task?.id) !== String(draggableId)) return;
 
     const blockIds = flatSourceIndexToBlockIds(flatSrc, source.index);
     const flatWithoutSource = flatSrc.filter((_, idx) => idx !== source.index);
@@ -675,11 +696,6 @@ export default function ScrumBoard() {
       <div className="flex items-center gap-3 order-1 sm:order-2 flex-wrap">
           <div className="flex flex-col gap-0.5 min-w-0">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Kanban Board</h2>
-            {viewMode === 'board' && (
-              <p className="text-xs text-slate-500 font-normal leading-snug max-w-md">
-                Genau die <strong className="font-medium text-slate-600">weißen Karten</strong> in den Spalten: eine auf die andere ziehen → Stapel. Hinweis steht auch unter jeder Spaltenüberschrift.
-              </p>
-            )}
           </div>
           {/* View Toggle */}
           <div className="flex bg-slate-100 rounded-lg p-1">
@@ -955,7 +971,15 @@ export default function ScrumBoard() {
           )}
         </div>
       ) : (
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext
+        onDragStart={() => {
+          lastCombineRef.current = null;
+        }}
+        onDragUpdate={(update) => {
+          lastCombineRef.current = update.combine;
+        }}
+        onDragEnd={onDragEnd}
+      >
         <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 flex-1 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
           {Object.entries(COLUMNS).map(([columnId, config]) => {
             const sorted = sortTasksByBoardOrder(
@@ -972,9 +996,6 @@ export default function ScrumBoard() {
                         {columnTaskCount(columnId)}
                     </Badge>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-2 leading-snug">
-                  Karte auf eine andere <strong className="font-medium text-slate-600">dieser Karten</strong> ziehen und dort loslassen — dann wird ein Stapel (wie iOS-Apps).
-                </p>
               </div>
 
               <div className="flex-1 p-2 overflow-y-auto min-h-[120px]">
@@ -995,8 +1016,8 @@ export default function ScrumBoard() {
                       }`}
                     >
                       {flat.length === 0 && (
-                        <p className="text-xs text-slate-400 text-center py-8 px-3 leading-relaxed">
-                          Lege ein Ticket auf ein anderes — es entsteht ein Stapel, den du benennen und auf- und zuklappen kannst.
+                        <p className="text-xs text-slate-400 text-center py-8 px-3">
+                          Keine Aufgaben in dieser Spalte.
                         </p>
                       )}
                       {flat.map((row) => {
@@ -1065,7 +1086,11 @@ export default function ScrumBoard() {
                             </div>
                           )}
                           <div className={stackIndent}>
-                        <Draggable draggableId={task.id} index={index}>
+                        <Draggable
+                          draggableId={task.id}
+                          index={index}
+                          disableInteractiveElementBlocking
+                        >
                           {(provided, snapshot) => {
                             const isCombineDropTarget = Boolean(snapshot.combineTargetFor);
                             const isDraggingCombinable =
@@ -1107,13 +1132,6 @@ export default function ScrumBoard() {
                               }}
                               onClick={() => setSelectedTask(task)}
                             >
-                              {isCombineDropTarget && (
-                                <div className="absolute inset-0 rounded-[inherit] pointer-events-none flex items-center justify-center z-10 bg-indigo-600/10 backdrop-blur-[0.5px]">
-                                  <span className="text-[11px] font-semibold text-indigo-800 dark:text-indigo-100 px-2 py-1 rounded-md bg-white/90 dark:bg-slate-900/90 shadow border border-indigo-200 dark:border-indigo-600">
-                                    Loslassen → Stapel
-                                  </span>
-                                </div>
-                              )}
                               {compact ? (
                                 <div className="flex items-center gap-2 min-w-0">
                                   <Badge variant="outline" className={`
@@ -1211,10 +1229,6 @@ export default function ScrumBoard() {
                                       )}
                                   </div>
                               </div>
-                              <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1.5 pt-1 border-t border-dashed border-slate-100 dark:border-slate-700/80">
-                                <Layers className="w-3 h-3 shrink-0 opacity-70" />
-                                <span>Zum Stapeln: Karte auf eine <strong className="font-medium text-slate-500">andere Karte</strong> ziehen.</span>
-                              </p>
                               </>
                               )}
                             </div>
