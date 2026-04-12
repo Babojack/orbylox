@@ -257,14 +257,31 @@ export default function FileHub() {
     }
     
     if (type.includes('pdf') || name.endsWith('.pdf')) {
-      // Direktes Einbetten — Google Docs Viewer liefert oft 400 bei Cloudinary/signierten URLs.
+      // iframe + blob: kann in Chrome „Not allowed to load local resource: blob:…“ auslösen.
+      // <object> mit Fallback funktioniert für HTTPS- und Blob-URLs zuverlässiger.
+      const boxStyle = { height: "min(78vh, 920px)", minHeight: "420px" };
       return (
-        <iframe
-          src={file.url}
+        <object
+          data={file.url}
+          type="application/pdf"
           className="w-full border-0 bg-white"
-          style={{ height: "min(78vh, 920px)", minHeight: "420px" }}
-          title={file.name}
-        />
+          style={boxStyle}
+          aria-label={file.name}
+        >
+          <div className="flex flex-col items-center justify-center gap-3 p-8 text-slate-600" style={boxStyle}>
+            <p className="text-sm text-center max-w-md">
+              Vorschau nicht darstellbar — z. B. während des Uploads (Blob-URL) oder durch Browsereinstellungen.
+            </p>
+            <a
+              href={file.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 font-medium hover:underline"
+            >
+              PDF in neuem Tab öffnen
+            </a>
+          </div>
+        </object>
       );
     }
     
@@ -578,8 +595,12 @@ export default function FileHub() {
       <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
         <DialogContent
           hideCloseButton
+          aria-describedby={undefined}
           className="w-[95vw] sm:max-w-6xl h-[85vh] sm:h-[90vh] max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col"
         >
+          <DialogTitle className="sr-only">
+            {previewFile ? `Dateivorschau: ${previewFile.name}` : "Dateivorschau"}
+          </DialogTitle>
           {previewFile && (
             <>
               {/* Header: eigene Schließen-Taste neben Download (kein Konflikt mit Dialog-X) */}
