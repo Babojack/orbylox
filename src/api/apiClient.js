@@ -276,10 +276,18 @@ async function firestoreList(db, collectionName, userId, orderBy) {
       }
       return sortItems(dedupe([...merged, ...legacyItems]), orderBy);
     } catch (err) {
-      console.warn(
-        `[Firestore] ${collectionName} legacy parent-key list skipped:`,
-        err?.message || err,
-      );
+      const msg = String(err?.message || err || "");
+      const isPermDenied =
+        err?.code === "permission-denied" ||
+        msg.includes("Missing or insufficient permissions") ||
+        msg.includes("permission-denied");
+      // Erwartbar, wenn Regeln Legacy-Queries ohne project_id nicht erlauben — Konsole nicht zumüllen.
+      if (!isPermDenied) {
+        console.warn(
+          `[Firestore] ${collectionName} legacy parent-key list skipped:`,
+          err?.message || err,
+        );
+      }
       return sortItems(merged, orderBy);
     }
   }
