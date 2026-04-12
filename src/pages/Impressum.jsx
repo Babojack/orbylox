@@ -39,8 +39,6 @@ export default function Impressum() {
               <a href="mailto:info@orbylox.de" className="text-indigo-600 hover:underline">
                 info@orbylox.de
               </a>
-              <br />
-              E-Mail: jeyhun.afandiyev@mail.online-impressum.de
             </p>
           </section>
 

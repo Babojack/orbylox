@@ -229,6 +229,7 @@ export default function FileHub() {
     const name = file.name?.toLowerCase() || '';
     return type.includes('image') || 
            type.includes('pdf') || 
+           name.endsWith('.pdf') ||
            type.includes('video') ||
            type.includes('audio') ||
            type.includes('text') ||
@@ -255,11 +256,13 @@ export default function FileHub() {
       );
     }
     
-    if (type.includes('pdf')) {
+    if (type.includes('pdf') || name.endsWith('.pdf')) {
+      // Direktes Einbetten — Google Docs Viewer liefert oft 400 bei Cloudinary/signierten URLs.
       return (
-        <iframe 
-          src={`https://docs.google.com/viewer?url=${encodeURIComponent(file.url)}&embedded=true`}
-          className="w-full h-full border-0"
+        <iframe
+          src={file.url}
+          className="w-full border-0 bg-white"
+          style={{ height: "min(78vh, 920px)", minHeight: "420px" }}
           title={file.name}
         />
       );
@@ -573,11 +576,14 @@ export default function FileHub() {
 
       {/* File Preview Modal */}
       <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
-        <DialogContent className="w-[95vw] sm:max-w-6xl h-[85vh] sm:h-[90vh] p-0 gap-0 overflow-hidden">
+        <DialogContent
+          hideCloseButton
+          className="w-[95vw] sm:max-w-6xl h-[85vh] sm:h-[90vh] max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col"
+        >
           {previewFile && (
             <>
-              {/* Header */}
-              <div className="flex items-center justify-between p-2 sm:p-4 border-b bg-white gap-2">
+              {/* Header: eigene Schließen-Taste neben Download (kein Konflikt mit Dialog-X) */}
+              <div className="flex items-center justify-between p-2 sm:p-4 border-b bg-white gap-3 shrink-0">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                   <div className="shrink-0 hidden sm:block">{getIcon(previewFile.type)}</div>
                   <div className="min-w-0">
@@ -585,7 +591,7 @@ export default function FileHub() {
                     <p className="text-xs text-slate-500">{formatSize(previewFile.size)}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   {previewFile.type?.includes('image') && (
                     <div className="hidden sm:flex items-center gap-1">
                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(Math.max(25, zoom - 25))}>
@@ -598,16 +604,28 @@ export default function FileHub() {
                     </div>
                   )}
                   <a href={previewFile.url} download={previewFile.name || true}>
-                    <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                    <Button type="button" variant="outline" size="sm" className="text-xs sm:text-sm">
                       <Download className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Download</span>
                     </Button>
                   </a>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => setPreviewFile(null)}
+                    aria-label="Vorschau schließen"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="flex-1 bg-slate-100 overflow-auto relative" style={{ height: 'calc(90vh - 80px)' }}>
+              <div className="flex-1 min-h-0 bg-slate-100 overflow-hidden relative flex flex-col">
+                <div className="flex-1 min-h-0 relative overflow-auto">
                 {getPreviewContent(previewFile)}
+                </div>
                 
                 {/* Navigation arrows */}
                 {previewableFiles.length > 1 && (
