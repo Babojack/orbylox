@@ -35,6 +35,11 @@ export default function Impressum() {
           <section>
             <h2 className="text-xl font-semibold text-slate-800 mb-3">Kontakt</h2>
             <p className="text-slate-600">
+              E-Mail:{' '}
+              <a href="mailto:info@orbylox.de" className="text-indigo-600 hover:underline">
+                info@orbylox.de
+              </a>
+              <br />
               E-Mail: jeyhun.afandiyev@mail.online-impressum.de
             </p>
           </section>
