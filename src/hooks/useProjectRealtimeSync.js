@@ -12,6 +12,7 @@ const SCOPED_COLLECTIONS = [
   "Post",
   "Message",
   "Task",
+  "KanbanBoard",
   "Document",
   "FileRecord",
   "Folder",
@@ -73,6 +74,9 @@ function invalidateForEntity(queryClient, projectId, entityName) {
     case "Task":
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
       queryClient.invalidateQueries({ queryKey: ["mindmapNodes", projectId] });
+      break;
+    case "KanbanBoard":
+      queryClient.invalidateQueries({ queryKey: ["kanbanBoards", projectId] });
       break;
     case "TaskComment":
       queryClient.invalidateQueries({ queryKey: ["allComments", projectId] });

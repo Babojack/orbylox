@@ -180,6 +180,7 @@ const PROJECT_SCOPED_COLLECTIONS = new Set([
   "StartupStep",
   "StartupJourney",
   "Event",
+  "KanbanBoard",
   // Listed by project_id so queries match firestore.rules projectScopedRead.
   // (Foreign-key + get(Parent) in rules breaks list queries for many clients.)
   "PostComment",
@@ -955,6 +956,7 @@ export const api = {
     Waitlist: createEntityApi("Waitlist"),
     User: createEntityApi("User"),
     PostComment: createEntityApi("PostComment"),
+    KanbanBoard: createEntityApi("KanbanBoard"),
     CanvasItem: createEntityApi("CanvasItem"),
     CanvasConnection: createEntityApi("CanvasConnection"),
     ProjectBackup: createEntityApi("ProjectBackup"),

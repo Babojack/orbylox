@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ZoomIn, ZoomOut, RotateCcw, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, AlignVerticalJustifyStart, Pencil } from 'lucide-react';
+import { Plus, Trash2, ZoomIn, ZoomOut, RotateCcw, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, AlignVerticalJustifyStart, Pencil, Paperclip, FileText } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ export default function MindMap() {
   const [editText, setEditText] = useState('');
   const [notePanel, setNotePanel] = useState(null); // { nodeId, note }
   const [taskLinkPanel, setTaskLinkPanel] = useState(null); // { nodeId, taskId }
+  const [fileHubPanel, setFileHubPanel] = useState(null); // { nodeId }
   const [openTaskId, setOpenTaskId] = useState(null); // Task ID für Dialog
   
   const draggingRef = useRef(null);
@@ -105,6 +106,16 @@ export default function MindMap() {
     },
     staleTime: 60000,
     enabled: !!projectId
+  });
+
+  const { data: projectFiles = [] } = useQuery({
+    queryKey: ['canvasFileHubList', projectId],
+    queryFn: async () => {
+      const all = await api.entities.FileRecord.list('-created_date', 500);
+      return all.filter((f) => f.project_id === projectId);
+    },
+    staleTime: 30000,
+    enabled: !!projectId,
   });
 
   // Current user for task dialog
@@ -378,6 +389,7 @@ export default function MindMap() {
       panStartRef.current = { x: clientX - offset.x, y: clientY - offset.y };
       setSelectedNodeId(null);
       setNotePanel(null);
+      setFileHubPanel(null);
     },
     [offset, getClientXY],
   );
@@ -537,6 +549,27 @@ export default function MindMap() {
       updateNode.mutate({ id: taskLinkPanel.nodeId, data: { linked_task_id: taskId || null } });
       setTaskLinkPanel(null);
     }
+  };
+
+  const attachFileHubToNode = (file) => {
+    if (!fileHubPanel || !file?.id) return;
+    const node = nodes.find((n) => n.id === fileHubPanel.nodeId);
+    const prev = Array.isArray(node?.file_hub_refs) ? node.file_hub_refs : [];
+    if (prev.some((r) => String(r.id) === String(file.id))) return;
+    const next = [
+      ...prev,
+      { id: file.id, name: file.name || "Datei", url: file.url || "" },
+    ];
+    updateNode.mutate({ id: fileHubPanel.nodeId, data: { file_hub_refs: next } });
+  };
+
+  const removeFileHubRef = (fileId) => {
+    if (!fileHubPanel) return;
+    const node = nodes.find((n) => n.id === fileHubPanel.nodeId);
+    const next = (Array.isArray(node?.file_hub_refs) ? node.file_hub_refs : []).filter(
+      (r) => String(r.id) !== String(fileId),
+    );
+    updateNode.mutate({ id: fileHubPanel.nodeId, data: { file_hub_refs: next } });
   };
 
   const clearAll = async () => {
@@ -727,6 +760,16 @@ export default function MindMap() {
             >
               <ListTodo className="w-3 h-3" />
             </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setFileHubPanel({ nodeId: selectedNodeId })}
+              className="h-7 px-1.5 sm:px-2 border-violet-300 text-violet-600 hover:bg-violet-50"
+              title="Datei aus File Hub"
+            >
+              <Paperclip className="w-3 h-3" />
+            </Button>
             
             <div className="flex gap-0.5">
               {NODE_COLORS.slice(0, 4).map(c => (
@@ -813,6 +856,74 @@ export default function MindMap() {
               </SelectContent>
             </Select>
             <Button size="sm" onClick={() => linkTask(taskLinkPanel.taskId)} className="w-full">Verknüpfen</Button>
+          </div>
+        </div>
+      )}
+
+      {/* File Hub attachments */}
+      {fileHubPanel && (
+        <div className="absolute top-28 sm:top-32 left-2 right-2 sm:left-auto sm:right-4 z-30 sm:w-80 max-h-[min(70vh,420px)] flex flex-col">
+          <div className="bg-white shadow-xl border border-slate-200 rounded-xl p-3 flex flex-col min-h-0">
+            <div className="flex justify-between items-center mb-2 shrink-0">
+              <span className="font-medium text-slate-700 flex items-center gap-2 text-sm">
+                <Paperclip className="w-4 h-4" /> Dateien (File Hub)
+              </span>
+              <button onClick={() => setFileHubPanel(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {projectFiles.length === 0 ? (
+              <p className="text-xs text-slate-400 py-2">Keine Dateien im Projekt. Zuerst im File Hub hochladen.</p>
+            ) : (
+              <Select
+                onValueChange={(fileId) => {
+                  const f = projectFiles.find((x) => String(x.id) === String(fileId));
+                  if (f) attachFileHubToNode(f);
+                }}
+              >
+                <SelectTrigger className="mb-3">
+                  <SelectValue placeholder="Datei anhängen…" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {projectFiles.map((f) => (
+                    <SelectItem key={f.id} value={String(f.id)}>
+                      <span className="truncate max-w-[220px]">{f.name || f.id}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <div className="text-xs font-medium text-slate-600 mb-1 shrink-0">Angehängt</div>
+            <ul className="space-y-1 overflow-y-auto min-h-0 flex-1 max-h-40 pr-0.5">
+              {(nodes.find((n) => n.id === fileHubPanel.nodeId)?.file_hub_refs || []).length === 0 ? (
+                <li className="text-xs text-slate-400">Noch keine Dateien.</li>
+              ) : (
+                (nodes.find((n) => n.id === fileHubPanel.nodeId)?.file_hub_refs || []).map((ref) => (
+                  <li
+                    key={ref.id}
+                    className="flex items-center gap-2 p-1.5 rounded-lg bg-slate-50 group min-w-0"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <a
+                      href={ref.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-xs text-indigo-600 hover:underline truncate"
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      {ref.name}
+                    </a>
+                    <button
+                      type="button"
+                      className="text-slate-400 hover:text-red-500 p-0.5 shrink-0"
+                      onClick={() => removeFileHubRef(ref.id)}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
           </div>
         </div>
       )}
@@ -986,6 +1097,7 @@ export default function MindMap() {
             const hasNote = !!node.note;
             const hasLinkedTask = !!node.linked_task_id;
             const linkedTask = hasLinkedTask ? tasks.find(t => t.id === node.linked_task_id) : null;
+            const fileHubCount = Array.isArray(node.file_hub_refs) ? node.file_hub_refs.length : 0;
 
             return (
               <div
@@ -1051,6 +1163,14 @@ export default function MindMap() {
                     </div>
                     {isDone && <Check className="absolute -top-1 -right-1 w-5 h-5 text-white bg-green-500 rounded-full p-0.5" />}
                     {hasNote && <MessageSquare className="absolute -bottom-1 -right-1 w-4 h-4 text-indigo-600 bg-white rounded-full p-0.5" />}
+                    {fileHubCount > 0 && (
+                      <span
+                        className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-0.5 bg-violet-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center shadow"
+                        title={`${fileHubCount} Datei(en) aus File Hub`}
+                      >
+                        <Paperclip className="w-2.5 h-2.5" />
+                      </span>
+                    )}
                     {hasLinkedTask && (
                       <button
                         type="button"
@@ -1128,6 +1248,15 @@ export default function MindMap() {
                     </button>
                     
                     {hasNote && <MessageSquare className="absolute -bottom-2 -left-2 w-5 h-5 text-indigo-600 bg-white rounded-full p-0.5 shadow" />}
+                    {fileHubCount > 0 && (
+                      <span
+                        className="absolute -top-2 -left-2 min-w-[20px] h-5 px-1 bg-violet-600 text-white rounded-full text-[10px] font-semibold flex items-center justify-center gap-0.5 shadow"
+                        title={`${fileHubCount} Datei(en)`}
+                      >
+                        <Paperclip className="w-3 h-3" />
+                        {fileHubCount > 1 ? <span>{fileHubCount}</span> : null}
+                      </span>
+                    )}
                     {hasLinkedTask && (
                       <button
                         type="button"

@@ -4,7 +4,7 @@ import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Draggable } from '@hello-pangea/dnd';
 import { StrictModeDroppable as Droppable } from "@/components/StrictModeDroppable";
-import { Plus, MoreVertical, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, ChevronDown, ChevronRight, Layers } from 'lucide-react';
+import { Plus, MoreVertical, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, LayoutPanelLeft, Pencil, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -50,53 +50,20 @@ function parseTagsFromInput(str) {
   ];
 }
 
-const DEFAULT_STACK_LABEL = "Neue Gruppe";
+/** Synthetisches „Hauptboard“: Tasks ohne `kanban_board_id`. */
+const DEFAULT_KANBAN_BOARD_KEY = "__default__";
 
-function newStackUuid() {
-  return crypto.randomUUID();
-}
-
-function isStackCard(task) {
-  return task?.kind === "stack";
-}
-
-function isChildTask(task) {
-  return !!task?.parent_stack_id && !isStackCard(task);
-}
-
-function getStackChildren(columnTasks, stackId) {
-  return sortTasksByBoardOrder(
-    (columnTasks || [])
-      .filter((t) => String(t.parent_stack_id || "") === String(stackId))
-      .sort((a, b) => (Number(a.stack_order) || 0) - (Number(b.stack_order) || 0)),
-  );
-}
-
-function isStackExpanded(stackOpen, stackId) {
-  return stackOpen[String(stackId)] !== false;
-}
-
-function buildColumnFlatItems(columnTasks, stackOpen) {
-  const topLevel = sortTasksByBoardOrder(
-    (columnTasks || []).filter((t) => !isChildTask(t)),
-  );
-
-  const out = [];
-  for (const t of topLevel) {
-    if (isStackCard(t)) {
-      const stackId = t.id;
-      const children = getStackChildren(columnTasks, stackId);
-      out.push({ type: "stack", stack: t, stackId, children });
-      if (isStackExpanded(stackOpen, stackId)) {
-        for (const c of children) {
-          out.push({ type: "child", task: c, stackId });
-        }
-      }
-    } else {
-      out.push({ type: "task", task: t });
-    }
+function taskBelongsToKanbanBoard(task, selectedBoardId) {
+  const bid = task?.kanban_board_id;
+  if (selectedBoardId === DEFAULT_KANBAN_BOARD_KEY) {
+    return bid == null || bid === "";
   }
-  return out;
+  return String(bid) === String(selectedBoardId);
+}
+
+/** Frühere Karten-Stapel (Drag auf Karte) — nicht mehr anzeigen, stattdessen mehrere Boards nutzen. */
+function isHiddenLegacyStackRow(task) {
+  return task?.kind === "stack" || !!task?.parent_stack_id;
 }
 
 function mergeTaskPatches(updates) {
@@ -107,16 +74,6 @@ function mergeTaskPatches(updates) {
   return Array.from(m.entries()).map(([id, patch]) => ({ id, patch }));
 }
 
-function nextBoardOrder(columnTasks) {
-  const max = (columnTasks || []).reduce(
-    (m, t) => Math.max(m, Number(t.board_order) || 0),
-    -1,
-  );
-  return max + 1;
-}
-
-// (old kanban_stack_* folder/stack implementation removed)
-
 export default function ScrumBoard() {
     const queryClient = useQueryClient();
     const [isNewTaskOpen, setIsNewTaskOpen] = React.useState(false);
@@ -124,15 +81,42 @@ export default function ScrumBoard() {
     const [selectedTask, setSelectedTask] = React.useState(null);
     const [viewMode, setViewMode] = React.useState('board'); // 'board' | 'timeline' | 'people'
     const [filterAssignee, setFilterAssignee] = React.useState(null); // null = all
-    /** stack task id -> false means collapsed */
-    const [stackOpen, setStackOpen] = React.useState({});
     const [dustEffect, setDustEffect] = React.useState({ active: false, x: 0, y: 0 });
     const [dndPersistWarning, setDndPersistWarning] = React.useState(null);
-    /** @hello-pangea/dnd liefert beim Loslassen manchmal kein `combine`, obwohl die UI Combine zeigt — letzter Stand aus onDragUpdate. */
-    const lastCombineRef = React.useRef(null);
+    const [newBoardOpen, setNewBoardOpen] = React.useState(false);
+    const [newBoardTitle, setNewBoardTitle] = React.useState("");
+    const [renameBoardTarget, setRenameBoardTarget] = React.useState(null);
+    const [renameBoardTitle, setRenameBoardTitle] = React.useState("");
 
     const searchParams = new URLSearchParams(window.location.search);
     const projectId = searchParams.get('project');
+
+    const [selectedKanbanBoardId, setSelectedKanbanBoardId] = React.useState(() => {
+      if (typeof window === "undefined" || !searchParams.get("project")) {
+        return DEFAULT_KANBAN_BOARD_KEY;
+      }
+      const pid = searchParams.get("project");
+      try {
+        return (
+          sessionStorage.getItem(`orbylox_kanban_board_${pid}`) ||
+          DEFAULT_KANBAN_BOARD_KEY
+        );
+      } catch {
+        return DEFAULT_KANBAN_BOARD_KEY;
+      }
+    });
+
+    React.useEffect(() => {
+      if (!projectId || typeof window === "undefined") return;
+      try {
+        sessionStorage.setItem(
+          `orbylox_kanban_board_${projectId}`,
+          selectedKanbanBoardId,
+        );
+      } catch {
+        /* ignore */
+      }
+    }, [projectId, selectedKanbanBoardId]);
 
   // NOTE: keep page scrolling enabled (no body scroll lock).
 
@@ -164,6 +148,48 @@ export default function ScrumBoard() {
     },
     enabled: !!projectId
   });
+
+  const { data: kanbanBoards = [] } = useQuery({
+    queryKey: ['kanbanBoards', projectId],
+    queryFn: async () => {
+      const all = await api.entities.KanbanBoard.list('-created_date', 100);
+      return all
+        .filter((b) => b.project_id === projectId)
+        .sort(
+          (a, b) =>
+            (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0),
+        );
+    },
+    initialData: [],
+    enabled: !!projectId,
+  });
+
+  const boardScopedTasks = React.useMemo(() => {
+    if (!tasks) return [];
+    return tasks.filter(
+      (t) =>
+        taskBelongsToKanbanBoard(t, selectedKanbanBoardId) &&
+        !isHiddenLegacyStackRow(t),
+    );
+  }, [tasks, selectedKanbanBoardId]);
+
+  React.useEffect(() => {
+    if (!projectId) return;
+    try {
+      const v = sessionStorage.getItem(`orbylox_kanban_board_${projectId}`);
+      setSelectedKanbanBoardId(v || DEFAULT_KANBAN_BOARD_KEY);
+    } catch {
+      setSelectedKanbanBoardId(DEFAULT_KANBAN_BOARD_KEY);
+    }
+  }, [projectId]);
+
+  React.useEffect(() => {
+    if (selectedKanbanBoardId === DEFAULT_KANBAN_BOARD_KEY) return;
+    const exists = kanbanBoards.some(
+      (b) => String(b.id) === String(selectedKanbanBoardId),
+    );
+    if (!exists) setSelectedKanbanBoardId(DEFAULT_KANBAN_BOARD_KEY);
+  }, [kanbanBoards, selectedKanbanBoardId]);
 
   const projectMembers = Array.isArray(project?.members) ? project.members : [];
 
@@ -268,13 +294,19 @@ export default function ScrumBoard() {
 
   const createTaskMutation = useMutation({
     mutationFn: (taskData) => {
-      const todoTasks = (tasks || []).filter((t) => t.status === "todo");
+      const todoTasks = (boardScopedTasks || []).filter(
+        (t) => t.status === "todo",
+      );
       const maxOrder = todoTasks.reduce(
         (m, t) => Math.max(m, Number(t.board_order) || 0),
         -1,
       );
       const { tagsInput, ...rest } = taskData;
       const tags = parseTagsFromInput(tagsInput || "");
+      const boardKey =
+        selectedKanbanBoardId === DEFAULT_KANBAN_BOARD_KEY
+          ? null
+          : selectedKanbanBoardId;
       return api.entities.Task.create({
         ...rest,
         project_id: projectId,
@@ -284,6 +316,7 @@ export default function ScrumBoard() {
         kind: "task",
         parent_stack_id: null,
         stack_order: 0,
+        kanban_board_id: boardKey,
       });
     },
     onMutate: async (taskData) => {
@@ -292,7 +325,16 @@ export default function ScrumBoard() {
       const tempId = 'temp_' + Date.now();
       const { tagsInput: _tagsIn, ...rest } = taskData;
       const tags = parseTagsFromInput(taskData.tagsInput || "");
-      const todoN = (previousTasks || []).filter((t) => t.status === "todo").length;
+      const boardKey =
+        selectedKanbanBoardId === DEFAULT_KANBAN_BOARD_KEY
+          ? null
+          : selectedKanbanBoardId;
+      const todoN = (previousTasks || []).filter(
+        (t) =>
+          t.status === "todo" &&
+          taskBelongsToKanbanBoard(t, selectedKanbanBoardId) &&
+          !isHiddenLegacyStackRow(t),
+      ).length;
       queryClient.setQueryData(['tasks', projectId], old => [
         ...(old || []),
         {
@@ -303,6 +345,7 @@ export default function ScrumBoard() {
           status: 'todo',
           board_order: todoN,
           created_date: new Date().toISOString(),
+          kanban_board_id: boardKey,
         },
       ]);
       setIsNewTaskOpen(false);
@@ -317,9 +360,58 @@ export default function ScrumBoard() {
     }
   });
 
+  const createKanbanBoardMutation = useMutation({
+    mutationFn: async (title) => {
+      const t = (title || "").trim() || "Neues Board";
+      return api.entities.KanbanBoard.create({
+        project_id: projectId,
+        title: t,
+        sort_order: (kanbanBoards?.length || 0),
+      });
+    },
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["kanbanBoards", projectId] });
+      if (created?.id) setSelectedKanbanBoardId(String(created.id));
+      setNewBoardOpen(false);
+      setNewBoardTitle("");
+    },
+  });
+
+  const renameKanbanBoardMutation = useMutation({
+    mutationFn: ({ id, title }) =>
+      api.entities.KanbanBoard.update(id, {
+        title: (title || "").trim() || "Board",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kanbanBoards", projectId] });
+      setRenameBoardTarget(null);
+      setRenameBoardTitle("");
+    },
+  });
+
+  const deleteKanbanBoardMutation = useMutation({
+    mutationFn: async (boardId) => {
+      const toMove = (tasks || []).filter(
+        (t) => String(t.kanban_board_id) === String(boardId),
+      );
+      await Promise.all(
+        toMove.map((t) =>
+          api.entities.Task.update(t.id, { kanban_board_id: null }),
+        ),
+      );
+      await api.entities.KanbanBoard.delete(boardId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["kanbanBoards", projectId] });
+      setSelectedKanbanBoardId(DEFAULT_KANBAN_BOARD_KEY);
+    },
+  });
+
   const getTasksForColumnFiltered = React.useCallback(
     (status) => {
-      let filtered = tasks?.filter((t) => t.status === status) || [];
+      let filtered =
+        boardScopedTasks?.filter((t) => t.status === status) || [];
       if (filterAssignee) {
         filtered = filtered.filter(
           (t) =>
@@ -329,7 +421,7 @@ export default function ScrumBoard() {
       }
       return filtered;
     },
-    [tasks, filterAssignee],
+    [boardScopedTasks, filterAssignee],
   );
 
   const getColumnTasks = React.useCallback(
@@ -337,87 +429,17 @@ export default function ScrumBoard() {
     [getTasksForColumnFiltered],
   );
 
-  const renameStackLabel = React.useCallback(
-    (stackId, raw) => {
-      const title = (raw || "").trim() || DEFAULT_STACK_LABEL;
-      reorderTasksMutation.mutate([{ id: stackId, patch: { title } }]);
-    },
-    [reorderTasksMutation],
-  );
+  const onDragEnd = (result) => {
+    if (result.reason === "CANCEL") return;
+    if (!result.destination) return;
 
-  const createStackMutation = useMutation({
-    mutationFn: async ({ projectId, status, title }) => {
-      return await api.entities.Task.create({
-        project_id: projectId,
-        status,
-        priority: "medium",
-        board_order: 0,
-        tags: [],
-        kind: "stack",
-        title: title || DEFAULT_STACK_LABEL,
-        parent_stack_id: null,
-        stack_order: 0,
-      });
-    },
-    onMutate: async ({ status, title }) => {
-      setDndPersistWarning(null);
-      await queryClient.cancelQueries(["tasks", projectId]);
-      const previousTasks = queryClient.getQueryData(["tasks", projectId]);
-      const tempId = `stack_${Date.now()}`;
-      const col = getColumnTasks(status);
-      const bo = nextBoardOrder(col);
-      queryClient.setQueryData(["tasks", projectId], (old) => [
-        ...(old || []),
-        {
-          id: tempId,
-          project_id: projectId,
-          status,
-          priority: "medium",
-          board_order: bo,
-          tags: [],
-          kind: "stack",
-          title: title || DEFAULT_STACK_LABEL,
-          parent_stack_id: null,
-          stack_order: 0,
-          created_date: new Date().toISOString(),
-        },
-      ]);
-      setStackOpen((p) => ({ ...p, [tempId]: true }));
-      return { previousTasks, tempId };
-    },
-    onError: (err, vars, ctx) => {
-      if (ctx?.previousTasks) queryClient.setQueryData(["tasks", projectId], ctx.previousTasks);
-      const msg = String(err?.message || err || "");
-      const isPerm =
-        msg.toLowerCase().includes("missing or insufficient permissions") ||
-        msg.toLowerCase().includes("permission-denied");
-      if (isPerm) {
-        setDndPersistWarning(
-          "Dein Account hat aktuell keine Firestore-Berechtigung zum Speichern. Gruppen bleiben nur lokal sichtbar (bis Reload).",
-        );
-      }
-    },
-    onSuccess: (created, vars, ctx) => {
-      queryClient.setQueryData(["tasks", projectId], (old) =>
-        (old || []).map((t) => (t.id === ctx?.tempId ? { ...t, ...created } : t)),
-      );
-      setStackOpen((p) => {
-        if (!ctx?.tempId || ctx?.tempId === created.id) return p;
-        const { [ctx.tempId]: was, ...rest } = p;
-        return { ...rest, [created.id]: was };
-      });
-      queryClient.invalidateQueries(["tasks", projectId]);
-    },
-  });
-
-  const onDragEnd = async (result) => {
-    if (result.reason === "CANCEL") {
-      lastCombineRef.current = null;
+    const { draggableId, source, destination } = result;
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) {
       return;
     }
-
-    const findTaskById = (id) =>
-      (tasks || []).find((t) => String(t.id) === String(id));
 
     const dustAtDroppable = (droppableId, indexHint) => {
       if (!droppableId) return;
@@ -436,96 +458,43 @@ export default function ScrumBoard() {
       }
     };
 
-    const combineFromLib = result.combine?.draggableId ? result.combine : null;
-    // NOTE: For real combine drops, `destination` is typically null.
-    // However, we sometimes end up with a reorder destination even though the UI
-    // indicated combining. In that case we fall back to the last seen combine.
-    const resolvedDropZoneId =
-      result.destination?.droppableId || result.source?.droppableId || null;
-    const combineFallback =
-      result.reason === "DROP" &&
-      lastCombineRef.current &&
-      resolvedDropZoneId &&
-      resolvedDropZoneId === lastCombineRef.current.droppableId &&
-      String(result.draggableId) !== String(lastCombineRef.current.draggableId)
-        ? lastCombineRef.current
-        : null;
-    const effectiveCombine = combineFromLib || combineFallback;
-
-    lastCombineRef.current = null;
-
-    if (effectiveCombine?.draggableId) {
-      const draggedId = result.draggableId;
-      const targetId = effectiveCombine.draggableId;
-      if (String(draggedId) === String(targetId)) return;
-
-      const srcTask = findTaskById(draggedId);
-      const tgtTask = findTaskById(targetId);
-      if (!srcTask || !tgtTask) return;
-      if (isStackCard(srcTask) || isStackCard(tgtTask)) return;
-
-      const destStatus = tgtTask.status;
-      dustAtDroppable(effectiveCombine.droppableId, result.source.index);
-
-      const created = await createStackMutation.mutateAsync({
-        projectId,
-        status: destStatus,
-        title: DEFAULT_STACK_LABEL,
-      });
-
-      const stackId = created?.id;
-      if (!stackId) return;
-
-      const updates = [
-        { id: stackId, patch: { board_order: tgtTask.board_order, status: destStatus } },
-        { id: tgtTask.id, patch: { parent_stack_id: stackId, stack_order: 0, status: destStatus } },
-        { id: srcTask.id, patch: { parent_stack_id: stackId, stack_order: 1, status: destStatus } },
-      ];
-      reorderTasksMutation.mutate(updates);
-      setStackOpen((p) => ({ ...p, [stackId]: true }));
-      return;
-    }
-
-    if (!result.destination) return;
-
-    const { draggableId, source, destination } = result;
-
     dustAtDroppable(destination.droppableId, destination.index);
 
     const srcCol = source.droppableId;
     const dstCol = destination.droppableId;
 
-    const srcItems = buildColumnFlatItems(getColumnTasks(srcCol), stackOpen);
-    const dstItems =
-      srcCol === dstCol
-        ? srcItems
-        : buildColumnFlatItems(getColumnTasks(dstCol), stackOpen);
+    const columnList = (col) =>
+      sortTasksByBoardOrder(getColumnTasks(col)).map((t) => t.id);
 
-    const moved = srcItems[source.index];
-    if (!moved) return;
+    if (srcCol === dstCol) {
+      const list = columnList(srcCol);
+      if (!list.includes(draggableId)) return;
+      const next = [...list];
+      next.splice(source.index, 1);
+      next.splice(destination.index, 0, draggableId);
+      const updates = next.map((id, i) => ({
+        id,
+        patch: { board_order: i, status: srcCol },
+      }));
+      reorderTasksMutation.mutate(mergeTaskPatches(updates));
+      return;
+    }
 
-    const movedTask =
-      moved.type === "stack" ? moved.stack : moved.task;
+    const srcList = columnList(srcCol).filter((id) => id !== draggableId);
+    const dstList = [...columnList(dstCol)];
+    if (!columnList(srcCol).includes(draggableId)) return;
+    dstList.splice(destination.index, 0, draggableId);
 
-    if (String(movedTask?.id) !== String(draggableId)) return;
-
-    // moving child out of stack: detach
-    const detachPatch =
-      moved.type === "child"
-        ? { parent_stack_id: null, stack_order: 0 }
-        : null;
-
-    const destTopLevelIndex = Math.min(destination.index, dstItems.length);
-    const dstTopLevel = sortTasksByBoardOrder(
-      getColumnTasks(dstCol).filter((t) => !isChildTask(t)),
-    ).filter((t) => String(t.id) !== String(draggableId));
-
-    dstTopLevel.splice(destTopLevelIndex, 0, movedTask);
-    const updates = [];
-    dstTopLevel.forEach((t, i) => {
-      updates.push({ id: t.id, patch: { board_order: i, status: dstCol } });
-    });
-    updates.push({ id: movedTask.id, patch: { status: dstCol, ...(detachPatch || {}) } });
+    const updates = [
+      ...srcList.map((id, i) => ({
+        id,
+        patch: { board_order: i, status: srcCol },
+      })),
+      ...dstList.map((id, i) => ({
+        id,
+        patch: { board_order: i, status: dstCol },
+      })),
+    ];
     reorderTasksMutation.mutate(mergeTaskPatches(updates));
   };
 
@@ -679,8 +648,8 @@ export default function ScrumBoard() {
             size="sm"
             className="text-xs sm:text-sm"
             onClick={async () => {
-              if (window.confirm('Alle Aufgaben löschen?')) {
-                const currentTasks = tasks || [];
+              if (window.confirm('Alle Aufgaben auf diesem Board löschen?')) {
+                const currentTasks = boardScopedTasks || [];
                 await Promise.all(currentTasks.map(t => api.entities.Task.delete(t.id)));
                 queryClient.invalidateQueries(['tasks', projectId]);
               }
@@ -692,6 +661,146 @@ export default function ScrumBoard() {
         </div>
       </div>
 
+      <div className="mb-4 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-slate-500 flex items-center gap-1 shrink-0">
+            <LayoutPanelLeft className="w-3.5 h-3.5" /> Boards
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedKanbanBoardId(DEFAULT_KANBAN_BOARD_KEY)}
+            className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+              selectedKanbanBoardId === DEFAULT_KANBAN_BOARD_KEY
+                ? "bg-indigo-600 text-white border-indigo-600"
+                : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+            }`}
+          >
+            Hauptboard
+          </button>
+          {kanbanBoards.map((b) => (
+            <div key={b.id} className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => setSelectedKanbanBoardId(String(b.id))}
+                className={`text-xs px-2.5 py-1 rounded-lg border transition-colors max-w-[160px] truncate ${
+                  selectedKanbanBoardId === String(b.id)
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                }`}
+                title={b.title}
+              >
+                {b.title || "Board"}
+              </button>
+              <button
+                type="button"
+                className="p-1 rounded hover:bg-slate-100"
+                title="Umbenennen"
+                onClick={() => {
+                  setRenameBoardTarget(b);
+                  setRenameBoardTitle(b.title || "");
+                }}
+              >
+                <Pencil className="w-3.5 h-3.5 text-slate-500" />
+              </button>
+              <button
+                type="button"
+                className="p-1 rounded hover:bg-red-50"
+                title="Board löschen"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Dieses Board löschen? Alle Tickets darauf werden ins Hauptboard verschoben.",
+                    )
+                  ) {
+                    deleteKanbanBoardMutation.mutate(b.id);
+                  }
+                }}
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+              </button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => setNewBoardOpen(true)}
+          >
+            <Plus className="w-3 h-3 mr-1" />
+            Neues Board
+          </Button>
+        </div>
+      </div>
+
+      <Dialog open={newBoardOpen} onOpenChange={setNewBoardOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Neues Board</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <Input
+              placeholder="Name"
+              value={newBoardTitle}
+              onChange={(e) => setNewBoardTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  createKanbanBoardMutation.mutate(newBoardTitle);
+                }
+              }}
+            />
+            <Button
+              className="w-full bg-indigo-600"
+              onClick={() => createKanbanBoardMutation.mutate(newBoardTitle)}
+              disabled={createKanbanBoardMutation.isPending}
+            >
+              Erstellen
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!renameBoardTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRenameBoardTarget(null);
+            setRenameBoardTitle("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Board umbenennen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <Input
+              value={renameBoardTitle}
+              onChange={(e) => setRenameBoardTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && renameBoardTarget) {
+                  renameKanbanBoardMutation.mutate({
+                    id: renameBoardTarget.id,
+                    title: renameBoardTitle,
+                  });
+                }
+              }}
+            />
+            <Button
+              className="w-full bg-indigo-600"
+              onClick={() => {
+                if (!renameBoardTarget) return;
+                renameKanbanBoardMutation.mutate({
+                  id: renameBoardTarget.id,
+                  title: renameBoardTitle,
+                });
+              }}
+            >
+              Speichern
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {dndPersistWarning && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2 text-sm">
           {dndPersistWarning}
@@ -700,14 +809,14 @@ export default function ScrumBoard() {
 
       {viewMode === 'timeline' ? (
         <TimelineView 
-          tasks={tasks} 
+          tasks={boardScopedTasks} 
           onTaskClick={setSelectedTask} 
           allAssignees={allAssignees}
         />
       ) : viewMode === 'people' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {allAssignees.map(email => {
-            const userTasks = tasks.filter(t => 
+            const userTasks = boardScopedTasks.filter(t => 
               (t.assignees?.includes(email)) || (t.assignee_email === email)
             );
             const todoCount = userTasks.filter(t => t.status === 'todo').length;
@@ -793,7 +902,7 @@ export default function ScrumBoard() {
           })}
           
           {/* Unassigned Tasks */}
-          {tasks.filter(t => !t.assignees?.length && !t.assignee_email).length > 0 && (
+          {boardScopedTasks.filter(t => !t.assignees?.length && !t.assignee_email).length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-lg transition-all">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
@@ -801,12 +910,12 @@ export default function ScrumBoard() {
                 </div>
                 <div>
                   <p className="font-semibold text-slate-800">Nicht zugewiesen</p>
-                  <p className="text-xs text-slate-500">{tasks.filter(t => !t.assignees?.length && !t.assignee_email).length} Tickets</p>
+                  <p className="text-xs text-slate-500">{boardScopedTasks.filter(t => !t.assignees?.length && !t.assignee_email).length} Tickets</p>
                 </div>
               </div>
               
               <div className="space-y-2">
-                {tasks.filter(t => !t.assignees?.length && !t.assignee_email).slice(0, 3).map(task => (
+                {boardScopedTasks.filter(t => !t.assignees?.length && !t.assignee_email).slice(0, 3).map(task => (
                   <div 
                     key={task.id}
                     onClick={() => setSelectedTask(task)}
@@ -825,27 +934,18 @@ export default function ScrumBoard() {
                     </div>
                   </div>
                 ))}
-                {tasks.filter(t => !t.assignees?.length && !t.assignee_email).length > 3 && (
-                  <p className="text-xs text-slate-400 text-center">+{tasks.filter(t => !t.assignees?.length && !t.assignee_email).length - 3} weitere</p>
+                {boardScopedTasks.filter(t => !t.assignees?.length && !t.assignee_email).length > 3 && (
+                  <p className="text-xs text-slate-400 text-center">+{boardScopedTasks.filter(t => !t.assignees?.length && !t.assignee_email).length - 3} weitere</p>
                 )}
               </div>
             </div>
           )}
         </div>
       ) : (
-      <DragDropContext
-        onDragStart={() => {
-          lastCombineRef.current = null;
-        }}
-        onDragUpdate={(update) => {
-          lastCombineRef.current = update.combine;
-        }}
-        onDragEnd={onDragEnd}
-      >
+      <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-3 sm:gap-4 overflow-auto pb-4 flex-1 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
           {Object.entries(COLUMNS).map(([columnId, config]) => {
             const columnTasks = getColumnTasks(columnId);
-            const flat = buildColumnFlatItems(columnTasks, stackOpen);
             return (
             <div key={columnId} className="flex-shrink-0 w-[80vw] sm:flex-1 sm:w-auto sm:min-w-[260px] flex flex-col bg-slate-50/50 rounded-2xl border border-slate-100/60 snap-center sm:snap-align-none min-h-[60vh]">
               <div className={`p-4 border-b border-slate-100 rounded-t-2xl ${config.color} bg-opacity-40`}>
@@ -861,7 +961,6 @@ export default function ScrumBoard() {
                 <Droppable
                   droppableId={columnId}
                   type="BOARD_TASK"
-                  isCombineEnabled
                   direction="vertical"
                 >
                   {(provided, snapshot) => (
@@ -874,108 +973,41 @@ export default function ScrumBoard() {
                           : ""
                       }`}
                     >
-                      {flat.length === 0 && (
+                      {columnTasks.length === 0 && (
                         <p className="text-xs text-slate-400 text-center py-8 px-3">
                           Keine Aufgaben in dieser Spalte.
                         </p>
                       )}
-                      {flat.map((row, index) => {
-                        const draggableTask =
-                          row.type === "stack"
-                            ? row.stack
-                            : row.type === "child"
-                              ? row.task
-                              : row.task;
-
-                        const isChild = row.type === "child";
-                        const isStack = row.type === "stack";
-                        const stackId = isStack ? row.stackId : row.stackId;
-                        const stackCount = isStack ? row.children.length : 0;
-                        const subtasksInfo = isStack ? { total: 0, completed: 0 } : getSubtasksInfo(draggableTask.id);
-                        const commentsCount = isStack ? 0 : getCommentsCount(draggableTask.id);
-                        const attachmentsCount = isStack ? 0 : (draggableTask.attachments || []).length;
+                      {columnTasks.map((draggableTask, index) => {
+                        const subtasksInfo = getSubtasksInfo(draggableTask.id);
+                        const commentsCount = getCommentsCount(draggableTask.id);
+                        const attachmentsCount = (draggableTask.attachments || []).length;
 
                         return (
-                        <React.Fragment key={`${draggableTask.id}-${index}`}>
-                          {isStack && (
-                            <div className="rounded-lg border border-indigo-200/90 bg-indigo-50/60 dark:bg-indigo-950/30 px-2 py-1.5 flex items-center gap-2">
-                              <button
-                                type="button"
-                                className="shrink-0 p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
-                                aria-label="Gruppe auf- oder zuklappen"
-                                onClick={() =>
-                                  setStackOpen((p) => ({
-                                    ...p,
-                                    [String(stackId)]: !(p[String(stackId)] !== false),
-                                  }))
-                                }
-                              >
-                                {isStackExpanded(stackOpen, String(stackId)) ? (
-                                  <ChevronDown className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
-                                ) : (
-                                  <ChevronRight className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
-                                )}
-                              </button>
-                              <Layers className="w-4 h-4 text-indigo-600 shrink-0" />
-                              <Input
-                                className="h-7 text-xs flex-1 min-w-0 bg-white/90 dark:bg-slate-900/40 border-indigo-200 dark:border-indigo-800"
-                                defaultValue={draggableTask.title || DEFAULT_STACK_LABEL}
-                                placeholder="Gruppenname…"
-                                onBlur={(e) => renameStackLabel(draggableTask.id, e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") e.currentTarget.blur();
-                                }}
-                              />
-                              <Badge variant="secondary" className="shrink-0 text-[10px] tabular-nums">
-                                {stackCount}
-                              </Badge>
-                            </div>
-                          )}
-                          <div className={isChild ? "ml-3 pl-2 border-l-2 border-indigo-200/70" : ""}>
                         <Draggable
+                          key={draggableTask.id}
                           draggableId={draggableTask.id}
                           index={index}
                           disableInteractiveElementBlocking
                         >
-                          {(provided, snapshot) => {
-                            const isCombineDropTarget = Boolean(snapshot.combineTargetFor);
-                            const isDraggingCombinable =
-                              snapshot.isDragging && snapshot.combineWith;
-                            return (
+                          {(provided, snapshot) => (
                             <div
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              className={isStack
-                                ? `relative bg-white/80 dark:bg-slate-800 p-3 rounded-xl border-2 border-indigo-200 shadow-sm cursor-grab active:cursor-grabbing ${
-                                    snapshot.isDragging ? "shadow-2xl ring-2 ring-indigo-500/50 z-50" : ""
-                                  }`
-                                : `relative bg-white dark:bg-slate-800 p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-all group cursor-grab active:cursor-grabbing ${
+                              className={`relative bg-white dark:bg-slate-800 p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-all group cursor-grab active:cursor-grabbing ${
                                     snapshot.isDragging ? "shadow-2xl scale-105 ring-2 ring-indigo-500/50 z-50" : ""
                                   } ${
                                     draggableTask.priority === "high" && !snapshot.isDragging ? "border-red-200 animate-pulse-border" : "border-slate-100 dark:border-slate-600"
-                                  } ${
-                                    isCombineDropTarget ? "!ring-2 !ring-indigo-500 !border-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/35" : ""
-                                  } ${
-                                    isDraggingCombinable ? "ring-2 ring-amber-400 border-amber-300" : ""
                                   }`}
                               style={{
                                 ...provided.draggableProps.style,
-                                ...(draggableTask.priority === "high" && !snapshot.isDragging && !isStack
+                                ...(draggableTask.priority === "high" && !snapshot.isDragging
                                   ? { animation: "pulse-border 2s ease-in-out infinite" }
                                   : {}),
                               }}
-                              onClick={() => !isStack && setSelectedTask(draggableTask)}
+                              onClick={() => setSelectedTask(draggableTask)}
                             >
-                              {isStack ? (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
-                                    {draggableTask.title || DEFAULT_STACK_LABEL}
-                                  </span>
-                                  <span className="text-xs text-slate-500">{stackCount} Tickets</span>
-                                </div>
-                              ) : (
-                              <>
                               <div className="flex justify-between items-start mb-2">
                                   <Badge variant="outline" className={`
                                       ${draggableTask.priority === 'high' ? 'text-red-600 border-red-100 bg-red-50' : 
@@ -1047,14 +1079,9 @@ export default function ScrumBoard() {
                                       )}
                                   </div>
                               </div>
-                              </>
-                              )}
                             </div>
-                            );
-                          }}
+                            )}
                         </Draggable>
-                          </div>
-                        </React.Fragment>
                         );
                       })}
                       {provided.placeholder}
