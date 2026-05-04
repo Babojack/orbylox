@@ -8,6 +8,28 @@ import { Mail, Lock } from "lucide-react";
 
 const gradientBtn = "w-full py-3.5 rounded-xl font-semibold text-white uppercase tracking-wide bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 hover:opacity-95 transition-opacity shadow-lg";
 
+/** Lesbare Meldung für typische Firebase-Google-Fehler (Console: Authentication → Google, Authorized domains). */
+function googleSignInErrorMessage(err) {
+  const code = err?.code || "";
+  const map = {
+    "auth/popup-blocked":
+      "Popup wurde blockiert. Erlaube Popups für diese Seite oder probiere einen anderen Browser.",
+    "auth/popup-closed-by-user": "Anmeldung abgebrochen (Fenster geschlossen).",
+    "auth/cancelled-popup-request": "Anmeldung unterbrochen — bitte erneut versuchen.",
+    "auth/unauthorized-domain":
+      "Diese Domain ist in Firebase nicht freigegeben. In der Firebase Console unter Authentication → Settings → Authorized domains deine Domain (und ggf. localhost) eintragen.",
+    "auth/operation-not-allowed":
+      "Google-Anmeldung ist im Firebase-Projekt nicht aktiviert. Authentication → Sign-in method → Google einschalten und speichern.",
+    "auth/account-exists-with-different-credential":
+      "Es gibt schon ein Konto mit dieser E-Mail — bitte zuerst mit E-Mail/Passwort anmelden oder in Firebase die Kontoverknüpfung prüfen.",
+    "auth/network-request-failed": "Netzwerkfehler — Verbindung prüfen und erneut versuchen.",
+    "auth/internal-error": "Interner Authentifizierungsfehler — oft OAuth/Google Cloud Console; in Firebase die Google-Anbieter-Einstellungen prüfen.",
+  };
+  if (map[code]) return map[code];
+  if (err?.message) return err.message;
+  return "Google-Anmeldung fehlgeschlagen. Bitte erneut versuchen oder E-Mail-Login nutzen.";
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoadingAuth } = useAuth();
@@ -28,14 +50,19 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!hasFirebaseConfig || !auth || !googleProvider) return;
+    if (!hasFirebaseConfig || !auth || !googleProvider) {
+      setError(
+        "Google-Anmeldung ist nicht konfiguriert. Lege im Projekt eine .env mit VITE_FIREBASE_API_KEY (und den übrigen VITE_FIREBASE_* Werten) an und starte den Dev-Server neu.",
+      );
+      return;
+    }
     setError(null);
     setGoogleLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
       finishLogin();
     } catch (err) {
-      setError(err?.message || "Google sign-in failed. Try again or use email.");
+      setError(googleSignInErrorMessage(err));
     } finally {
       setGoogleLoading(false);
     }
@@ -215,8 +242,8 @@ export default function Login() {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                disabled={googleLoading || !hasFirebaseConfig}
-                title={!hasFirebaseConfig ? "Add Firebase env vars to enable" : "Sign in with Google"}
+                disabled={googleLoading}
+                title={!hasFirebaseConfig ? "Firebase-Umgebungsvariablen fehlen" : "Mit Google anmelden"}
                 className="w-11 h-11 rounded-full bg-[#EA4335] flex items-center justify-center text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Google"
               >
@@ -230,7 +257,7 @@ export default function Login() {
             </div>
             {!hasFirebaseConfig && (
               <p className="mt-2 text-xs text-slate-500 text-center">
-                Use email above or Demo below. Google sign-in appears when Firebase is configured.
+                Ohne Firebase-Konfiguration (.env mit VITE_FIREBASE_*) funktioniert Google nicht — E-Mail-Login oder Demo nutzen.
               </p>
             )}
             <button

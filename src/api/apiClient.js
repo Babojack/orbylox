@@ -2,11 +2,13 @@
 import {
   auth as firebaseAuth,
   db as firestoreDb,
+  storage as firebaseStorage,
   hasFirebaseConfig,
   onAuthStateChanged,
   firebaseSignOut,
   mapFirebaseUser,
 } from "@/lib/firebase";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   collection,
   doc,
@@ -366,6 +368,180 @@ async function firestoreDelete(db, collectionName, id) {
   return { id };
 }
 
+const MIGRATE_LS_TO_FS_VERSION = "v1";
+
+function migrateLocalStorageFlagKey(userId) {
+  return `${STORAGE_KEY_PREFIX}migrated_ls_to_fs_${MIGRATE_LS_TO_FS_VERSION}_${userId}`;
+}
+
+function localProjectOwnedByEmail(project, emailLower) {
+  if (!emailLower) return false;
+  const cb =
+    project.created_by &&
+    String(project.created_by).toLowerCase() === emailLower;
+  const mb =
+    project.members &&
+    Array.isArray(project.members) &&
+    project.members.some((m) => m && String(m).toLowerCase() === emailLower);
+  return Boolean(cb || mb);
+}
+
+/**
+ * After switching from localStorage-only auth to Firebase (Google), project rows
+ * still live in localStorage while the app reads Firestore — lists look empty.
+ * Copies owned local rows into Firestore once per uid (idempotent merge).
+ */
+async function migrateLocalDataToFirestoreOnce() {
+  if (typeof window === "undefined" || !hasFirebaseConfig || !firestoreDb) {
+    return { ok: true, skipped: true, migratedProjects: 0, migratedDocs: 0 };
+  }
+  const user = await getStorageUser();
+  if (!user || user.demo) {
+    return { ok: true, skipped: true, migratedProjects: 0, migratedDocs: 0 };
+  }
+  const userId = getStorageUserId(user);
+  const emailLower = String(user.email || "").trim().toLowerCase();
+  /** Must match Firebase ID token email for Project create rules when merging creates. */
+  const tokenEmail = String(user.email || "").trim();
+  if (!userId || !emailLower) {
+    return { ok: true, skipped: true, migratedProjects: 0, migratedDocs: 0 };
+  }
+
+  const flagKey = migrateLocalStorageFlagKey(userId);
+  if (window.localStorage.getItem(flagKey) === "1") {
+    return { ok: true, skipped: true, migratedProjects: 0, migratedDocs: 0 };
+  }
+
+  const localProjects = readCollection("Project");
+  const ownedProjects = localProjects.filter((p) => localProjectOwnedByEmail(p, emailLower));
+  if (ownedProjects.length === 0) {
+    try {
+      window.localStorage.setItem(flagKey, "1");
+    } catch {
+      // ignore
+    }
+    return { ok: true, migratedProjects: 0, migratedDocs: 0, reason: "no_local_projects" };
+  }
+
+  const ownedProjectIds = new Set(ownedProjects.map((p) => p.id).filter(Boolean));
+
+  let remoteProjects = [];
+  try {
+    remoteProjects = await firestoreList(firestoreDb, "Project", userId, "-created_date");
+  } catch (err) {
+    console.error("[migrateLocalData] remote Project.list failed:", err);
+    return { ok: false, migratedProjects: 0, migratedDocs: 0, error: err?.message || String(err) };
+  }
+  const remoteIds = new Set(remoteProjects.map((p) => p.id));
+
+  const projectsToPush = ownedProjects.filter((p) => p.id && !remoteIds.has(p.id));
+  let migratedProjects = 0;
+  let migratedDocs = 0;
+
+  async function writeDoc(collectionName, item) {
+    if (!item?.id) return;
+    const docRef = doc(firestoreDb, collectionName, item.id);
+    const { id: _omitId, ...rest } = item;
+    let body = {
+      ...rest,
+      userId,
+      created_by: rest.created_by != null ? String(rest.created_by).trim() : tokenEmail,
+    };
+    if (collectionName === "Project") {
+      body = normalizeProjectPayloadForSave(body);
+      body.userId = userId;
+      body.created_by = tokenEmail;
+      if (!body.members?.length) {
+        body.members = [emailLower];
+      }
+    } else {
+      body.created_by = body.created_by || tokenEmail;
+    }
+    await setDoc(docRef, stripUndefined(body), { merge: true });
+    migratedDocs += 1;
+  }
+
+  try {
+    for (const p of projectsToPush) {
+      await writeDoc("Project", p);
+      migratedProjects += 1;
+    }
+  } catch (err) {
+    console.error("[migrateLocalData] Project write failed:", err);
+    return { ok: false, migratedProjects, migratedDocs, error: err?.message || String(err) };
+  }
+
+  const localTasks = readCollection("Task").filter(
+    (t) => t.project_id && ownedProjectIds.has(t.project_id),
+  );
+  const localPosts = readCollection("Post").filter(
+    (p) => p.project_id && ownedProjectIds.has(p.project_id),
+  );
+  const localTaskIds = new Set(localTasks.map((t) => t.id).filter(Boolean));
+  const localPostIds = new Set(localPosts.map((p) => p.id).filter(Boolean));
+
+  const directCollections = [
+    "Post",
+    "Task",
+    "Document",
+    "FileRecord",
+    "Folder",
+    "Message",
+    "CustomIntegration",
+    "CanvasItem",
+    "CanvasConnection",
+    "ProjectBackup",
+    "RestoreRequest",
+    "StartupStep",
+    "StartupJourney",
+    "Event",
+    "KanbanBoard",
+    "ProductIdea",
+  ];
+
+  try {
+    for (const coll of directCollections) {
+      const items = readCollection(coll).filter(
+        (row) => row.project_id && ownedProjectIds.has(row.project_id),
+      );
+      for (const row of items) {
+        await writeDoc(coll, row);
+      }
+    }
+
+    const subtasks = readCollection("Subtask").filter(
+      (s) => s.task_id && localTaskIds.has(s.task_id),
+    );
+    for (const row of subtasks) {
+      await writeDoc("Subtask", row);
+    }
+
+    const taskComments = readCollection("TaskComment").filter(
+      (c) => c.task_id && localTaskIds.has(c.task_id),
+    );
+    for (const row of taskComments) {
+      await writeDoc("TaskComment", row);
+    }
+
+    const postComments = readCollection("PostComment").filter(
+      (c) => c.post_id && localPostIds.has(c.post_id),
+    );
+    for (const row of postComments) {
+      await writeDoc("PostComment", row);
+    }
+  } catch (err) {
+    console.error("[migrateLocalData] child docs failed:", err);
+    return { ok: false, migratedProjects, migratedDocs, error: err?.message || String(err) };
+  }
+
+  try {
+    window.localStorage.setItem(flagKey, "1");
+  } catch {
+    // ignore
+  }
+  return { ok: true, migratedProjects, migratedDocs };
+}
+
 function withTimeout(promise, timeoutMs, errorMessage) {
   return Promise.race([
     promise,
@@ -375,7 +551,36 @@ function withTimeout(promise, timeoutMs, errorMessage) {
   ]);
 }
 
-async function uploadToCloudinary(file, userId = "anon") {
+function sanitizeStorageFileName(name) {
+  return String(name || "file")
+    .replace(/[/\\?%*:|"<>]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+}
+
+/**
+ * @param {File} file
+ * @param {string} userId Firebase Auth uid (required by storage.rules).
+ */
+async function uploadToFirebaseStorage(file, userId) {
+  if (!hasFirebaseConfig || !firebaseStorage || !userId) {
+    throw new Error("Firebase Storage nicht verfügbar (Konfiguration oder Anmeldung).");
+  }
+  const safeName = sanitizeStorageFileName(file.name);
+  const path = `uploads/${userId}/filehub/${generateId()}_${safeName}`;
+  const ref = storageRef(firebaseStorage, path);
+  await uploadBytes(ref, file, {
+    contentType: file.type || "application/octet-stream",
+  });
+  const file_url = await getDownloadURL(ref);
+  return { file_url };
+}
+
+/**
+ * @param {"auto" | "raw"} resource Upload API segment; PDFs sometimes need `raw` when presets reject `auto`.
+ */
+async function uploadToCloudinary(file, userId = "anon", resource = "auto") {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
   if (!cloudName || !uploadPreset) {
@@ -387,8 +592,9 @@ async function uploadToCloudinary(file, userId = "anon") {
   formData.append("upload_preset", uploadPreset);
   formData.append("folder", `orbylox/uploads/${userId || "anon"}`);
 
+  const endpoint = resource === "raw" ? "raw/upload" : "auto/upload";
   const response = await withTimeout(
-    fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+    fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${endpoint}`, {
       method: "POST",
       body: formData,
     }),
@@ -687,6 +893,11 @@ const projectEntityBase = createEntityApi("Project");
 export const api = {
   // Simple local auth: one demo user kept in localStorage
   auth: {
+    /** Einmalig: lokale orbylox_* Daten in Firestore übernehmen nach Umstieg auf Google/Firebase. */
+    async migrateLocalDataFromBrowser() {
+      await delay(0);
+      return migrateLocalDataToFirestoreOnce();
+    },
     async me() {
       await delay();
       if (typeof window === "undefined") return null;
@@ -984,17 +1195,47 @@ export const api = {
 
         // Primary: Cloudinary direct browser upload.
         try {
-          return await uploadToCloudinary(file, userId);
+          return await uploadToCloudinary(file, userId, "auto");
         } catch (err) {
-          console.error("[UploadFile] Cloudinary upload failed:", err?.message || err);
-          // Fallback for images: persistent inline data URL (compressed).
-          if (file.type?.startsWith("image/")) {
-            const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
-            return { file_url: inlineDataUrl };
-          }
-          // Last-resort for non-images (session-local only).
-          return { file_url: URL.createObjectURL(file) };
+          console.error("[UploadFile] Cloudinary auto upload failed:", err?.message || err);
         }
+
+        // PDF/docs: presets often allow `raw` when `auto` rejects the MIME type.
+        if (!file.type?.startsWith("image/")) {
+          try {
+            return await uploadToCloudinary(file, userId, "raw");
+          } catch (err) {
+            console.error("[UploadFile] Cloudinary raw upload failed:", err?.message || err);
+          }
+        }
+
+        // Fallback for images: persistent inline data URL (compressed).
+        if (file.type?.startsWith("image/")) {
+          const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
+          return { file_url: inlineDataUrl };
+        }
+
+        // Persistent storage for PDFs and other files (never blob: URLs — they break after refresh).
+        if (userId) {
+          try {
+            return await uploadToFirebaseStorage(file, userId);
+          } catch (err) {
+            console.error("[UploadFile] Firebase Storage upload failed:", err?.message || err);
+          }
+        }
+
+        // Demo ohne Cloudinary/Firebase-UID: kleine Dateien als Data-URL (Firestore-Feld ~1 MiB Limit beachten).
+        if (user?.demo && file.size <= 550_000) {
+          try {
+            return { file_url: await fileToDataUrl(file) };
+          } catch (e) {
+            console.error("[UploadFile] Data-URL fallback failed:", e?.message || e);
+          }
+        }
+
+        throw new Error(
+          "Datei-Upload fehlgeschlagen (Cloudinary / Firebase). Bitte Netzwerk und Upload-Preset prüfen; bei PDFs muss Raw-Upload erlaubt sein oder Firebase Storage nutzbar sein.",
+        );
       },
       async InvokeLLM({ prompt }) {
         await delay(50);

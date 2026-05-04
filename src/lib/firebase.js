@@ -24,7 +24,7 @@ const hasFirebaseConfig = !!firebaseConfig.apiKey;
 
 if (!hasFirebaseConfig) {
   console.warn(
-    "[Firebase] Missing VITE_FIREBASE_* env vars. Copy .env.example to .env and add your Firebase config."
+    "[Firebase] Missing VITE_FIREBASE_* env vars. Add them to .env in the project root and restart the dev server."
   );
 }
 

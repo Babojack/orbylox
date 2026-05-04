@@ -199,6 +199,41 @@ function ProjectsListContent() {
     }
   }, [userEmailLower]);
 
+  // Nach Umstieg auf Google/Firebase: Projekte lagen noch im Browser-localStorage — einmal in Firestore übernehmen.
+  React.useEffect(() => {
+    if (!user?.uid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api.auth.migrateLocalDataFromBrowser();
+        if (cancelled || !r) return;
+        if (!r.ok && r.error) {
+          toast({
+            title: "Cloud-Übernahme fehlgeschlagen",
+            description: String(r.error),
+            variant: "destructive",
+          });
+          return;
+        }
+        if ((r.migratedProjects || 0) > 0 || (r.migratedDocs || 0) > 0) {
+          await queryClient.invalidateQueries({ queryKey: ["projects"] });
+          toast({
+            title: "Daten übernommen",
+            description:
+              (r.migratedProjects || 0) > 0
+                ? `${r.migratedProjects} Projekt(e) und zugehörige Daten wurden aus dem Browser-Speicher in die Cloud übernommen.`
+                : `${r.migratedDocs} Einträge wurden aus dem Browser-Speicher in die Cloud übernommen.`,
+          });
+        }
+      } catch (e) {
+        console.error("[migrateLocalDataFromBrowser]", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, queryClient]);
+
   const { data: projects = [], isLoading, isError: projectsError, error: projectsErrorObj, refetch: refetchProjects } = useQuery({
     queryKey: ['projects', userEmailLower],
     queryFn: async () => {

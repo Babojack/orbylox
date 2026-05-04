@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { api } from "@/api/apiClient";
+import { previewablePdfUrl } from "@/lib/fileUrls";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Folder, File, UploadCloud, MoreVertical, Download, Trash2, FileImage, FileText, FolderPlus, CloudUpload, Eye, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -257,12 +258,14 @@ export default function FileHub() {
     }
     
     if (type.includes('pdf') || name.endsWith('.pdf')) {
-      // iframe + blob: kann in Chrome „Not allowed to load local resource: blob:…“ auslösen.
-      // <object> mit Fallback funktioniert für HTTPS- und Blob-URLs zuverlässiger.
+      // Cloudinary: PDFs oft mit Content-Disposition: attachment → eingebettete Vorschau bricht ab.
+      // previewablePdfUrl setzt fl_inline, damit <object> / Viewer die gleiche URL wie der Download nutzen kann.
+      const pdfViewUrl = previewablePdfUrl(file.url) || file.url;
       const boxStyle = { height: "min(78vh, 920px)", minHeight: "420px" };
       return (
         <object
-          data={file.url}
+          key={pdfViewUrl}
+          data={pdfViewUrl}
           type="application/pdf"
           className="w-full border-0 bg-white"
           style={boxStyle}
@@ -273,7 +276,7 @@ export default function FileHub() {
               Vorschau nicht darstellbar — z. B. während des Uploads (Blob-URL) oder durch Browsereinstellungen.
             </p>
             <a
-              href={file.url}
+              href={pdfViewUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-indigo-600 font-medium hover:underline"
@@ -314,7 +317,7 @@ export default function FileHub() {
       <div className="flex flex-col items-center justify-center h-full text-slate-500">
         <File className="w-24 h-24 mb-4" />
         <p>Vorschau nicht verfügbar</p>
-        <a href={file.url} download={file.name || true} className="mt-4 text-indigo-600 hover:underline">
+        <a href={previewablePdfUrl(file.url) || file.url} download={file.name || true} className="mt-4 text-indigo-600 hover:underline">
           Datei herunterladen
         </a>
       </div>
@@ -560,7 +563,7 @@ export default function FileHub() {
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem asChild>
-                                <a href={file.url} download={file.name || true} className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                                <a href={previewablePdfUrl(file.url) || file.url} download={file.name || true} className="flex items-center" onClick={(e) => e.stopPropagation()}>
                                     <Download className="w-3 h-3 mr-2" /> Herunterladen
                                 </a>
                             </DropdownMenuItem>
@@ -624,7 +627,7 @@ export default function FileHub() {
                       </Button>
                     </div>
                   )}
-                  <a href={previewFile.url} download={previewFile.name || true}>
+                  <a href={previewablePdfUrl(previewFile.url) || previewFile.url} download={previewFile.name || true}>
                     <Button type="button" variant="outline" size="sm" className="text-xs sm:text-sm">
                       <Download className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Download</span>
                     </Button>
