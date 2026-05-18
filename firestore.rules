@@ -171,6 +171,10 @@ service cloud.firestore {
         && (
           !('created_by' in request.resource.data)
           || request.resource.data.created_by == request.auth.token.email
+          || (
+            request.resource.data.created_by != null
+            && request.resource.data.created_by.lower() == authEmailLower()
+          )
         );
       allow update, delete: if canWriteProject(resource);
     }
@@ -283,6 +287,10 @@ service cloud.firestore {
       allow delete: if projectScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
     match /User/{docId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /IdeaHub/{docId} {
       allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }

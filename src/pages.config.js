@@ -53,6 +53,7 @@ import Canvas from './pages/Canvas';
 import Chat from './pages/Chat';
 import Docs from './pages/Docs';
 import FileHub from './pages/FileHub';
+import IdeasHub from './pages/IdeasHub';
 import Home from './pages/Home';
 import Impressum from './pages/Impressum';
 import Integrations from './pages/Integrations';
@@ -77,6 +78,7 @@ export const PAGES = {
     "Chat": Chat,
     "Docs": Docs,
     "FileHub": FileHub,
+    "IdeasHub": IdeasHub,
     "Home": Home,
     "Impressum": Impressum,
     "Integrations": Integrations,

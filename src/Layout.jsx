@@ -421,7 +421,7 @@ function LayoutContent({ children, currentPageName }) {
   }
   
   // Don't show layout on projects list page or standalone pages
-  if (currentPageName === 'ProjectsList' || currentPageName === 'index' || currentPageName === 'Landing' || currentPageName === 'Profile' || currentPageName === 'Subscription' || currentPageName === 'Impressum' || currentPageName === 'AdminUsers') {
+  if (currentPageName === 'ProjectsList' || currentPageName === 'IdeasHub' || currentPageName === 'index' || currentPageName === 'Landing' || currentPageName === 'Profile' || currentPageName === 'Subscription' || currentPageName === 'Impressum' || currentPageName === 'AdminUsers') {
     return (
       <PageTransition pageKey={pageTransitionKey} className="min-h-screen w-full">
         {children}

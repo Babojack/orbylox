@@ -167,6 +167,44 @@ function sortItems(items, orderBy) {
   return items;
 }
 
+/** Entity keys stored in localStorage when not using Firebase uid (per-browser only). */
+const LEGACY_LOCAL_ENTITY_KEYS = [
+  "Project",
+  "Post",
+  "Task",
+  "Subtask",
+  "TaskComment",
+  "Document",
+  "FileRecord",
+  "Folder",
+  "Message",
+  "CustomIntegration",
+  "CanvasItem",
+  "CanvasConnection",
+  "ProjectBackup",
+  "RestoreRequest",
+  "StartupStep",
+  "StartupJourney",
+  "Event",
+  "KanbanBoard",
+  "ProductIdea",
+  "PostComment",
+  "User",
+  "Waitlist",
+  "IdeaHub",
+];
+
+function clearLegacyLocalEntityStorage() {
+  if (typeof window === "undefined") return;
+  for (const name of LEGACY_LOCAL_ENTITY_KEYS) {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY_PREFIX + name);
+    } catch {
+      // ignore
+    }
+  }
+}
+
 const PROJECT_SCOPED_COLLECTIONS = new Set([
   "Post",
   "Task",
@@ -536,6 +574,7 @@ async function migrateLocalDataToFirestoreOnce() {
 
   try {
     window.localStorage.setItem(flagKey, "1");
+    clearLegacyLocalEntityStorage();
   } catch {
     // ignore
   }
@@ -942,6 +981,11 @@ export const api = {
     async register({ email, password }) {
       await delay();
       if (typeof window === "undefined") return null;
+      if (hasFirebaseConfig && firebaseAuth) {
+        throw new Error(
+          "Registrierung per E-Mail speichert nur in diesem Browser. Bitte „Mit Google anmelden“ für Cloud-Sync auf allen Geräten.",
+        );
+      }
       const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "users");
       const users = raw ? JSON.parse(raw) : [];
       if (users.some((u) => u.email === email)) {
@@ -964,6 +1008,11 @@ export const api = {
     async login({ email, password }) {
       await delay();
       if (typeof window === "undefined") return null;
+      if (hasFirebaseConfig && firebaseAuth) {
+        throw new Error(
+          "E-Mail-Login speichert nur in diesem Browser. Bitte „Mit Google anmelden“ — dann sind Projekte in Chrome, Brave & Co. gleich.",
+        );
+      }
       const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "users");
       const users = raw ? JSON.parse(raw) : [];
       const password_hash = await hashPassword(password);
@@ -1081,6 +1130,7 @@ export const api = {
       if (typeof window === "undefined") return;
       if (hasFirebaseConfig && firebaseAuth) {
         firebaseSignOut(firebaseAuth);
+        clearLegacyLocalEntityStorage();
       }
       window.localStorage.removeItem(STORAGE_KEY_PREFIX + "user");
     },
@@ -1173,6 +1223,7 @@ export const api = {
     StartupStep: createEntityApi("StartupStep"),
     StartupJourney: createEntityApi("StartupJourney"),
     Waitlist: createEntityApi("Waitlist"),
+    IdeaHub: createEntityApi("IdeaHub"),
     User: createEntityApi("User"),
     PostComment: createEntityApi("PostComment"),
     KanbanBoard: createEntityApi("KanbanBoard"),

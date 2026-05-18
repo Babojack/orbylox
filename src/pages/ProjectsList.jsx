@@ -16,10 +16,11 @@ import { useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { toast } from "@/components/ui/use-toast";
 import { getProjectTimer, startTimer, stopTimer, formatDuration } from "@/lib/projectTimer";
+import { useProjectsListRealtimeSync } from "@/hooks/useProjectsListRealtimeSync";
+import { hasFirebaseConfig } from "@/lib/firebase";
+import { getMaxProjectsForPlan, canCreateProject as canCreateProjectByPlan } from "@/lib/planLimits";
 
 const ADMIN_EMAIL = "gudfransen@gmail.com";
-const MAX_PROJECTS_BASIC = 2;
-const MAX_PROJECTS_PREMIUM = 10;
 const MAX_MEMBERS_PER_PROJECT = 3;
 
 const STORAGE_PREFIX = "orbylox_projects_v1:";
@@ -234,6 +235,12 @@ function ProjectsListContent() {
     };
   }, [user?.uid, queryClient]);
 
+  useProjectsListRealtimeSync({
+    queryClient,
+    currentUser: user,
+    enabled: !!user?.uid && hasFirebaseConfig,
+  });
+
   const { data: projects = [], isLoading, isError: projectsError, error: projectsErrorObj, refetch: refetchProjects } = useQuery({
     queryKey: ['projects', userEmailLower],
     queryFn: async () => {
@@ -252,14 +259,19 @@ function ProjectsListContent() {
     },
     enabled: !!user,
     refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const userCreatedProjects = projects.filter(p =>
     p.created_by && userEmailLower && p.created_by.toLowerCase() === userEmailLower
   );
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-  const maxProjects = user?.plan === "premium" ? MAX_PROJECTS_PREMIUM : MAX_PROJECTS_BASIC;
-  const canCreateProject = isAdmin || userCreatedProjects.length < maxProjects;
+  const maxProjects = getMaxProjectsForPlan(user?.plan);
+  const canCreateProject = canCreateProjectByPlan(
+    user?.plan,
+    userCreatedProjects.length,
+    isAdmin,
+  );
 
   const createProjectMutation = useMutation({
     mutationFn: (projectData) => api.entities.Project.create({
@@ -314,6 +326,15 @@ function ProjectsListContent() {
       if (context?.previousProjects != null) {
         queryClient.setQueryData(['projects', userEmailLower], context.previousProjects);
       }
+      toast({
+        title: language === 'de' ? 'Löschen fehlgeschlagen' : 'Delete failed',
+        description:
+          err?.message ||
+          (language === 'de'
+            ? 'Nur der Projekt-Ersteller kann löschen. In allen Browsern mit demselben Google-Konto anmelden.'
+            : 'Only the project owner can delete. Sign in with the same Google account everywhere.'),
+        variant: 'destructive',
+      });
     },
   });
 
@@ -526,6 +547,20 @@ function ProjectsListContent() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(createPageUrl('IdeasHub'))}
+              className="inline-flex border-amber-200 text-amber-900 hover:bg-amber-50 shrink-0"
+              aria-label={language === 'de' ? 'Ideen Hub' : 'Ideas Hub'}
+              title={language === 'de' ? 'Ideen Hub' : 'Ideas Hub'}
+            >
+              <Lightbulb className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">
+                {language === 'de' ? 'Ideen Hub' : 'Ideas Hub'}
+              </span>
+            </Button>
             <Button 
               variant="ghost" 
               size="icon" 
@@ -535,7 +570,9 @@ function ProjectsListContent() {
             >
               <Languages className="w-5 h-5" />
             </Button>
-            <span className="text-sm text-slate-600">👋 {user?.email}</span>
+            <span className="hidden md:inline text-sm text-slate-600 truncate max-w-[140px] lg:max-w-none">
+              👋 {user?.email}
+            </span>
           </div>
         </div>
       </div>
@@ -599,26 +636,26 @@ function ProjectsListContent() {
                   </p>
                 </motion.button>
 
-                {/* Validate Idea Option */}
+                {/* Ideas Hub */}
                 <motion.button
-                  disabled
-                  className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-slate-200 rounded-2xl p-6 text-left transition-all opacity-60 cursor-not-allowed relative"
+                  whileHover={{ scale: 1.03, y: -4 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowDecisionMenu(false);
+                    navigate(createPageUrl('IdeasHub'));
+                  }}
+                  className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 hover:border-amber-400 rounded-2xl p-6 text-left transition-all group"
                 >
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform ${
-                    'bg-slate-400'
-                  }`}>
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform bg-gradient-to-br from-amber-500 to-orange-500 group-hover:scale-110">
                     <Lightbulb className="w-7 h-7 text-white" />
                   </div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h3 className="text-xl font-bold text-slate-900">{language === 'de' ? 'Idee validieren' : 'Validate idea'}</h3>
-                    <span className="text-[10px] font-extrabold tracking-wider px-2 py-1 rounded-full bg-slate-900 text-white">
-                      ALPHA
-                    </span>
-                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">
+                    {language === 'de' ? 'Ideen Hub' : 'Ideas Hub'}
+                  </h3>
                   <p className="text-slate-600 text-sm">
                     {language === 'de'
-                      ? 'Dieses Modul ist in ALPHA und aktuell deaktiviert.'
-                      : 'This module is in ALPHA and currently disabled.'}
+                      ? 'Ideen sammeln und später als Projekt starten'
+                      : 'Collect ideas and start as a project when ready'}
                   </p>
                 </motion.button>
               </div>
@@ -641,12 +678,16 @@ function ProjectsListContent() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         {user && !user.uid && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-            Data is stored only on this device. Sign in with Google to save to the cloud (Firestore).
+            {language === 'de'
+              ? 'Daten liegen nur in diesem Browser (localStorage). Für Chrome, Brave & andere Geräte: mit Google anmelden.'
+              : 'Data is stored only in this browser (localStorage). Sign in with Google to sync across Chrome, Brave, and other devices.'}
           </div>
         )}
         {user?.uid && (
-          <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
-            {t('timerSyncedHint')}
+          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-900">
+            {language === 'de'
+              ? 'Cloud-Sync aktiv: Projekte liegen in Firebase. Überall dasselbe Google-Konto nutzen (nicht E-Mail-Login). Änderungen erscheinen in anderen Browsern nach kurzer Zeit automatisch.'
+              : 'Cloud sync on: projects are stored in Firebase. Use the same Google account everywhere (not email login). Changes appear in other browsers shortly.'}
           </div>
         )}
         <div className="flex justify-between items-center mb-8">
@@ -692,23 +733,18 @@ function ProjectsListContent() {
               </>
             )}
             <Button 
-              onClick={() => {
-                if (!canCreateProject) {
-                  alert(language === 'de' 
-                    ? `❌ Du hast das Limit von ${maxProjects} Projekten erreicht!`
-                    : `❌ You've reached the limit of ${maxProjects} projects!`);
-                  return;
-                }
-                setShowDecisionMenu(true);
-              }}
-              className={`shadow-lg ${
-                canCreateProject 
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white' 
-                  : 'bg-slate-400 text-white cursor-not-allowed'
-              }`}
+              onClick={() => setShowDecisionMenu(true)}
+              className="shadow-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shrink-0"
+              aria-label={
+                language === 'de'
+                  ? 'Neu: Projekt oder Ideen Hub'
+                  : 'New: project or Ideas Hub'
+              }
             >
-              <Plus className="w-5 h-5 mr-2" />
-              Neu {!isAdmin && `(${userCreatedProjects.length}/${maxProjects})`}
+              <Plus className="w-5 h-5 sm:mr-2" />
+              <span className="hidden sm:inline">
+                Neu {!isAdmin && `(${userCreatedProjects.length}/${maxProjects})`}
+              </span>
             </Button>
             <Dialog open={isCreateOpen} onOpenChange={(open) => {
               setIsCreateOpen(open);
