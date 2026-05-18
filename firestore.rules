@@ -294,6 +294,14 @@ service cloud.firestore {
       allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
+
+    match /UserProjectListPrefs/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create, update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
     match /ProjectBackup/{docId} {
       allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if projectScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);

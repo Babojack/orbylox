@@ -17,35 +17,12 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { toast } from "@/components/ui/use-toast";
 import { getProjectTimer, startTimer, stopTimer, formatDuration } from "@/lib/projectTimer";
 import { useProjectsListRealtimeSync } from "@/hooks/useProjectsListRealtimeSync";
+import { useProjectListPrefs } from "@/hooks/useProjectListPrefs";
 import { hasFirebaseConfig } from "@/lib/firebase";
 import { getMaxProjectsForPlan, canCreateProject as canCreateProjectByPlan } from "@/lib/planLimits";
 
 const ADMIN_EMAIL = "gudfransen@gmail.com";
 const MAX_MEMBERS_PER_PROJECT = 3;
-
-const STORAGE_PREFIX = "orbylox_projects_v1:";
-
-function safeJsonParse(raw, fallback) {
-  try {
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function storageKey(userEmailLower, suffix) {
-  return `${STORAGE_PREFIX}${userEmailLower || "anon"}:${suffix}`;
-}
-
-function readStringArray(key) {
-  if (typeof window === "undefined") return [];
-  return safeJsonParse(window.localStorage.getItem(key), []).filter((x) => typeof x === "string");
-}
-
-function writeStringArray(key, arr) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(key, JSON.stringify(Array.isArray(arr) ? arr : []));
-}
 
 function toggleInArray(arr, id) {
   return arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
@@ -169,16 +146,12 @@ function ProjectsListContent() {
 
   const userEmailLower = user?.email?.toLowerCase();
 
-  const favoritesKey = storageKey(userEmailLower, "favorites");
-  const hiddenKey = storageKey(userEmailLower, "hidden");
-
-  const [favoriteIds, setFavoriteIds] = useState(() => readStringArray(favoritesKey));
-  const [hiddenIds, setHiddenIds] = useState(() => readStringArray(hiddenKey));
-
-  React.useEffect(() => {
-    setFavoriteIds(readStringArray(favoritesKey));
-    setHiddenIds(readStringArray(hiddenKey));
-  }, [favoritesKey, hiddenKey]);
+  const {
+    favoriteIds,
+    hiddenIds,
+    persistFavorites,
+    persistHidden,
+  } = useProjectListPrefs(user);
 
   // Ask only once after login (per user).
   React.useEffect(() => {
@@ -430,18 +403,6 @@ function ProjectsListContent() {
     }
   };
 
-  const persistFavorites = (next) => {
-    const uniqNext = uniq(next);
-    setFavoriteIds(uniqNext);
-    writeStringArray(favoritesKey, uniqNext);
-  };
-
-  const persistHidden = (next) => {
-    const uniqNext = uniq(next);
-    setHiddenIds(uniqNext);
-    writeStringArray(hiddenKey, uniqNext);
-  };
-
   const toggleFavorite = (projectId) => persistFavorites(toggleInArray(favoriteIds, projectId));
   const toggleHidden = (projectId) => persistHidden(toggleInArray(hiddenIds, projectId));
 
@@ -686,8 +647,8 @@ function ProjectsListContent() {
         {user?.uid && (
           <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-900">
             {language === 'de'
-              ? 'Cloud-Sync aktiv: Projekte liegen in Firebase. Überall dasselbe Google-Konto nutzen (nicht E-Mail-Login). Änderungen erscheinen in anderen Browsern nach kurzer Zeit automatisch.'
-              : 'Cloud sync on: projects are stored in Firebase. Use the same Google account everywhere (not email login). Changes appear in other browsers shortly.'}
+              ? 'Cloud-Sync aktiv: Projekte, Favoriten und Ausblenden werden in Firebase gespeichert. Überall dasselbe Google-Konto nutzen (nicht E-Mail-Login). Änderungen erscheinen in Safari, Brave & Co. nach kurzer Zeit automatisch.'
+              : 'Cloud sync on: projects, favorites, and hidden state are stored in Firebase. Use the same Google account everywhere (not email login). Changes appear in Safari, Brave, and other browsers shortly.'}
           </div>
         )}
         <div className="flex justify-between items-center mb-8">
