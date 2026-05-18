@@ -358,6 +358,7 @@ function LayoutContent({ children, currentPageName }) {
     if (
       !projectId &&
       currentPageName !== 'ProjectsList' &&
+      currentPageName !== 'IdeasHub' &&
       currentPageName !== 'index' &&
       currentPageName !== 'Landing' &&
       currentPageName !== 'Profile' &&
