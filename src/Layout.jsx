@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { de as dateFnsDe, enUS as dateFnsEn } from "date-fns/locale";
 import { 
-  LayoutGrid, 
+  LayoutGrid,
+  LayoutDashboard,
   ListTodo, 
   FileText, 
   Shapes, 
@@ -435,6 +436,7 @@ function LayoutContent({ children, currentPageName }) {
   }
 
   const navItems = [
+    { icon: LayoutDashboard, label: t('dashboard'), path: "Dashboard", color: "bg-sky-500" },
     { icon: LayoutGrid, label: t('overview'), path: "SocialBoard", badge: newPostsCount, color: "bg-indigo-500" },
     { icon: ListTodo, label: t('tasks'), path: "ScrumBoard", color: "bg-emerald-500" },
     { icon: FileText, label: t('docs'), path: "Docs", color: "bg-amber-500" },
