@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Send, MessageCircle, MoreHorizontal, Image, X, ChevronDown, ChevronUp, Smile, Trash2 } from 'lucide-react';
+import { Send, MessageCircle, MoreHorizontal, Image, X, ChevronDown, ChevronUp, Smile, Trash2, Pin, PinOff } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -180,6 +180,55 @@ export default function SocialBoard() {
       queryClient.invalidateQueries(['posts', projectId]);
     }
   });
+
+  const togglePinMutation = useMutation({
+    mutationFn: ({ postId, pinned }) => api.entities.Post.update(postId, {
+      pinned,
+      pinned_at: pinned ? new Date().toISOString() : null,
+      pinned_by: pinned ? (user?.email || null) : null,
+    }),
+    onMutate: async ({ postId, pinned }) => {
+      await queryClient.cancelQueries(['posts', projectId]);
+      const previous = queryClient.getQueryData(['posts', projectId]);
+      queryClient.setQueryData(['posts', projectId], old =>
+        (old || []).map(p => p.id === postId
+          ? {
+              ...p,
+              pinned,
+              pinned_at: pinned ? new Date().toISOString() : null,
+              pinned_by: pinned ? (user?.email || null) : null,
+            }
+          : p
+        )
+      );
+      return { previous };
+    },
+    onError: (err, vars, context) => {
+      queryClient.setQueryData(['posts', projectId], context?.previous ?? []);
+      console.error("[Feed] Pin update failed:", err);
+      toast({
+        title: t('pinFailed'),
+        description: err?.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['posts', projectId]);
+    }
+  });
+
+  // Pinned posts first (most recently pinned on top), then the regular feed order.
+  const sortedPosts = useMemo(() => {
+    const timeOf = (value) => {
+      const ms = new Date(value || 0).getTime();
+      return Number.isNaN(ms) ? 0 : ms;
+    };
+    return [...posts].sort((a, b) => {
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+      if (a.pinned && b.pinned) return timeOf(b.pinned_at) - timeOf(a.pinned_at);
+      return timeOf(b.created_date) - timeOf(a.created_date);
+    });
+  }, [posts]);
 
   const toggleReactionMutation = useMutation({
     mutationFn: ({ postId, emoji }) => {
@@ -389,7 +438,7 @@ export default function SocialBoard() {
             <p className="text-slate-400 text-lg">Noch keine Beiträge</p>
             <p className="text-slate-300 text-sm mt-2">Erstelle den ersten Post!</p>
           </div>
-        ) : posts.map((post) => (
+        ) : sortedPosts.map((post) => (
           (() => {
             const allPostImages = Array.isArray(post.images)
               ? post.images
@@ -400,7 +449,12 @@ export default function SocialBoard() {
               (url) => typeof url === "string" && url.trim() !== "" && !url.startsWith("blob:")
             );
             return (
-          <Card key={post.id} className="border-slate-100 shadow-sm hover:shadow-md transition-shadow min-w-0 max-w-full overflow-hidden">
+          <Card
+            key={post.id}
+            className={`shadow-sm hover:shadow-md transition-shadow min-w-0 max-w-full overflow-hidden ${
+              post.pinned ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-100'
+            }`}
+          >
             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 border border-slate-100">
@@ -408,7 +462,15 @@ export default function SocialBoard() {
                    <AvatarFallback>{post.author_email?.[0] || 'U'}</AvatarFallback>
                 </Avatar>
                 <div>
-                   <p className="text-sm font-medium text-slate-900">Teammitglied</p>
+                   <div className="flex items-center gap-2">
+                     <p className="text-sm font-medium text-slate-900">Teammitglied</p>
+                     {post.pinned && (
+                       <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 font-normal gap-1 hover:bg-indigo-100">
+                         <Pin className="w-3 h-3 fill-indigo-700" />
+                         {t('pinnedPost')}
+                       </Badge>
+                     )}
+                   </div>
                    <p className="text-xs text-slate-400">{format(new Date(post.created_date), 'MMM d, h:mm a')}</p>
                 </div>
               </div>
@@ -419,7 +481,17 @@ export default function SocialBoard() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
+                    onClick={() => togglePinMutation.mutate({ postId: post.id, pinned: !post.pinned })}
+                    disabled={String(post.id).startsWith('temp_')}
+                  >
+                    {post.pinned ? (
+                      <><PinOff className="w-4 h-4 mr-2" /> {t('unpinPost')}</>
+                    ) : (
+                      <><Pin className="w-4 h-4 mr-2" /> {t('pinPost')}</>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => deletePostMutation.mutate(post.id)}
                     className="text-red-600 focus:text-red-600"
                   >

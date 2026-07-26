@@ -77,6 +77,10 @@ export const translations = {
 
     // Common UI
     projectFeed: "Project Feed",
+    pinPost: "Pin post",
+    unpinPost: "Unpin post",
+    pinnedPost: "Pinned",
+    pinFailed: "Pin could not be saved.",
     noProjectAccess: "No access to this project",
     backToProjects: "Back to projects",
     tryAgain: "Try again",
@@ -526,6 +530,10 @@ export const translations = {
 
     // Common UI
     projectFeed: "Projekt Feed",
+    pinPost: "Beitrag anpinnen",
+    unpinPost: "Beitrag loesen",
+    pinnedPost: "Angepinnt",
+    pinFailed: "Anpinnen konnte nicht gespeichert werden.",
     noProjectAccess: "Kein Zugriff auf dieses Projekt",
     backToProjects: "Zurueck zu Projekten",
     tryAgain: "Erneut versuchen",
