@@ -609,11 +609,43 @@ async function uploadToFirebaseStorage(file, userId) {
   const safeName = sanitizeStorageFileName(file.name);
   const path = `uploads/${userId}/filehub/${generateId()}_${safeName}`;
   const ref = storageRef(firebaseStorage, path);
-  await uploadBytes(ref, file, {
-    contentType: file.type || "application/octet-stream",
-  });
+  try {
+    await uploadBytes(ref, file, {
+      contentType: file.type || "application/octet-stream",
+    });
+  } catch (err) {
+    throw new Error(describeStorageUploadError(err), { cause: err });
+  }
   const file_url = await getDownloadURL(ref);
   return { file_url };
+}
+
+/**
+ * A blocked CORS preflight surfaces as storage/unknown or retry-limit-exceeded with no HTTP status,
+ * which is indistinguishable from a network outage unless we spell it out.
+ */
+function describeStorageUploadError(err) {
+  const code = err?.code || "";
+  const bucket = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "<bucket>";
+  if (code === "storage/unauthorized") {
+    return "Firebase Storage hat den Upload abgelehnt (storage.rules). Bitte erneut anmelden.";
+  }
+  if (code === "storage/quota-exceeded") {
+    return "Firebase Storage Speicherlimit erreicht.";
+  }
+  if (code === "storage/unknown" || code === "storage/retry-limit-exceeded") {
+    return (
+      "Upload zu Firebase Storage blockiert – vermutlich fehlt die CORS-Konfiguration des Buckets. " +
+      `Einmalig ausfuehren: gcloud storage buckets update gs://${bucket} --cors-file=cors.json`
+    );
+  }
+  return err?.message || "Firebase Storage Upload fehlgeschlagen.";
+}
+
+function isCloudinaryConfigured() {
+  return Boolean(
+    import.meta.env.VITE_CLOUDINARY_CLOUD_NAME && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
+  );
 }
 
 /**
@@ -1244,35 +1276,42 @@ export const api = {
         const user = await getStorageUser();
         const userId = getStorageUserId(user);
 
-        // Primary: Cloudinary direct browser upload.
-        try {
-          return await uploadToCloudinary(file, userId, "auto");
-        } catch (err) {
-          console.error("[UploadFile] Cloudinary auto upload failed:", err?.message || err);
-        }
+        const uploadErrors = [];
 
-        // PDF/docs: presets often allow `raw` when `auto` rejects the MIME type.
-        if (!file.type?.startsWith("image/")) {
+        // Primary: Cloudinary direct browser upload — only when the deployment actually has a preset.
+        if (isCloudinaryConfigured()) {
           try {
-            return await uploadToCloudinary(file, userId, "raw");
+            return await uploadToCloudinary(file, userId, "auto");
           } catch (err) {
-            console.error("[UploadFile] Cloudinary raw upload failed:", err?.message || err);
+            uploadErrors.push(err?.message || String(err));
+            console.error("[UploadFile] Cloudinary auto upload failed:", err?.message || err);
+          }
+
+          // PDF/docs: presets often allow `raw` when `auto` rejects the MIME type.
+          if (!file.type?.startsWith("image/")) {
+            try {
+              return await uploadToCloudinary(file, userId, "raw");
+            } catch (err) {
+              uploadErrors.push(err?.message || String(err));
+              console.error("[UploadFile] Cloudinary raw upload failed:", err?.message || err);
+            }
           }
         }
 
-        // Fallback for images: persistent inline data URL (compressed).
-        if (file.type?.startsWith("image/")) {
-          const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
-          return { file_url: inlineDataUrl };
-        }
-
-        // Persistent storage for PDFs and other files (never blob: URLs — they break after refresh).
+        // Persistent storage for every file type (never blob: URLs — they break after refresh).
         if (userId) {
           try {
             return await uploadToFirebaseStorage(file, userId);
           } catch (err) {
+            uploadErrors.push(err?.message || String(err));
             console.error("[UploadFile] Firebase Storage upload failed:", err?.message || err);
           }
+        }
+
+        // Last resort for images: persistent inline data URL (compressed).
+        if (file.type?.startsWith("image/")) {
+          const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
+          return { file_url: inlineDataUrl };
         }
 
         // Demo ohne Cloudinary/Firebase-UID: kleine Dateien als Data-URL (Firestore-Feld ~1 MiB Limit beachten).
@@ -1285,7 +1324,9 @@ export const api = {
         }
 
         throw new Error(
-          "Datei-Upload fehlgeschlagen (Cloudinary / Firebase). Bitte Netzwerk und Upload-Preset prüfen; bei PDFs muss Raw-Upload erlaubt sein oder Firebase Storage nutzbar sein.",
+          uploadErrors.length > 0
+            ? `Datei-Upload fehlgeschlagen: ${uploadErrors[uploadErrors.length - 1]}`
+            : "Datei-Upload fehlgeschlagen: keine Speicherquelle verfuegbar (nicht angemeldet und kein Cloudinary-Preset konfiguriert).",
         );
       },
       async InvokeLLM({ prompt }) {

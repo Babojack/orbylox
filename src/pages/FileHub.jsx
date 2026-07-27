@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/use-toast";
 
 export default function FileHub() {
   const queryClient = useQueryClient();
@@ -105,6 +106,12 @@ export default function FileHub() {
     },
     onError: (err, file, context) => {
       queryClient.setQueryData(['files', projectId, currentFolderId], context.previous);
+      console.error("[FileHub] Upload failed:", err);
+      toast({
+        title: `Upload fehlgeschlagen: ${file?.name || "Datei"}`,
+        description: err?.message,
+        variant: "destructive",
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries(['files', projectId, currentFolderId]);

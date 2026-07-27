@@ -1,8 +1,37 @@
 [
   {
-    "origin": ["https://orbylox.de"],
-    "method": ["GET", "POST", "PUT", "DELETE"],
-    "responseHeader": ["Content-Type", "Authorization"],
+    "origin": [
+      "https://orbylox.de",
+      "https://www.orbylox.de",
+      "https://orbylox.web.app",
+      "https://orbylox.firebaseapp.com",
+      "http://localhost:5173",
+      "http://localhost:4173"
+    ],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Content-Disposition",
+      "Content-Encoding",
+      "Content-Range",
+      "Range",
+      "Authorization",
+      "User-Agent",
+      "x-goog-resumable",
+      "x-goog-upload-command",
+      "x-goog-upload-content-length",
+      "x-goog-upload-content-type",
+      "x-goog-upload-header-content-length",
+      "x-goog-upload-header-content-type",
+      "x-goog-upload-offset",
+      "x-goog-upload-protocol",
+      "x-goog-upload-status",
+      "x-goog-upload-url",
+      "x-firebase-storage-version",
+      "x-firebase-gmpid",
+      "x-firebase-appcheck"
+    ],
     "maxAgeSeconds": 3600
   }
 ]
