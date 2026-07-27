@@ -642,6 +642,48 @@ function describeStorageUploadError(err) {
   return err?.message || "Firebase Storage Upload fehlgeschlagen.";
 }
 
+/**
+ * Own upload endpoint on the web host (public/api/upload.php).
+ * Same origin in production, so no CORS preflight and no third-party storage.
+ */
+async function uploadToOwnEndpoint(file) {
+  const endpoint = import.meta.env.VITE_UPLOAD_API_URL;
+  if (!endpoint) {
+    throw new Error("Upload-Endpoint nicht konfiguriert (VITE_UPLOAD_API_URL).");
+  }
+  const currentUser = firebaseAuth?.currentUser;
+  if (!currentUser) {
+    throw new Error("Nicht angemeldet – Upload nicht moeglich.");
+  }
+  const idToken = await currentUser.getIdToken();
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await withTimeout(
+    fetch(endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${idToken}` },
+      body: formData,
+    }),
+    UPLOAD_TIMEOUT_MS,
+    "Datei-Upload Timeout (Server)."
+  );
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.error || `Upload fehlgeschlagen (HTTP ${response.status}).`);
+  }
+  if (!payload?.file_url) {
+    throw new Error("Server-Antwort enthaelt keine file_url.");
+  }
+  return { file_url: payload.file_url };
+}
+
+function isOwnUploadConfigured() {
+  return Boolean(import.meta.env.VITE_UPLOAD_API_URL);
+}
+
 function isCloudinaryConfigured() {
   return Boolean(
     import.meta.env.VITE_CLOUDINARY_CLOUD_NAME && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
@@ -1278,7 +1320,17 @@ export const api = {
 
         const uploadErrors = [];
 
-        // Primary: Cloudinary direct browser upload — only when the deployment actually has a preset.
+        // Primary: own endpoint on the web host — same origin, no third-party storage.
+        if (isOwnUploadConfigured()) {
+          try {
+            return await uploadToOwnEndpoint(file);
+          } catch (err) {
+            uploadErrors.push(err?.message || String(err));
+            console.error("[UploadFile] Server upload failed:", err?.message || err);
+          }
+        }
+
+        // Cloudinary direct browser upload — only when the deployment actually has a preset.
         if (isCloudinaryConfigured()) {
           try {
             return await uploadToCloudinary(file, userId, "auto");

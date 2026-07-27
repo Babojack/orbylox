@@ -1,0 +1,48 @@
+ORBYLOX – FileHub-Uploads auf Hostinger (ohne Firebase Storage / ohne Blaze-Tarif)
+
+Wie es funktioniert
+-------------------
+Der Browser schickt die Datei an https://orbylox.de/api/upload.php – also an die
+eigene Domain. Dadurch entfällt CORS komplett. Das PHP-Skript prüft das Firebase-
+ID-Token des angemeldeten Nutzers (Signatur, Aussteller, Ablauf) und legt die Datei
+unter public_html/uploads/<uid>/ ab. Die uid stammt aus dem geprüften Token, nicht
+aus dem Request – niemand kann in einen fremden Ordner schreiben.
+
+
+1) Dateien auf den Webspace laden
+   public_html/api/upload.php
+   (optional) public_html/api/upload-config.php   – nur wenn Pfade abweichen,
+                                                     Vorlage: upload-config.example.php
+
+2) Upload-Ordner
+   Wird beim ersten Upload automatisch als public_html/uploads angelegt, inklusive
+   .htaccess, die PHP-Ausführung in diesem Baum abschaltet.
+   Falls dein Webserver das Anlegen verbietet: Ordner manuell erstellen,
+   Rechte 755, Besitzer = Webserver-Nutzer.
+
+3) Frontend .env (Build-Zeit!)
+   VITE_UPLOAD_API_URL=https://orbylox.de/api/upload.php
+   Danach: npm run build und den Inhalt von dist/ deployen.
+
+4) Test
+   In der App einloggen, im FileHub eine Datei hochladen.
+   Erwartung: Datei erscheint, URL beginnt mit https://orbylox.de/uploads/
+
+   Manuell (Token aus der Browser-Konsole der eingeloggten App):
+     await firebase.auth().currentUser.getIdToken()   // bzw. aus dem App-Code
+     curl -sS -X POST https://orbylox.de/api/upload.php \
+       -H "Authorization: Bearer <ID_TOKEN>" \
+       -F "file=@test.pdf"
+
+
+Grenzen und Stellschrauben
+--------------------------
+- Standardlimit 25 MB pro Datei. Hostingers php.ini (upload_max_filesize,
+  post_max_size) kann niedriger liegen – dann dort anheben oder max_bytes senken.
+- Erlaubte Endungen stehen in upload.php ($defaults['allowed_extensions']).
+  Ausführbares (.php, .cgi, .sh …) ist bewusst nicht dabei.
+- Dateien sind über ihre URL öffentlich lesbar. Der Zufallspräfix im Dateinamen
+  macht sie unratbar – das entspricht dem Verhalten von Cloudinary und den
+  Firebase-Download-Links.
+- Löscht jemand eine Datei im FileHub, verschwindet nur der Firestore-Eintrag.
+  Die Datei bleibt auf dem Webspace liegen; ein Cleanup-Endpoint existiert noch nicht.
