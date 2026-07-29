@@ -163,6 +163,9 @@ export default function MindMap() {
   const [newComment, setNewComment] = useState('');
   const resizingRef = useRef(null); // { id, startX, startY, width, height }
   const saveEditRef = useRef(null); // set below; lets pointer handlers commit an open editor
+  const [pendingTool, setPendingTool] = useState(null); // 'sticky' | 'node' | 'decision' — placed on next click
+  const pendingToolRef = useRef(null);
+  const addNodeRef = useRef(null);
   const [taskLinkPanel, setTaskLinkPanel] = useState(null); // { nodeId, taskId }
   const [fileHubPanel, setFileHubPanel] = useState(null); // { nodeId }
   const [openTaskId, setOpenTaskId] = useState(null); // Task ID für Dialog
@@ -702,6 +705,30 @@ export default function MindMap() {
     });
   };
 
+  useEffect(() => {
+    addNodeRef.current = addNode;
+  });
+
+  const armTool = useCallback((tool) => {
+    setPendingTool((current) => {
+      const next = current === tool ? null : tool;
+      pendingToolRef.current = next;
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!pendingTool) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        pendingToolRef.current = null;
+        setPendingTool(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pendingTool]);
+
   const beginPinch = useCallback(() => {
     const points = [...pointersRef.current.values()];
     if (points.length < 2) return;
@@ -722,6 +749,17 @@ export default function MindMap() {
       // Clicking the canvas commits an open editor — preventDefault below would
       // otherwise swallow the blur and leave the text field active.
       saveEditRef.current?.();
+
+      // Armed tool: the next click drops the item exactly where the user clicked.
+      if (pendingToolRef.current && (e.pointerType !== "mouse" || e.button === 0) && !spacePanRef.current) {
+        const tool = pendingToolRef.current;
+        e.preventDefault();
+        e.stopPropagation();
+        pendingToolRef.current = null;
+        setPendingTool(null);
+        addNodeRef.current?.(tool, null, null, getCanvasPos(e));
+        return;
+      }
       if (e.pointerType === "touch") {
         pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointersRef.current.size >= 2) {
@@ -1150,7 +1188,17 @@ export default function MindMap() {
               <Diamond className="w-4 h-4" />
               <span className="text-xs font-medium hidden md:inline ml-1.5">Frage</span>
             </Button>
-            <Button onClick={() => addNode('sticky')} size="sm" variant="outline" className="border-amber-300 text-amber-600 hover:bg-amber-50 h-9 w-9 sm:w-auto sm:px-3 rounded-xl" title="Post-it">
+            <Button
+              onClick={() => armTool('sticky')}
+              size="sm"
+              variant={pendingTool === 'sticky' ? 'default' : 'outline'}
+              className={`h-9 w-9 sm:w-auto sm:px-3 rounded-xl ${
+                pendingTool === 'sticky'
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200'
+                  : 'border-amber-300 text-amber-600 hover:bg-amber-50'
+              }`}
+              title="Post-it — danach auf die Flaeche klicken"
+            >
               <StickyNote className="w-4 h-4" />
               <span className="text-xs font-medium hidden md:inline ml-1.5">Post-it</span>
             </Button>
@@ -1300,6 +1348,23 @@ export default function MindMap() {
             <Button size="sm" variant="ghost" onClick={() => deleteNode.mutate(selectedNodeId)} className="text-red-500 hover:bg-red-50 h-7 px-1.5 sm:px-2">
               <Trash2 className="w-3.5 h-3.5" />
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Placement mode */}
+      {pendingTool && (
+        <div className="absolute top-14 sm:top-16 left-1/2 -translate-x-1/2 z-[65]">
+          <div className="px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2 text-white text-xs bg-amber-500">
+            <StickyNote className="w-3 h-3" />
+            <span>Klicke auf die Fläche, um das Post-it zu kleben</span>
+            <button
+              onClick={() => { pendingToolRef.current = null; setPendingTool(null); }}
+              className="hover:bg-white/20 rounded-full p-0.5"
+              title="Abbrechen (Esc)"
+            >
+              <X className="w-3 h-3" />
+            </button>
           </div>
         </div>
       )}
@@ -1528,7 +1593,7 @@ export default function MindMap() {
       <div
         ref={attachCanvasRef}
         className={`w-full h-full canvas-bg touch-none ${
-          isPanning ? "cursor-grabbing" : isSpacePan ? "cursor-grab" : "cursor-default"
+          pendingTool ? "cursor-crosshair" : isPanning ? "cursor-grabbing" : isSpacePan ? "cursor-grab" : "cursor-default"
         }`}
         style={{
           touchAction: "none",
@@ -1979,8 +2044,8 @@ export default function MindMap() {
                   </div>
                 )}
                 
-                {/* Quick add button */}
-                {isSelected && !isEditing && (
+                {/* Quick add button — mind-map only; sticky notes stay standalone */}
+                {isSelected && !isEditing && !isSticky && (
                   <button
                     type="button"
                     className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-indigo-600 hover:scale-110 pointer-events-auto"
