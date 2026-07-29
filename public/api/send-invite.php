@@ -89,6 +89,9 @@ $projectId = trim((string)($data['projectId'] ?? ''));
 $appUrl = trim((string)($data['appUrl'] ?? 'https://orbylox.de'));
 $subject = trim((string)($data['subject'] ?? ''));
 $bodyText = trim((string)($data['bodyText'] ?? ''));
+$language = strtolower(trim((string)($data['language'] ?? 'de'))) === 'en' ? 'en' : 'de';
+$projectName = trim((string)($data['projectName'] ?? ''));
+$inviterName = trim((string)($data['inviterName'] ?? ''));
 
 if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
     http_response_code(400);
@@ -101,16 +104,17 @@ if ($projectId === '') {
     exit;
 }
 
+require_once __DIR__ . '/invite-template.php';
+
 $base = rtrim($appUrl, '/');
 $inviteLink = $base . '/login?project=' . rawurlencode($projectId);
 
 if ($subject === '') {
-    $subject = "You've been invited to ORBYLOX";
+    $subject = inviteSubject($language, $projectName);
 }
+$bodyHtml = inviteHtml($language, $inviteLink, $projectName, $inviterName, $base);
 if ($bodyText === '') {
-    $bodyText = "You've been invited to collaborate on a project in ORBYLOX.\n\n"
-        . "Open the project:\n{$inviteLink}\n\n"
-        . "If you don't have an account yet, sign up first, then open the link again.";
+    $bodyText = inviteText($language, $inviteLink, $projectName, $inviterName);
 }
 
 $smtpHost = (string)($config['smtp_host'] ?? 'smtp.hostinger.com');
@@ -144,8 +148,10 @@ try {
     $mail->addReplyTo($replyTo);
 
     $mail->Subject = $subject;
-    $mail->Body = $bodyText;
-    $mail->isHTML(false);
+    $mail->isHTML(true);
+    $mail->Body = $bodyHtml;
+    // Plain-text twin for clients that block HTML — and it keeps spam scores down.
+    $mail->AltBody = $bodyText;
 
     $mail->send();
     echo json_encode(['status' => 'ok']);
