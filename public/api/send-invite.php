@@ -24,17 +24,17 @@ if (!is_file($configPath)) {
 /** @var array $config */
 $config = require $configPath;
 
+// PHPMailer when it happens to be installed, otherwise the bundled SMTP client —
+// no Composer step needed on the server.
 $autoload = __DIR__ . '/vendor/autoload.php';
-if (!is_file($autoload)) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Run: composer install in public/api (vendor/autoload.php missing)']);
-    exit;
+$hasPhpMailer = false;
+if (is_file($autoload)) {
+    require $autoload;
+    $hasPhpMailer = class_exists(\PHPMailer\PHPMailer\PHPMailer::class);
 }
-
-require $autoload;
-
-use PHPMailer\PHPMailer\Exception;
-use PHPMailer\PHPMailer\PHPMailer;
+if (!$hasPhpMailer) {
+    require_once __DIR__ . '/smtp-mailer.php';
+}
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowed = $config['allowed_origins'] ?? [];
@@ -150,31 +150,49 @@ if ($smtpUser === '' || $smtpPass === '') {
     exit;
 }
 
-$mail = new PHPMailer(true);
-
 try {
-    $mail->isSMTP();
-    $mail->Host = $smtpHost;
-    $mail->SMTPAuth = true;
-    $mail->Username = $smtpUser;
-    $mail->Password = $smtpPass;
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-    $mail->Port = $smtpPort;
-    $mail->CharSet = 'UTF-8';
+    if ($hasPhpMailer) {
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host = $smtpHost;
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+        $mail->SMTPSecure = $smtpPort === 465
+            ? \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS
+            : \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = $smtpPort;
+        $mail->CharSet = 'UTF-8';
 
-    $mail->setFrom($fromEmail, $fromName);
-    $mail->addAddress($to);
-    $mail->addReplyTo($replyTo);
+        $mail->setFrom($fromEmail, $fromName);
+        $mail->addAddress($to);
+        $mail->addReplyTo($replyTo);
 
-    $mail->Subject = $subject;
-    $mail->isHTML(true);
-    $mail->Body = $bodyHtml;
-    // Plain-text twin for clients that block HTML — and it keeps spam scores down.
-    $mail->AltBody = $bodyText;
+        $mail->Subject = $subject;
+        $mail->isHTML(true);
+        $mail->Body = $bodyHtml;
+        // Plain-text twin for clients that block HTML — and it keeps spam scores down.
+        $mail->AltBody = $bodyText;
 
-    $mail->send();
-    echo json_encode(['status' => 'ok']);
-} catch (Exception $e) {
+        $mail->send();
+    } else {
+        sendSmtpMail([
+            'host' => $smtpHost,
+            'port' => $smtpPort,
+            'user' => $smtpUser,
+            'pass' => $smtpPass,
+            'from_email' => $fromEmail,
+            'from_name' => $fromName,
+            'reply_to' => $replyTo,
+            'to' => $to,
+            'subject' => $subject,
+            'text' => $bodyText,
+            'html' => $bodyHtml,
+        ]);
+    }
+
+    echo json_encode(['status' => 'ok', 'mailer' => $hasPhpMailer ? 'phpmailer' : 'builtin']);
+} catch (Throwable $e) {
     http_response_code(500);
-    echo json_encode(['error' => $mail->ErrorInfo ?: $e->getMessage()]);
+    echo json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
 }
