@@ -8,6 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import TaskDetailDialog from "@/components/kanban/TaskDetailDialog";
 
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 4;
+const clampZoom = (z) => Math.min(Math.max(z, MIN_ZOOM), MAX_ZOOM);
+
+/** Wheel deltas arrive in pixels, lines or pages depending on device. */
+function wheelDeltaToPixels(delta, deltaMode) {
+  if (deltaMode === 1) return delta * 16;
+  if (deltaMode === 2) return delta * 400;
+  return delta;
+}
+
+function isTypingTarget(target) {
+  if (!target || !target.tagName) return false;
+  const tag = target.tagName.toUpperCase();
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+}
+
 const NODE_COLORS = [
   { bg: '#6366f1', text: '#ffffff' },
   { bg: '#8b5cf6', text: '#ffffff' },
@@ -26,6 +43,23 @@ export default function MindMap() {
   const [zoom, setZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
+
+  // Viewport is mirrored in a ref: wheel/keyboard handlers need the current value
+  // synchronously, and rendering only once per frame keeps zooming smooth.
+  const viewRef = useRef({ offset: { x: 0, y: 0 }, zoom: 1 });
+  const rafRef = useRef(null);
+  const [isSpacePan, setIsSpacePan] = useState(false);
+  const spacePanRef = useRef(false);
+  const fitToViewRef = useRef(null);
+  // Active touch pointers for two-finger pinch/pan.
+  const pointersRef = useRef(new Map());
+  const pinchRef = useRef(null);
+  // State (not just a ref) so the wheel effect re-runs once the canvas is mounted.
+  const [canvasEl, setCanvasEl] = useState(null);
+  const attachCanvasRef = useCallback((el) => {
+    canvasRef.current = el;
+    setCanvasEl(el);
+  }, []);
   
   const [nodes, setNodes] = useState([]);
   const [connections, setConnections] = useState([]);
@@ -243,6 +277,142 @@ export default function MindMap() {
     return { clientX: 0, clientY: 0 };
   }, []);
 
+  // Keep the mirror in sync when the viewport is changed outside the handlers below.
+  useEffect(() => {
+    viewRef.current = { offset, zoom };
+  }, [offset, zoom]);
+
+  useEffect(() => () => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  const setView = useCallback((next) => {
+    viewRef.current = next;
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      setOffset(viewRef.current.offset);
+      setZoom(viewRef.current.zoom);
+    });
+  }, []);
+
+  /** Zoom while keeping the point under the cursor fixed — the Miro/Figma behaviour. */
+  const zoomAtClientPoint = useCallback(
+    (factor, clientX, clientY) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const { offset: o, zoom: z } = viewRef.current;
+      const nextZoom = clampZoom(z * factor);
+      if (nextZoom === z) return;
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
+      const ratio = nextZoom / z;
+      setView({
+        zoom: nextZoom,
+        offset: { x: mx - (mx - o.x) * ratio, y: my - (my - o.y) * ratio },
+      });
+    },
+    [setView],
+  );
+
+  const zoomAtViewportCenter = useCallback(
+    (factor) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      zoomAtClientPoint(factor, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    },
+    [zoomAtClientPoint],
+  );
+
+  const resetZoomKeepingCenter = useCallback(() => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const { zoom: z } = viewRef.current;
+    zoomAtClientPoint(1 / z, rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }, [zoomAtClientPoint]);
+
+  // Native listener with passive:false — React attaches onWheel passively, so
+  // preventDefault() there is ignored and the browser zooms the whole page instead.
+  useEffect(() => {
+    const el = canvasEl;
+    if (!el) return undefined;
+
+    const onWheel = (e) => {
+      e.preventDefault();
+
+      // Trackpad pinch arrives as ctrlKey+wheel; cmd/ctrl+wheel is the mouse equivalent.
+      if (e.ctrlKey || e.metaKey) {
+        const dy = wheelDeltaToPixels(e.deltaY, e.deltaMode);
+        zoomAtClientPoint(Math.exp(-dy * 0.01), e.clientX, e.clientY);
+        return;
+      }
+
+      let dx = wheelDeltaToPixels(e.deltaX, e.deltaMode);
+      let dy = wheelDeltaToPixels(e.deltaY, e.deltaMode);
+      if (e.shiftKey && dx === 0) {
+        dx = dy;
+        dy = 0;
+      }
+      if (dx === 0 && dy === 0) return;
+
+      const { offset: o, zoom: z } = viewRef.current;
+      setView({ zoom: z, offset: { x: o.x - dx, y: o.y - dy } });
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [canvasEl, zoomAtClientPoint, setView]);
+
+  // Space = temporary hand tool, plus the usual zoom shortcuts.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (isTypingTarget(e.target)) return;
+
+      if (e.code === "Space" && !spacePanRef.current) {
+        e.preventDefault();
+        spacePanRef.current = true;
+        setIsSpacePan(true);
+        return;
+      }
+
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        zoomAtViewportCenter(1.2);
+      } else if (mod && (e.key === "-" || e.key === "_")) {
+        e.preventDefault();
+        zoomAtViewportCenter(1 / 1.2);
+      } else if (mod && e.key === "0") {
+        e.preventDefault();
+        resetZoomKeepingCenter();
+      } else if (e.shiftKey && e.key === "1") {
+        e.preventDefault();
+        fitToViewRef.current?.();
+      }
+    };
+
+    const onKeyUp = (e) => {
+      if (e.code === "Space") {
+        spacePanRef.current = false;
+        setIsSpacePan(false);
+      }
+    };
+
+    const onBlur = () => {
+      spacePanRef.current = false;
+      setIsSpacePan(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [zoomAtViewportCenter, resetZoomKeepingCenter]);
+
   const getCanvasPos = useCallback(
     (e) => {
       const rect = canvasRef.current?.getBoundingClientRect();
@@ -322,10 +492,9 @@ export default function MindMap() {
       }));
 
       setIsMobileVertical(true);
-      setOffset({ x: 20, y: 20 });
-      setZoom(1);
+      setView({ offset: { x: 20, y: 20 }, zoom: 1 });
     }
-  }, [nodes, connections, isMobileVertical, originalPositions]);
+  }, [nodes, connections, isMobileVertical, originalPositions, setView]);
 
   // Add node
   const addNode = (type = 'node', parentId = null, label = null) => {
@@ -374,10 +543,37 @@ export default function MindMap() {
     });
   };
 
+  const beginPinch = useCallback(() => {
+    const points = [...pointersRef.current.values()];
+    if (points.length < 2) return;
+    const [a, b] = points;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    pinchRef.current = {
+      distance: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+      centerX: (a.x + b.x) / 2 - rect.left,
+      centerY: (a.y + b.y) / 2 - rect.top,
+      zoom: viewRef.current.zoom,
+      offset: { ...viewRef.current.offset },
+    };
+  }, []);
+
   const handleCanvasPointerDown = useCallback(
     (e) => {
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      if (e.target.closest?.("[data-mindmap-node]")) return;
+      if (e.pointerType === "touch") {
+        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointersRef.current.size >= 2) {
+          setIsPanning(false);
+          draggingRef.current = null;
+          beginPinch();
+          return;
+        }
+      }
+      const isMiddleButton = e.pointerType === "mouse" && e.button === 1;
+      const isHandTool = isMiddleButton || spacePanRef.current;
+      if (e.pointerType === "mouse" && e.button !== 0 && !isMiddleButton) return;
+      // Hand tool pans from anywhere, including on top of a node.
+      if (!isHandTool && e.target.closest?.("[data-mindmap-node]")) return;
       e.preventDefault();
       try {
         canvasRef.current?.setPointerCapture?.(e.pointerId);
@@ -387,21 +583,51 @@ export default function MindMap() {
       setIsPanning(true);
       const { clientX, clientY } = getClientXY(e);
       panStartRef.current = { x: clientX - offset.x, y: clientY - offset.y };
-      setSelectedNodeId(null);
-      setNotePanel(null);
-      setFileHubPanel(null);
+      if (!isHandTool) {
+        setSelectedNodeId(null);
+        setNotePanel(null);
+        setFileHubPanel(null);
+      }
     },
-    [offset, getClientXY],
+    [offset, getClientXY, beginPinch],
   );
 
   const handlePointerMove = useCallback(
     (e) => {
+      if (e.pointerType === "touch" && pointersRef.current.has(e.pointerId)) {
+        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+
+      // Two fingers: zoom around the midpoint and follow it, like Miro.
+      const pinch = pinchRef.current;
+      if (pinch && pointersRef.current.size >= 2) {
+        const [a, b] = [...pointersRef.current.values()];
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const distance = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        const centerX = (a.x + b.x) / 2 - rect.left;
+        const centerY = (a.y + b.y) / 2 - rect.top;
+        const nextZoom = clampZoom(pinch.zoom * (distance / pinch.distance));
+        const ratio = nextZoom / pinch.zoom;
+        setView({
+          zoom: nextZoom,
+          offset: {
+            x: centerX - (pinch.centerX - pinch.offset.x) * ratio,
+            y: centerY - (pinch.centerY - pinch.offset.y) * ratio,
+          },
+        });
+        return;
+      }
+
       const pos = getCanvasPos(e);
       mousePosRef.current = pos;
 
       if (isPanning) {
         const { clientX, clientY } = getClientXY(e);
-        setOffset({ x: clientX - panStartRef.current.x, y: clientY - panStartRef.current.y });
+        setView({
+          zoom: viewRef.current.zoom,
+          offset: { x: clientX - panStartRef.current.x, y: clientY - panStartRef.current.y },
+        });
         return;
       }
 
@@ -416,7 +642,7 @@ export default function MindMap() {
 
       if (connectingFrom) forceRender((n) => n + 1);
     },
-    [isPanning, getCanvasPos, connectingFrom, getClientXY],
+    [isPanning, getCanvasPos, connectingFrom, getClientXY, setView],
   );
 
   const handlePointerUp = useCallback(
@@ -425,6 +651,10 @@ export default function MindMap() {
         canvasRef.current?.releasePointerCapture?.(e.pointerId);
       } catch {
         /* ignore */
+      }
+      if (e.pointerType === "touch") {
+        pointersRef.current.delete(e.pointerId);
+        if (pointersRef.current.size < 2) pinchRef.current = null;
       }
       setIsPanning(false);
 
@@ -448,6 +678,8 @@ export default function MindMap() {
   const handleNodePointerDown = useCallback(
     (e, node) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
+      // Hand tool active: let the event bubble so the canvas pans instead of dragging the node.
+      if (spacePanRef.current) return;
       e.stopPropagation();
       e.preventDefault();
 
@@ -474,49 +706,6 @@ export default function MindMap() {
     },
     [connectingFrom, connectLabel, connections, getCanvasPos, createConnection],
   );
-
-  const handleWheel = useCallback((e) => {
-    // Only handle if it's NOT a pinch-to-zoom (ctrlKey is true for pinch on macOS)
-    if (e.ctrlKey) {
-      // Pinch-to-zoom - prevent default browser zoom
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      
-      // Zoom with pinch
-      const delta = e.deltaY > 0 ? 0.95 : 1.05;
-      const newZoom = Math.min(Math.max(0.3, zoom * delta), 2);
-      
-      setOffset({
-        x: mx - (mx - offset.x) * (newZoom / zoom),
-        y: my - (my - offset.y) * (newZoom / zoom)
-      });
-      setZoom(newZoom);
-    } else {
-      // Regular scroll - zoom canvas
-      e.preventDefault();
-      
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      
-      const delta = e.deltaY > 0 ? 0.92 : 1.08;
-      const newZoom = Math.min(Math.max(0.3, zoom * delta), 2);
-      
-      setOffset({
-        x: mx - (mx - offset.x) * (newZoom / zoom),
-        y: my - (my - offset.y) * (newZoom / zoom)
-      });
-      setZoom(newZoom);
-    }
-  }, [zoom, offset]);
 
   const saveEdit = useCallback(() => {
     const nodeId = editingNodeId;
@@ -585,7 +774,7 @@ export default function MindMap() {
   };
 
   // Fit all nodes to view
-  const fitToView = () => {
+  const fitToView = useCallback(() => {
     if (nodes.length === 0) return;
     
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -615,17 +804,20 @@ export default function MindMap() {
     // Calculate zoom to fit
     const zoomX = rect.width / contentWidth;
     const zoomY = rect.height / contentHeight;
-    const newZoom = Math.min(Math.max(Math.min(zoomX, zoomY), 0.3), 1.5);
-    
+    const newZoom = Math.min(Math.max(Math.min(zoomX, zoomY), MIN_ZOOM), 1.5);
+
     // Calculate offset to center
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
     const newOffsetX = rect.width / 2 - centerX * newZoom;
     const newOffsetY = rect.height / 2 - centerY * newZoom;
-    
-    setZoom(newZoom);
-    setOffset({ x: newOffsetX, y: newOffsetY });
-  };
+
+    setView({ zoom: newZoom, offset: { x: newOffsetX, y: newOffsetY } });
+  }, [nodes, setView]);
+
+  useEffect(() => {
+    fitToViewRef.current = fitToView;
+  }, [fitToView]);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
@@ -663,11 +855,18 @@ export default function MindMap() {
 
           {/* Zoom Controls */}
           <div className="flex sm:flex-row flex-col items-center bg-slate-100 rounded-xl p-0.5 gap-0.5">
-            <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(z * 0.8, 0.3))} className="h-8 w-8 rounded-lg hover:bg-white">
+            <Button variant="ghost" size="icon" onClick={() => zoomAtViewportCenter(1 / 1.2)} className="h-8 w-8 rounded-lg hover:bg-white" title="Verkleinern (Cmd/Strg + -)">
               <ZoomOut className="w-4 h-4 text-slate-600" />
             </Button>
-            <span className="text-xs font-semibold text-slate-600 w-10 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-            <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(z * 1.2, 2))} className="h-8 w-8 rounded-lg hover:bg-white">
+            <button
+              type="button"
+              onClick={resetZoomKeepingCenter}
+              title="Auf 100 % zuruecksetzen (Cmd/Strg + 0)"
+              className="text-xs font-semibold text-slate-600 w-10 text-center tabular-nums hover:text-indigo-600"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <Button variant="ghost" size="icon" onClick={() => zoomAtViewportCenter(1.2)} className="h-8 w-8 rounded-lg hover:bg-white" title="Vergroessern (Cmd/Strg + +)">
               <ZoomIn className="w-4 h-4 text-slate-600" />
             </Button>
           </div>
@@ -676,7 +875,7 @@ export default function MindMap() {
 
           {/* View Controls */}
           <div className="flex sm:flex-row flex-col items-center gap-0.5">
-            <Button variant="ghost" size="icon" onClick={() => { setOffset({ x: 0, y: 0 }); setZoom(1); }} className="h-8 w-8 rounded-lg" title="Zurücksetzen">
+            <Button variant="ghost" size="icon" onClick={() => setView({ offset: { x: 0, y: 0 }, zoom: 1 })} className="h-8 w-8 rounded-lg" title="Zurücksetzen">
               <RotateCcw className="w-4 h-4 text-slate-500" />
             </Button>
             <Button 
@@ -930,8 +1129,10 @@ export default function MindMap() {
 
       {/* Canvas */}
       <div
-        ref={canvasRef}
-        className={`w-full h-full canvas-bg touch-none ${isPanning ? "cursor-grabbing" : "cursor-grab"}`}
+        ref={attachCanvasRef}
+        className={`w-full h-full canvas-bg touch-none ${
+          isPanning ? "cursor-grabbing" : isSpacePan ? "cursor-grab" : "cursor-default"
+        }`}
         style={{
           touchAction: "none",
           backgroundImage: "radial-gradient(circle, #cbd5e1 1px, transparent 1px)",
@@ -942,7 +1143,7 @@ export default function MindMap() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onWheel={handleWheel}
+        onAuxClick={(e) => e.preventDefault()}
       >
         {/* SVG for connections */}
         <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
@@ -1316,7 +1517,9 @@ export default function MindMap() {
 
       <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-auto text-[10px] sm:text-xs text-slate-500 bg-white/90 backdrop-blur px-2 sm:px-3 py-1.5 rounded-lg pointer-events-none max-w-[calc(100vw-1rem)]">
         <span className="sm:hidden">Tipp: Knoten antippen → Stift (oben) zum Schreiben • Ziehen verschiebt • 2 Finger zoomen</span>
-        <span className="hidden sm:inline">Doppelklick = Bearbeiten • Ziehen = Verschieben • Scroll = Zoom</span>
+        <span className="hidden sm:inline">
+          Scrollen = Bewegen • Shift+Scroll = seitlich • Cmd/Strg+Scroll = Zoom • Leertaste oder Mausrad-Klick = Hand • Shift+1 = Alles zeigen
+        </span>
       </div>
 
       {/* Task Detail Dialog */}
