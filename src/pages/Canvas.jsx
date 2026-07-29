@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ZoomIn, ZoomOut, RotateCcw, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, AlignVerticalJustifyStart, Pencil, Paperclip, FileText, GripHorizontal, ChevronDown, ChevronUp, Send } from 'lucide-react';
+import { Plus, Trash2, ZoomIn, ZoomOut, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, Pencil, Paperclip, FileText, GripHorizontal, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,15 +45,21 @@ const STICKY_COLORS = [
 ];
 
 const STICKY_DEFAULT_SIZE = 180;
-const STICKY_MIN_SIZE = 100;
-const STICKY_MAX_SIZE = 520;
+const MAX_NODE_SIZE = 800;
+
+/** Smallest sensible box per shape, so nothing can be shrunk into an unusable dot. */
+function minSizeForType(type) {
+  if (type === 'sticky') return { width: 90, height: 90 };
+  if (type === 'decision') return { width: 90, height: 60 };
+  return { width: 80, height: 40 };
+}
 const TOOLBAR_STORAGE_PREFIX = 'orbylox_canvas_toolbar_';
 
-/** Sticky text shrinks as it grows longer, like Miro's auto-fit. */
-function stickyFontSize(text, size) {
+/** Text shrinks as it grows longer and scales with the box, like Miro's auto-fit. */
+function autoFontSize(text, width, height, { min = 10, max = 28 } = {}) {
   const length = Math.max((text || '').length, 1);
-  const base = size / 7;
-  return Math.max(11, Math.min(28, base * (12 / Math.max(length, 12)) + 8));
+  const box = Math.sqrt(Math.max(width, 1) * Math.max(height, 1));
+  return Math.max(min, Math.min(max, (box / Math.sqrt(length)) * 0.9));
 }
 
 export default function MindMap() {
@@ -179,8 +185,6 @@ export default function MindMap() {
   const mousePosRef = useRef({ x: 0, y: 0 });
   const [, forceRender] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMobileVertical, setIsMobileVertical] = useState(false); // Track if currently in vertical mode
-  const [originalPositions, setOriginalPositions] = useState(null); // Store original positions for restore
 
   const shouldAutoEditNewNode = useCallback(() => {
     if (typeof window === 'undefined') return true;
@@ -608,71 +612,6 @@ export default function MindMap() {
     y: node.y + (node.height || 50) / 2
   });
 
-  // Toggle between vertical and original layout
-  const toggleVerticalLayout = useCallback(() => {
-    if (nodes.length === 0) return;
-
-    if (isMobileVertical && originalPositions) {
-      // Restore original positions
-      setNodes(prev => prev.map(n => {
-        const orig = originalPositions.find(o => o.id === n.id);
-        return orig ? { ...n, x: orig.x, y: orig.y } : n;
-      }));
-      setIsMobileVertical(false);
-      setOriginalPositions(null);
-      fitToView();
-    } else {
-      // Save current positions and arrange vertically
-      setOriginalPositions(nodes.map(n => ({ id: n.id, x: n.x, y: n.y })));
-
-      // Find root nodes (nodes without incoming connections)
-      const hasIncoming = new Set(connections.map(c => c.to_item_id));
-      const rootNodes = nodes.filter(n => !hasIncoming.has(n.id));
-
-      // BFS to arrange
-      const visited = new Set();
-      const updates = [];
-      let currentY = 50;
-      const centerX = 100;
-
-      const queue = rootNodes.length > 0 ? [...rootNodes] : [nodes[0]];
-
-      while (queue.length > 0) {
-        const node = queue.shift();
-        if (visited.has(node.id)) continue;
-        visited.add(node.id);
-
-        updates.push({ id: node.id, x: centerX, y: currentY });
-        currentY += (node.height || 60) + 50;
-
-        // Find children
-        const children = connections
-          .filter(c => c.from_item_id === node.id)
-          .map(c => nodes.find(n => n.id === c.to_item_id))
-          .filter(Boolean);
-
-        queue.push(...children);
-      }
-
-      // Add any unvisited nodes
-      nodes.forEach(n => {
-        if (!visited.has(n.id)) {
-          updates.push({ id: n.id, x: centerX, y: currentY });
-          currentY += (n.height || 60) + 50;
-        }
-      });
-
-      // Apply updates (local only, don't save to server)
-      setNodes(prev => prev.map(n => {
-        const update = updates.find(u => u.id === n.id);
-        return update ? { ...n, x: update.x, y: update.y } : n;
-      }));
-
-      setIsMobileVertical(true);
-      setView({ offset: { x: 20, y: 20 }, zoom: 1 });
-    }
-  }, [nodes, connections, isMobileVertical, originalPositions, setView]);
-
   // Add node
   const addNode = (type = 'node', parentId = null, label = null, atPos = null) => {
     const parent = parentId ? nodes.find(n => n.id === parentId) : null;
@@ -843,24 +782,18 @@ export default function MindMap() {
         return;
       }
 
-      // Sticky note resize: deltas are in screen pixels, so divide by zoom.
+      // Resize: deltas are in screen pixels, so divide by zoom.
       const resize = resizingRef.current;
       if (resize) {
         const { clientX, clientY } = getClientXY(e);
         const z = viewRef.current.zoom || 1;
-        const size = Math.round(
-          Math.min(
-            STICKY_MAX_SIZE,
-            Math.max(
-              STICKY_MIN_SIZE,
-              Math.max(
-                resize.width + (clientX - resize.startX) / z,
-                resize.height + (clientY - resize.startY) / z,
-              ),
-            ),
-          ),
+        const width = Math.round(
+          Math.min(MAX_NODE_SIZE, Math.max(resize.minWidth, resize.width + (clientX - resize.startX) / z)),
         );
-        setNodes((prev) => prev.map((n) => (n.id === resize.id ? { ...n, width: size, height: size } : n)));
+        const height = Math.round(
+          Math.min(MAX_NODE_SIZE, Math.max(resize.minHeight, resize.height + (clientY - resize.startY) / z)),
+        );
+        setNodes((prev) => prev.map((n) => (n.id === resize.id ? { ...n, width, height } : n)));
         return;
       }
 
@@ -1105,18 +1038,6 @@ export default function MindMap() {
     updateNode.mutate({ id: fileHubPanel.nodeId, data: { file_hub_refs: next } });
   };
 
-  const clearAll = async () => {
-    if (!confirm('Alle Knoten löschen?')) return;
-    // Сначала очищаем UI
-    setNodes([]);
-    setConnections([]);
-    // Затем удаляем на сервере
-    await Promise.all([
-      ...nodes.map(n => api.entities.CanvasItem.delete(n.id).catch(() => {})),
-      ...connections.map(c => api.entities.CanvasConnection.delete(c.id).catch(() => {}))
-    ]);
-  };
-
   // Fit all nodes to view
   const fitToView = useCallback(() => {
     if (nodes.length === 0) return;
@@ -1289,18 +1210,6 @@ export default function MindMap() {
 
           {/* View Controls */}
           <div className="flex sm:flex-row flex-col items-center gap-0.5">
-            <Button variant="ghost" size="icon" onClick={() => setView({ offset: { x: 0, y: 0 }, zoom: 1 })} className="h-8 w-8 rounded-lg" title="Zurücksetzen">
-              <RotateCcw className="w-4 h-4 text-slate-500" />
-            </Button>
-            <Button 
-              variant={isMobileVertical ? "default" : "ghost"}
-              size="icon" 
-              onClick={toggleVerticalLayout} 
-              className={`h-8 w-8 rounded-lg sm:hidden ${isMobileVertical ? 'bg-green-600 text-white hover:bg-green-700' : 'text-green-600 hover:bg-green-50'}`}
-              title={isMobileVertical ? "Original wiederherstellen" : "Vertikal anordnen"}
-            >
-              <AlignVerticalJustifyStart className="w-4 h-4" />
-            </Button>
             <Button variant="ghost" size="icon" onClick={fitToView} className="h-8 w-8 rounded-lg text-indigo-600 hover:bg-indigo-50" title="Alle Knoten anzeigen">
               <Move className="w-4 h-4" />
             </Button>
@@ -1312,9 +1221,6 @@ export default function MindMap() {
               title={isFullscreen ? "Vollbild beenden (ESC)" : "Vollbild"}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={clearAll} className="h-8 w-8 rounded-lg text-red-500 hover:bg-red-50" title="Alles löschen">
-              <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -1381,15 +1287,6 @@ export default function MindMap() {
                 title="Kommentare"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setNotePanel({ nodeId: selectedNodeId, note: selectedNode.note || '' })}
-                className="h-7 px-2 text-slate-600 hover:bg-slate-100"
-                title="Notiz"
-              >
-                <StickyNote className="w-3.5 h-3.5" />
               </Button>
               <Button
                 size="sm"
@@ -1875,7 +1772,10 @@ export default function MindMap() {
             const linkedTask = hasLinkedTask ? tasks.find(t => t.id === node.linked_task_id) : null;
             const fileHubCount = Array.isArray(node.file_hub_refs) ? node.file_hub_refs.length : 0;
             const commentCount = (commentsByNode.get(node.id) || []).length;
-            const stickySize = node.width || STICKY_DEFAULT_SIZE;
+            const defaultW = isSticky ? STICKY_DEFAULT_SIZE : isDecision ? 140 : 160;
+            const defaultH = isSticky ? STICKY_DEFAULT_SIZE : isDecision ? 70 : 50;
+            const nodeW = node.width || defaultW;
+            const nodeH = node.height || defaultH;
 
             const openComments = (e) => {
               e.stopPropagation();
@@ -1889,6 +1789,35 @@ export default function MindMap() {
               setFileHubPanel({ nodeId: node.id });
             };
             const stopPointer = (e) => e.stopPropagation();
+
+            /** Corner grip: free width/height for every shape. */
+            const resizeHandle = (
+              <button
+                type="button"
+                title="Groesse aendern"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const { clientX, clientY } = getClientXY(e);
+                  const min = minSizeForType(node.type);
+                  resizingRef.current = {
+                    id: node.id,
+                    startX: clientX,
+                    startY: clientY,
+                    width: nodeW,
+                    height: nodeH,
+                    minWidth: min.width,
+                    minHeight: min.height,
+                  };
+                  setSelectedNodeId(node.id);
+                }}
+                className={`absolute -bottom-1.5 -right-1.5 w-5 h-5 cursor-nwse-resize touch-none transition-opacity ${
+                  isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+              >
+                <span className="block w-3 h-3 bg-white border-b-2 border-r-2 border-indigo-500 rounded-sm absolute bottom-0.5 right-0.5 shadow-sm" />
+              </button>
+            );
 
             /**
              * Drag handles: pull from a dot onto another node to connect, or into
@@ -1994,7 +1923,7 @@ export default function MindMap() {
                 key={node.id}
                 data-mindmap-node
                 className={`group pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"}`}
-                style={{ left: node.x, top: node.y, width: isSticky ? stickySize : node.width || 160 }}
+                style={{ left: node.x, top: node.y, width: nodeW }}
                 onPointerDown={(e) => handleNodePointerDown(e, node)}
                 onDoubleClick={() => {
                   setEditingNodeId(node.id);
@@ -2008,8 +1937,8 @@ export default function MindMap() {
                       isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''
                     }`}
                     style={{
-                      width: stickySize,
-                      height: node.height || stickySize,
+                      width: nodeW,
+                      height: nodeH,
                       backgroundColor: node.color || STICKY_COLORS[0].bg,
                       color: node.borderColor || '#1f2937',
                       boxShadow: '0 10px 20px -8px rgba(15, 23, 42, 0.35), 0 2px 4px rgba(15, 23, 42, 0.15)',
@@ -2037,12 +1966,12 @@ export default function MindMap() {
                           onMouseDown={stopPointer}
                           onPointerDown={stopPointer}
                           className="w-full h-full resize-none bg-white/60 border-0 text-slate-900 text-center focus-visible:ring-1"
-                          style={{ fontSize: stickyFontSize(editText, stickySize) }}
+                          style={{ fontSize: autoFontSize(editText, nodeW, nodeH, { min: 11 }) }}
                         />
                       ) : (
                         <span
                           className="w-full text-center font-medium leading-snug break-words [overflow-wrap:anywhere] whitespace-pre-wrap"
-                          style={{ fontSize: stickyFontSize(node.content, stickySize) }}
+                          style={{ fontSize: autoFontSize(node.content, nodeW, nodeH, { min: 11 }) }}
                         >
                           {node.content || 'Doppelklick zum Schreiben'}
                         </span>
@@ -2051,32 +1980,12 @@ export default function MindMap() {
 
                     {badges}
                     {connectHandles}
-
-                    {/* Resize handle */}
-                    <button
-                      type="button"
-                      title="Groesse aendern"
-                      onPointerDown={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        const { clientX, clientY } = getClientXY(e);
-                        resizingRef.current = {
-                          id: node.id,
-                          startX: clientX,
-                          startY: clientY,
-                          width: stickySize,
-                          height: node.height || stickySize,
-                        };
-                      }}
-                      className="absolute -bottom-1 -right-1 w-4 h-4 cursor-nwse-resize touch-none"
-                    >
-                      <span className="block w-2.5 h-2.5 border-b-2 border-r-2 border-slate-500/60 absolute bottom-1 right-1" />
-                    </button>
+                    {resizeHandle}
                   </div>
                 ) : isDecision ? (
                   <div
                     className={`relative cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}
-                    style={{ width: node.width || 140, height: node.height || 70 }}
+                    style={{ width: nodeW, height: nodeH }}
                   >
                     <svg viewBox="0 0 100 70" className="w-full h-full" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>
                       <polygon
@@ -2110,10 +2019,10 @@ export default function MindMap() {
                           className="text-xs text-center bg-white/90 border-0 h-6 w-20 max-w-[90%]"
                         />
                       ) : (
-                        <span 
+                        <span
                           className="font-semibold text-white text-center leading-tight break-words overflow-hidden"
-                          style={{ 
-                            fontSize: `${Math.max(8, Math.min(12, 120 / Math.max(node.content?.length || 1, 10)))}px`,
+                          style={{
+                            fontSize: autoFontSize(node.content, nodeW * 0.7, nodeH * 0.7, { min: 8, max: 16 }),
                             wordBreak: 'break-word',
                             maxWidth: '90%'
                           }}
@@ -2125,14 +2034,22 @@ export default function MindMap() {
                     {isDone && <Check className="absolute -top-1 -right-1 w-5 h-5 text-white bg-green-500 rounded-full p-0.5" />}
                     {badges}
                     {connectHandles}
+                    {resizeHandle}
                   </div>
                 ) : (
                   /* Regular node */
                   <div
-                    className={`rounded-2xl px-4 py-3 shadow-lg cursor-grab active:cursor-grabbing relative ${
+                    className={`rounded-2xl px-4 py-3 shadow-lg cursor-grab active:cursor-grabbing relative flex items-center justify-center ${
                       isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''
                     }`}
-                    style={{ backgroundColor: isDone ? '#22c55e' : (node.color || '#6366f1'), color: node.borderColor || '#fff', minWidth: 80, maxWidth: 200 }}
+                    style={{
+                      width: nodeW,
+                      // minHeight, not height: existing boards keep growing with long text
+                      // instead of suddenly clipping it.
+                      minHeight: nodeH,
+                      backgroundColor: isDone ? '#22c55e' : (node.color || '#6366f1'),
+                      color: node.borderColor || '#fff',
+                    }}
                   >
                     {isEditing ? (
                       <Input
@@ -2160,7 +2077,7 @@ export default function MindMap() {
                       <div
                         className={`font-semibold text-center break-words [overflow-wrap:anywhere] whitespace-pre-wrap max-w-full px-0.5 ${isDone ? "line-through opacity-80" : ""}`}
                         style={{
-                          fontSize: `${Math.max(10, Math.min(14, 180 / Math.max(node.content?.length || 1, 12)))}px`,
+                          fontSize: autoFontSize(node.content, nodeW, nodeH, { min: 10, max: 22 }),
                           wordBreak: "break-word",
                         }}
                       >
@@ -2188,9 +2105,10 @@ export default function MindMap() {
                     
                     {badges}
                     {connectHandles}
+                    {resizeHandle}
                   </div>
                 )}
-                
+
                 {/* Quick add button — mind-map only; sticky notes stay standalone */}
                 {isSelected && !isEditing && !isSticky && (
                   <button
@@ -2233,7 +2151,7 @@ export default function MindMap() {
       <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-auto text-[10px] sm:text-xs text-slate-500 bg-white/90 backdrop-blur px-2 sm:px-3 py-1.5 rounded-lg pointer-events-none max-w-[calc(100vw-1rem)]">
         <span className="sm:hidden">Tipp: Knoten antippen → Stift (oben) zum Schreiben • Ziehen verschiebt • 2 Finger zoomen</span>
         <span className="hidden sm:inline">
-          Doppelklick = Neuer Knoten • Punkt am Rand ziehen = Verbinden • Tippen oder Enter = Text • Backspace = Löschen • Cmd/Strg+Scroll = Zoom • Leertaste = Hand
+          Doppelklick = Neuer Knoten • Punkt am Rand ziehen = Verbinden • Ecke ziehen = Größe • Tippen = Text • Backspace = Löschen • Cmd/Strg+Scroll = Zoom • Leertaste = Hand
         </span>
       </div>
 
