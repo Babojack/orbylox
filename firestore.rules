@@ -244,6 +244,12 @@ service cloud.firestore {
       allow update: if projectScopedUpdate(resource) || postScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow delete: if projectScopedDelete(resource) || postScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
+    match /CanvasComment/{docId} {
+      allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if projectScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if projectScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if projectScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
     match /Message/{docId} {
       allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if projectScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ZoomIn, ZoomOut, RotateCcw, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, AlignVerticalJustifyStart, Pencil, Paperclip, FileText } from 'lucide-react';
+import { Plus, Trash2, ZoomIn, ZoomOut, RotateCcw, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, AlignVerticalJustifyStart, Pencil, Paperclip, FileText, GripHorizontal, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,28 @@ const NODE_COLORS = [
   { bg: '#3b82f6', text: '#ffffff' },
 ];
 
+// Paper-like tones for sticky notes; text stays dark so handwriting-style notes stay readable.
+const STICKY_COLORS = [
+  { bg: '#fde68a', text: '#1f2937' },
+  { bg: '#bbf7d0', text: '#1f2937' },
+  { bg: '#fbcfe8', text: '#1f2937' },
+  { bg: '#bfdbfe', text: '#1f2937' },
+  { bg: '#fed7aa', text: '#1f2937' },
+  { bg: '#e9d5ff', text: '#1f2937' },
+];
+
+const STICKY_DEFAULT_SIZE = 180;
+const STICKY_MIN_SIZE = 100;
+const STICKY_MAX_SIZE = 520;
+const TOOLBAR_STORAGE_PREFIX = 'orbylox_canvas_toolbar_';
+
+/** Sticky text shrinks as it grows longer, like Miro's auto-fit. */
+function stickyFontSize(text, size) {
+  const length = Math.max((text || '').length, 1);
+  const base = size / 7;
+  return Math.max(11, Math.min(28, base * (12 / Math.max(length, 12)) + 8));
+}
+
 export default function MindMap() {
   const queryClient = useQueryClient();
   const canvasRef = useRef(null);
@@ -60,6 +82,75 @@ export default function MindMap() {
     canvasRef.current = el;
     setCanvasEl(el);
   }, []);
+
+  /* ------------------------------------------------- movable toolbar */
+  const toolbarRef = useRef(null);
+  const toolbarDragRef = useRef(null);
+  const [toolbarPos, setToolbarPos] = useState(null); // null = default position
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
+  const toolbarStorageKey = `${TOOLBAR_STORAGE_PREFIX}${projectId || 'default'}`;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(toolbarStorageKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved?.pos && typeof saved.pos.x === 'number') setToolbarPos(saved.pos);
+      setToolbarCollapsed(!!saved?.collapsed);
+    } catch {
+      /* ignore malformed prefs */
+    }
+  }, [toolbarStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(
+        toolbarStorageKey,
+        JSON.stringify({ pos: toolbarPos, collapsed: toolbarCollapsed }),
+      );
+    } catch {
+      /* storage full or blocked — position just won't persist */
+    }
+  }, [toolbarPos, toolbarCollapsed, toolbarStorageKey]);
+
+  const handleToolbarPointerDown = useCallback((e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = toolbarRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    toolbarDragRef.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleToolbarPointerMove = useCallback((e) => {
+    const drag = toolbarDragRef.current;
+    if (!drag) return;
+    const rect = toolbarRef.current?.getBoundingClientRect();
+    const width = rect?.width || 240;
+    const height = rect?.height || 48;
+    const maxX = Math.max(4, window.innerWidth - width - 4);
+    const maxY = Math.max(4, window.innerHeight - height - 4);
+    setToolbarPos({
+      x: Math.min(Math.max(e.clientX - drag.dx, 4), maxX),
+      y: Math.min(Math.max(e.clientY - drag.dy, 4), maxY),
+    });
+  }, []);
+
+  const handleToolbarPointerUp = useCallback((e) => {
+    toolbarDragRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   
   const [nodes, setNodes] = useState([]);
   const [connections, setConnections] = useState([]);
@@ -68,6 +159,9 @@ export default function MindMap() {
   const [editingNodeId, setEditingNodeId] = useState(null);
   const [editText, setEditText] = useState('');
   const [notePanel, setNotePanel] = useState(null); // { nodeId, note }
+  const [commentPanel, setCommentPanel] = useState(null); // { nodeId }
+  const [newComment, setNewComment] = useState('');
+  const resizingRef = useRef(null); // { id, startX, startY, width, height }
   const [taskLinkPanel, setTaskLinkPanel] = useState(null); // { nodeId, taskId }
   const [fileHubPanel, setFileHubPanel] = useState(null); // { nodeId }
   const [openTaskId, setOpenTaskId] = useState(null); // Task ID für Dialog
@@ -266,6 +360,62 @@ export default function MindMap() {
     onMutate: (id) => setConnections(prev => prev.filter(c => c.id !== id))
     // НЕ делаем invalidateQueries
   });
+
+  /* --------------------------------------------------- node comment threads */
+
+  const { data: comments = [] } = useQuery({
+    queryKey: ['canvasComments', projectId],
+    queryFn: async () => {
+      const all = await api.entities.CanvasComment.list('-created_date', 500);
+      return all.filter(c => c.project_id === projectId);
+    },
+    staleTime: 30000,
+    enabled: !!projectId,
+  });
+
+  const commentsByNode = React.useMemo(() => {
+    const map = new Map();
+    for (const comment of comments) {
+      const list = map.get(comment.item_id) || [];
+      list.push(comment);
+      map.set(comment.item_id, list);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0));
+    }
+    return map;
+  }, [comments]);
+
+  const addComment = useMutation({
+    mutationFn: ({ nodeId, content }) => api.entities.CanvasComment.create({
+      item_id: nodeId,
+      project_id: projectId,
+      content,
+      author_email: currentUser?.email || null,
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['canvasComments', projectId] }),
+  });
+
+  const deleteComment = useMutation({
+    mutationFn: (id) => api.entities.CanvasComment.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['canvasComments', projectId] });
+      const previous = queryClient.getQueryData(['canvasComments', projectId]);
+      queryClient.setQueryData(['canvasComments', projectId], old => (old || []).filter(c => c.id !== id));
+      return { previous };
+    },
+    onError: (err, id, context) => {
+      queryClient.setQueryData(['canvasComments', projectId], context?.previous ?? []);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['canvasComments', projectId] }),
+  });
+
+  const submitComment = useCallback(() => {
+    const text = newComment.trim();
+    if (!text || !commentPanel) return;
+    addComment.mutate({ nodeId: commentPanel.nodeId, content: text });
+    setNewComment('');
+  }, [newComment, commentPanel, addComment]);
 
   // Helpers — works for mouse, touch, and pen (PointerEvent)
   const getClientXY = useCallback((e) => {
@@ -499,9 +649,11 @@ export default function MindMap() {
   // Add node
   const addNode = (type = 'node', parentId = null, label = null) => {
     const parent = parentId ? nodes.find(n => n.id === parentId) : null;
-    const color = type === 'decision' 
+    const color = type === 'decision'
       ? { bg: '#f97316', text: '#ffffff' }
-      : NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)];
+      : type === 'sticky'
+        ? STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)]
+        : NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)];
 
     let x, y;
     if (parent) {
@@ -518,11 +670,11 @@ export default function MindMap() {
     const newNode = {
       type,
       x, y,
-      content: type === 'decision' ? 'Ja / Nein?' : 'Neue Idee',
+      content: type === 'decision' ? 'Ja / Nein?' : type === 'sticky' ? 'Notiz' : 'Neue Idee',
       color: color.bg,
       borderColor: color.text,
-      width: type === 'decision' ? 140 : 160,
-      height: type === 'decision' ? 70 : 50,
+      width: type === 'decision' ? 140 : type === 'sticky' ? STICKY_DEFAULT_SIZE : 160,
+      height: type === 'decision' ? 70 : type === 'sticky' ? STICKY_DEFAULT_SIZE : 50,
       is_done: false
     };
 
@@ -619,6 +771,27 @@ export default function MindMap() {
         return;
       }
 
+      // Sticky note resize: deltas are in screen pixels, so divide by zoom.
+      const resize = resizingRef.current;
+      if (resize) {
+        const { clientX, clientY } = getClientXY(e);
+        const z = viewRef.current.zoom || 1;
+        const size = Math.round(
+          Math.min(
+            STICKY_MAX_SIZE,
+            Math.max(
+              STICKY_MIN_SIZE,
+              Math.max(
+                resize.width + (clientX - resize.startX) / z,
+                resize.height + (clientY - resize.startY) / z,
+              ),
+            ),
+          ),
+        );
+        setNodes((prev) => prev.map((n) => (n.id === resize.id ? { ...n, width: size, height: size } : n)));
+        return;
+      }
+
       const pos = getCanvasPos(e);
       mousePosRef.current = pos;
 
@@ -657,6 +830,16 @@ export default function MindMap() {
         if (pointersRef.current.size < 2) pinchRef.current = null;
       }
       setIsPanning(false);
+
+      const resize = resizingRef.current;
+      if (resize) {
+        resizingRef.current = null;
+        const node = nodes.find((n) => n.id === resize.id);
+        if (node && !String(node.id).startsWith("temp_")) {
+          updateNode.mutate({ id: node.id, data: { width: node.width, height: node.height } });
+        }
+        return;
+      }
 
       const dragNode = draggingRef.current;
       if (dragNode) {
@@ -834,11 +1017,67 @@ export default function MindMap() {
       }`}
     >
       
-      {/* Floating toolbar: always visible while panning/zooming */}
+      {/* Floating toolbar: draggable by its grip, collapsible, position remembered per project */}
       <div
-        className={`fixed z-[70] ${isFullscreen ? 'top-2 sm:top-3' : 'top-[4.5rem] sm:top-3'} left-2 sm:left-1/2 sm:-translate-x-1/2`}
+        ref={toolbarRef}
+        className={
+          toolbarPos
+            ? "fixed z-[70]"
+            : `fixed z-[70] ${isFullscreen ? 'top-2 sm:top-3' : 'top-[4.5rem] sm:top-3'} left-2 sm:left-1/2 sm:-translate-x-1/2`
+        }
+        style={toolbarPos ? { left: toolbarPos.x, top: toolbarPos.y } : undefined}
       >
-        <div className="bg-white/95 backdrop-blur-xl shadow-2xl border border-slate-200/80 rounded-xl sm:rounded-2xl p-1.5 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-1">
+        {toolbarCollapsed && (
+          <div className="bg-white/95 backdrop-blur-xl shadow-2xl border border-slate-200/80 rounded-full p-1 flex items-center gap-0.5">
+            <button
+              type="button"
+              onPointerDown={handleToolbarPointerDown}
+              onPointerMove={handleToolbarPointerMove}
+              onPointerUp={handleToolbarPointerUp}
+              onPointerCancel={handleToolbarPointerUp}
+              className="h-8 w-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 cursor-grab active:cursor-grabbing touch-none"
+              title="Leiste verschieben"
+            >
+              <GripHorizontal className="w-4 h-4" />
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setToolbarCollapsed(false)}
+              className="h-8 w-8 rounded-full text-indigo-600 hover:bg-indigo-50"
+              title="Werkzeuge einblenden"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+        <div className={`bg-white/95 backdrop-blur-xl shadow-2xl border border-slate-200/80 rounded-xl sm:rounded-2xl p-1.5 flex-col sm:flex-row items-center gap-1.5 sm:gap-1 ${toolbarCollapsed ? 'hidden' : 'flex'}`}>
+          {/* Drag grip + collapse */}
+          <div className="flex sm:flex-row flex-col items-center gap-0.5">
+            <button
+              type="button"
+              onPointerDown={handleToolbarPointerDown}
+              onPointerMove={handleToolbarPointerMove}
+              onPointerUp={handleToolbarPointerUp}
+              onPointerCancel={handleToolbarPointerUp}
+              className="h-9 w-6 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 cursor-grab active:cursor-grabbing touch-none"
+              title="Leiste verschieben"
+            >
+              <GripHorizontal className="w-4 h-4" />
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setToolbarCollapsed(true)}
+              className="h-7 w-6 rounded-lg text-slate-400 hover:bg-slate-100"
+              title="Leiste einklappen"
+            >
+              <ChevronUp className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="w-full h-px sm:w-px sm:h-7 bg-slate-200" />
+
           {/* Add Buttons */}
           <div className="flex sm:flex-row flex-col items-center gap-1">
             <Button onClick={() => addNode('node')} size="sm" className="bg-indigo-600 hover:bg-indigo-700 h-9 w-9 sm:w-auto sm:px-3 rounded-xl shadow-lg shadow-indigo-200">
@@ -848,6 +1087,10 @@ export default function MindMap() {
             <Button onClick={() => addNode('decision')} size="sm" variant="outline" className="border-orange-300 text-orange-600 hover:bg-orange-50 h-9 w-9 sm:w-auto sm:px-3 rounded-xl">
               <Diamond className="w-4 h-4" />
               <span className="text-xs font-medium hidden md:inline ml-1.5">Frage</span>
+            </Button>
+            <Button onClick={() => addNode('sticky')} size="sm" variant="outline" className="border-amber-300 text-amber-600 hover:bg-amber-50 h-9 w-9 sm:w-auto sm:px-3 rounded-xl" title="Post-it">
+              <StickyNote className="w-4 h-4" />
+              <span className="text-xs font-medium hidden md:inline ml-1.5">Post-it</span>
             </Button>
           </div>
 
@@ -942,11 +1185,22 @@ export default function MindMap() {
               <GitBranch className="w-3 h-3" />
             </Button>
             
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => setNotePanel({ nodeId: selectedNodeId, note: selectedNode.note || '' })} 
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setNotePanel({ nodeId: selectedNodeId, note: selectedNode.note || '' })}
               className="h-7 px-1.5 sm:px-2"
+              title="Notiz"
+            >
+              <StickyNote className="w-3 h-3" />
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setCommentPanel({ nodeId: selectedNodeId }); setNewComment(''); }}
+              className="h-7 px-1.5 sm:px-2 border-amber-300 text-amber-600 hover:bg-amber-50"
+              title="Kommentare"
             >
               <MessageSquare className="w-3 h-3" />
             </Button>
@@ -999,6 +1253,87 @@ export default function MindMap() {
             <button onClick={() => { setConnectingFrom(null); setConnectLabel(null); }} className="hover:bg-white/20 rounded-full p-0.5">
               <X className="w-3 h-3" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Comment thread for a single node */}
+      {commentPanel && (
+        <div className="absolute top-28 sm:top-32 left-2 right-2 sm:left-auto sm:right-4 z-[60] sm:w-80">
+          <div className="bg-white shadow-xl border border-slate-200 rounded-xl flex flex-col max-h-[60vh]">
+            <div className="flex justify-between items-center px-3 py-2 border-b border-slate-100">
+              <span className="font-medium text-slate-700 flex items-center gap-2 text-sm">
+                <MessageSquare className="w-4 h-4 text-amber-500" />
+                Kommentare
+                <span className="text-xs text-slate-400">
+                  {(commentsByNode.get(commentPanel.nodeId) || []).length}
+                </span>
+              </span>
+              <button onClick={() => setCommentPanel(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
+              {(commentsByNode.get(commentPanel.nodeId) || []).length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-4">Noch keine Kommentare</p>
+              ) : (
+                (commentsByNode.get(commentPanel.nodeId) || []).map((comment) => (
+                  <div key={comment.id} className="group bg-slate-50 rounded-lg px-2.5 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-600 truncate">
+                        {(comment.author_email || 'Unbekannt').split('@')[0]}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] text-slate-400">
+                          {comment.created_date
+                            ? new Date(comment.created_date).toLocaleString('de-DE', {
+                                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                              })
+                            : ''}
+                        </span>
+                        {comment.author_email === currentUser?.email && (
+                          <button
+                            onClick={() => deleteComment.mutate(comment.id)}
+                            className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Kommentar löschen"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-0.5">
+                      {comment.content}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex gap-2 p-2 border-t border-slate-100">
+              <Input
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submitComment();
+                  }
+                }}
+                placeholder="Kommentar schreiben..."
+                className="flex-1 min-w-0 h-9"
+              />
+              <Button
+                size="sm"
+                onClick={submitComment}
+                disabled={!newComment.trim() || addComment.isPending}
+                className="bg-amber-500 hover:bg-amber-600 h-9"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -1294,26 +1629,175 @@ export default function MindMap() {
             const isSelected = selectedNodeId === node.id;
             const isEditing = editingNodeId === node.id;
             const isDecision = node.type === 'decision';
+            const isSticky = node.type === 'sticky';
             const isDone = node.is_done;
             const hasNote = !!node.note;
             const hasLinkedTask = !!node.linked_task_id;
             const linkedTask = hasLinkedTask ? tasks.find(t => t.id === node.linked_task_id) : null;
             const fileHubCount = Array.isArray(node.file_hub_refs) ? node.file_hub_refs.length : 0;
+            const commentCount = (commentsByNode.get(node.id) || []).length;
+            const stickySize = node.width || STICKY_DEFAULT_SIZE;
+
+            const openComments = (e) => {
+              e.stopPropagation();
+              setSelectedNodeId(node.id);
+              setCommentPanel({ nodeId: node.id });
+              setNewComment('');
+            };
+            const openFiles = (e) => {
+              e.stopPropagation();
+              setSelectedNodeId(node.id);
+              setFileHubPanel({ nodeId: node.id });
+            };
+            const stopPointer = (e) => e.stopPropagation();
+
+            /** Round, clickable badges — the Miro pattern: icon on the node opens the content. */
+            const badges = (
+              <>
+                {commentCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={openComments}
+                    onPointerDown={stopPointer}
+                    onMouseDown={stopPointer}
+                    className="absolute -top-2 -left-2 min-w-[22px] h-[22px] px-1 bg-amber-400 text-slate-900 rounded-full text-[10px] font-bold flex items-center justify-center gap-0.5 shadow-md hover:bg-amber-300 hover:scale-110 transition-transform"
+                    title={`${commentCount} Kommentar(e) öffnen`}
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    {commentCount > 1 ? <span>{commentCount}</span> : null}
+                  </button>
+                )}
+                {fileHubCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={openFiles}
+                    onPointerDown={stopPointer}
+                    onMouseDown={stopPointer}
+                    className="absolute -bottom-2 -left-2 min-w-[22px] h-[22px] px-1 bg-violet-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center gap-0.5 shadow-md hover:bg-violet-500 hover:scale-110 transition-transform"
+                    title={`${fileHubCount} Datei(en) öffnen`}
+                  >
+                    <Paperclip className="w-3 h-3" />
+                    {fileHubCount > 1 ? <span>{fileHubCount}</span> : null}
+                  </button>
+                )}
+                {hasNote && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedNodeId(node.id);
+                      setNotePanel({ nodeId: node.id, note: node.note || '' });
+                    }}
+                    onPointerDown={stopPointer}
+                    onMouseDown={stopPointer}
+                    className="absolute -bottom-2 -right-2 w-[22px] h-[22px] bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                    title="Notiz öffnen"
+                  >
+                    <StickyNote className="w-3 h-3" />
+                  </button>
+                )}
+                {hasLinkedTask && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenTaskId(node.linked_task_id);
+                    }}
+                    onPointerDown={stopPointer}
+                    onMouseDown={stopPointer}
+                    className="absolute -bottom-2 left-6 w-[22px] h-[22px] bg-blue-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-blue-600 hover:scale-110 transition-transform"
+                    title={linkedTask?.title || 'Ticket öffnen'}
+                  >
+                    <ListTodo className="w-3 h-3" />
+                  </button>
+                )}
+              </>
+            );
 
             return (
               <div
                 key={node.id}
                 data-mindmap-node
                 className={`pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"}`}
-                style={{ left: node.x, top: node.y, width: node.width || 160 }}
+                style={{ left: node.x, top: node.y, width: isSticky ? stickySize : node.width || 160 }}
                 onPointerDown={(e) => handleNodePointerDown(e, node)}
                 onDoubleClick={() => {
                   setEditingNodeId(node.id);
                   setEditText(node.content || "");
                 }}
               >
-                {/* Decision diamond shape */}
-                {isDecision ? (
+                {/* Sticky note */}
+                {isSticky ? (
+                  <div
+                    className={`relative cursor-grab active:cursor-grabbing rounded-sm ${
+                      isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''
+                    }`}
+                    style={{
+                      width: stickySize,
+                      height: node.height || stickySize,
+                      backgroundColor: node.color || STICKY_COLORS[0].bg,
+                      color: node.borderColor || '#1f2937',
+                      boxShadow: '0 10px 20px -8px rgba(15, 23, 42, 0.35), 0 2px 4px rgba(15, 23, 42, 0.15)',
+                    }}
+                  >
+                    <div className="absolute inset-0 p-3 flex items-center justify-center overflow-hidden">
+                      {isEditing ? (
+                        <Textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              saveEdit();
+                            }
+                            if (e.key === 'Escape') {
+                              setEditingNodeId(null);
+                              setEditText('');
+                            }
+                          }}
+                          onBlur={saveEdit}
+                          autoFocus
+                          onClick={stopPointer}
+                          onMouseDown={stopPointer}
+                          onPointerDown={stopPointer}
+                          className="w-full h-full resize-none bg-white/60 border-0 text-slate-900 text-center focus-visible:ring-1"
+                          style={{ fontSize: stickyFontSize(editText, stickySize) }}
+                        />
+                      ) : (
+                        <span
+                          className="w-full text-center font-medium leading-snug break-words [overflow-wrap:anywhere] whitespace-pre-wrap"
+                          style={{ fontSize: stickyFontSize(node.content, stickySize) }}
+                        >
+                          {node.content || 'Doppelklick zum Schreiben'}
+                        </span>
+                      )}
+                    </div>
+
+                    {badges}
+
+                    {/* Resize handle */}
+                    <button
+                      type="button"
+                      title="Groesse aendern"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const { clientX, clientY } = getClientXY(e);
+                        resizingRef.current = {
+                          id: node.id,
+                          startX: clientX,
+                          startY: clientY,
+                          width: stickySize,
+                          height: node.height || stickySize,
+                        };
+                      }}
+                      className="absolute -bottom-1 -right-1 w-4 h-4 cursor-nwse-resize touch-none"
+                    >
+                      <span className="block w-2.5 h-2.5 border-b-2 border-r-2 border-slate-500/60 absolute bottom-1 right-1" />
+                    </button>
+                  </div>
+                ) : isDecision ? (
                   <div
                     className={`relative cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}
                     style={{ width: node.width || 140, height: node.height || 70 }}
@@ -1363,30 +1847,7 @@ export default function MindMap() {
                       )}
                     </div>
                     {isDone && <Check className="absolute -top-1 -right-1 w-5 h-5 text-white bg-green-500 rounded-full p-0.5" />}
-                    {hasNote && <MessageSquare className="absolute -bottom-1 -right-1 w-4 h-4 text-indigo-600 bg-white rounded-full p-0.5" />}
-                    {fileHubCount > 0 && (
-                      <span
-                        className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-0.5 bg-violet-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center shadow"
-                        title={`${fileHubCount} Datei(en) aus File Hub`}
-                      >
-                        <Paperclip className="w-2.5 h-2.5" />
-                      </span>
-                    )}
-                    {hasLinkedTask && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTaskId(node.linked_task_id);
-                        }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="absolute -bottom-1 -left-1 w-5 h-5 bg-blue-500 text-white rounded-full p-0.5 flex items-center justify-center hover:bg-blue-600"
-                        title={linkedTask?.title || 'Ticket öffnen'}
-                      >
-                        <ListTodo className="w-3 h-3" />
-                      </button>
-                    )}
+                    {badges}
                   </div>
                 ) : (
                   /* Regular node */
@@ -1448,31 +1909,7 @@ export default function MindMap() {
                       {isDone && <Check className="w-4 h-4 text-green-600" />}
                     </button>
                     
-                    {hasNote && <MessageSquare className="absolute -bottom-2 -left-2 w-5 h-5 text-indigo-600 bg-white rounded-full p-0.5 shadow" />}
-                    {fileHubCount > 0 && (
-                      <span
-                        className="absolute -top-2 -left-2 min-w-[20px] h-5 px-1 bg-violet-600 text-white rounded-full text-[10px] font-semibold flex items-center justify-center gap-0.5 shadow"
-                        title={`${fileHubCount} Datei(en)`}
-                      >
-                        <Paperclip className="w-3 h-3" />
-                        {fileHubCount > 1 ? <span>{fileHubCount}</span> : null}
-                      </span>
-                    )}
-                    {hasLinkedTask && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTaskId(node.linked_task_id);
-                        }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="absolute -bottom-2 right-6 w-5 h-5 bg-blue-500 text-white rounded-full p-0.5 flex items-center justify-center hover:bg-blue-600 shadow"
-                        title={linkedTask?.title || 'Ticket öffnen'}
-                      >
-                        <ListTodo className="w-3 h-3" />
-                      </button>
-                    )}
+                    {badges}
                   </div>
                 )}
                 
