@@ -174,6 +174,8 @@ export default function MindMap() {
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const [connectingFrom, setConnectingFrom] = useState(null);
   const [connectLabel, setConnectLabel] = useState(null); // 'yes' | 'no' | null
+  const [selectedConnectionId, setSelectedConnectionId] = useState(null);
+  const connectDragRef = useRef(false);
   const mousePosRef = useRef({ x: 0, y: 0 });
   const [, forceRender] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -580,6 +582,27 @@ export default function MindMap() {
     [offset, zoom, getClientXY],
   );
 
+  /** Hit test in board coordinates — used when a connection drag is released. */
+  const nodeAtCanvasPos = useCallback(
+    (pos, excludeId = null) =>
+      [...nodes].reverse().find((n) => {
+        if (n.id === excludeId) return false;
+        const w = n.width || 160;
+        const h = n.height || 50;
+        return pos.x >= n.x && pos.x <= n.x + w && pos.y >= n.y && pos.y <= n.y + h;
+      }) || null,
+    [nodes],
+  );
+
+  const startConnectionDrag = useCallback((e, node, label = null) => {
+    e.stopPropagation();
+    e.preventDefault();
+    connectDragRef.current = true;
+    setConnectingFrom(node);
+    setConnectLabel(label);
+    setSelectedNodeId(node.id);
+  }, []);
+
   const getCenter = (node) => ({
     x: node.x + (node.width || 160) / 2,
     y: node.y + (node.height || 50) / 2
@@ -785,11 +808,12 @@ export default function MindMap() {
       panStartRef.current = { x: clientX - offset.x, y: clientY - offset.y };
       if (!isHandTool) {
         setSelectedNodeId(null);
+        setSelectedConnectionId(null);
         setNotePanel(null);
         setFileHubPanel(null);
       }
     },
-    [offset, getClientXY, beginPinch],
+    [offset, getClientXY, beginPinch, getCanvasPos],
   );
 
   const handlePointerMove = useCallback(
@@ -898,12 +922,39 @@ export default function MindMap() {
         draggingRef.current = null;
       }
 
+      // Released a connection drag: land on a node, or drop in empty space to
+      // create the next node right there.
+      if (connectingFrom && connectDragRef.current) {
+        connectDragRef.current = false;
+        const pos = getCanvasPos(e);
+        const target = nodeAtCanvasPos(pos, connectingFrom.id);
+        if (target) {
+          const exists = connections.some(
+            (c) =>
+              (c.from_item_id === connectingFrom.id && c.to_item_id === target.id) ||
+              (c.from_item_id === target.id && c.to_item_id === connectingFrom.id),
+          );
+          if (!exists) {
+            createConnection.mutate({
+              from_item_id: connectingFrom.id,
+              to_item_id: target.id,
+              label: connectLabel,
+            });
+          }
+        } else {
+          addNodeRef.current?.('node', connectingFrom.id, connectLabel, pos);
+        }
+        setConnectingFrom(null);
+        setConnectLabel(null);
+        return;
+      }
+
       if (connectingFrom) {
         setConnectingFrom(null);
         setConnectLabel(null);
       }
     },
-    [nodes, connectingFrom, updateNode],
+    [nodes, connections, connectingFrom, connectLabel, updateNode, createConnection, getCanvasPos, nodeAtCanvasPos],
   );
 
   const handleNodePointerDown = useCallback(
@@ -938,6 +989,7 @@ export default function MindMap() {
       draggingRef.current = node;
       dragOffsetRef.current = { x: pos.x - node.x, y: pos.y - node.y };
       setSelectedNodeId(node.id);
+      setSelectedConnectionId(null);
     },
     [connectingFrom, connectLabel, connections, getCanvasPos, createConnection],
   );
@@ -970,8 +1022,17 @@ export default function MindMap() {
 
       if (e.key === "Escape") {
         setSelectedNodeId(null);
+        setSelectedConnectionId(null);
         return;
       }
+
+      if (selectedConnectionId && (e.key === "Backspace" || e.key === "Delete")) {
+        e.preventDefault();
+        deleteConnection.mutate(selectedConnectionId);
+        setSelectedConnectionId(null);
+        return;
+      }
+
       if (!selectedNodeId) return;
 
       if (e.key === "Backspace" || e.key === "Delete") {
@@ -1002,7 +1063,7 @@ export default function MindMap() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedNodeId, editingNodeId, nodes, deleteNode]);
+  }, [selectedNodeId, selectedConnectionId, editingNodeId, nodes, deleteNode, deleteConnection]);
 
   const toggleDone = (nodeId) => {
     const node = nodes.find(n => n.id === nodeId);
@@ -1259,98 +1320,111 @@ export default function MindMap() {
         </div>
       </div>
 
-      {/* Selected Node Panel - Mobile optimized */}
-      {selectedNodeId && !editingNodeId && selectedNode && (
-        <div className={`fixed ${isFullscreen ? 'top-14 sm:top-16' : 'top-[8.5rem] sm:top-16'} left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-[70] sm:w-auto`}>
-          <div className="bg-white/95 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-1 sm:p-2 flex items-center justify-center gap-0.5 sm:gap-2 flex-wrap">
-            <Button size="sm" variant="outline" onClick={() => addNode('node', selectedNodeId)} className="gap-1 h-7 px-1.5 sm:px-2 text-xs">
-              <Plus className="w-3 h-3" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setEditingNodeId(selectedNodeId);
-                setEditText(selectedNode.content || "");
-              }}
-              className="inline-flex h-7 px-1.5 sm:px-2 text-xs"
-              title="Text bearbeiten"
-            >
-              <Pencil className="w-3 h-3 sm:mr-1" />
-              <span className="hidden sm:inline">Text</span>
-            </Button>
-            
-            {selectedNode.type === 'decision' && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => { setConnectingFrom(selectedNode); setConnectLabel('yes'); }} className="h-7 px-1.5 sm:px-2 text-xs border-green-300 text-green-600 hover:bg-green-50">
-                  ✓
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => { setConnectingFrom(selectedNode); setConnectLabel('no'); }} className="h-7 px-1.5 sm:px-2 text-xs border-red-300 text-red-600 hover:bg-red-50">
-                  ✗
-                </Button>
-              </>
-            )}
-            
-            <Button size="sm" variant="outline" onClick={() => setConnectingFrom(selectedNode)} className="h-7 px-1.5 sm:px-2">
-              <GitBranch className="w-3 h-3" />
-            </Button>
-            
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setNotePanel({ nodeId: selectedNodeId, note: selectedNode.note || '' })}
-              className="h-7 px-1.5 sm:px-2"
-              title="Notiz"
-            >
-              <StickyNote className="w-3 h-3" />
-            </Button>
+      {/* Context bar: sits right above the selected node instead of at the screen edge */}
+      {selectedNodeId && !editingNodeId && selectedNode && (() => {
+        const nodeW = (selectedNode.width || 160) * zoom;
+        const nodeH = (selectedNode.height || 50) * zoom;
+        const screenX = offset.x + selectedNode.x * zoom;
+        const screenY = offset.y + selectedNode.y * zoom;
+        const above = screenY > 60;
+        const palette = selectedNode.type === 'sticky' ? STICKY_COLORS : NODE_COLORS;
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => { setCommentPanel({ nodeId: selectedNodeId }); setNewComment(''); }}
-              className="h-7 px-1.5 sm:px-2 border-amber-300 text-amber-600 hover:bg-amber-50"
-              title="Kommentare"
+        return (
+          <div
+            className="absolute z-[60] pointer-events-none"
+            style={{
+              left: Math.max(8, screenX + nodeW / 2),
+              top: above ? screenY - 12 : screenY + nodeH + 12,
+              transform: above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+            }}
+          >
+            <div
+              className="pointer-events-auto bg-white/95 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-1 flex items-center gap-0.5"
+              onPointerDown={(e) => e.stopPropagation()}
             >
-              <MessageSquare className="w-3 h-3" />
-            </Button>
-            
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => setTaskLinkPanel({ nodeId: selectedNodeId, taskId: selectedNode.linked_task_id || '' })} 
-              className="h-7 px-1.5 sm:px-2 border-blue-300 text-blue-600 hover:bg-blue-50"
-            >
-              <ListTodo className="w-3 h-3" />
-            </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setEditingNodeId(selectedNodeId);
+                  setEditText(selectedNode.content || "");
+                }}
+                className="h-7 px-2"
+                title="Text bearbeiten (Enter)"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setFileHubPanel({ nodeId: selectedNodeId })}
-              className="h-7 px-1.5 sm:px-2 border-violet-300 text-violet-600 hover:bg-violet-50"
-              title="Datei aus File Hub"
-            >
-              <Paperclip className="w-3 h-3" />
-            </Button>
-            
-            <div className="flex gap-0.5">
-              {NODE_COLORS.slice(0, 4).map(c => (
-                <button
-                  key={c.bg}
-                  className="w-5 h-5 rounded-full border border-white shadow hover:scale-110 active:scale-95"
-                  style={{ backgroundColor: c.bg }}
-                  onClick={() => updateNode.mutate({ id: selectedNodeId, data: { color: c.bg, borderColor: c.text } })}
-                />
-              ))}
+              <div className="w-px h-5 bg-slate-200" />
+
+              <div className="flex gap-0.5 px-1">
+                {palette.slice(0, 5).map((c) => (
+                  <button
+                    key={c.bg}
+                    className={`w-4 h-4 rounded-full border shadow-sm hover:scale-125 active:scale-95 transition-transform ${
+                      selectedNode.color === c.bg ? 'border-slate-700' : 'border-white'
+                    }`}
+                    style={{ backgroundColor: c.bg }}
+                    title="Farbe"
+                    onClick={() => updateNode.mutate({ id: selectedNodeId, data: { color: c.bg, borderColor: c.text } })}
+                  />
+                ))}
+              </div>
+
+              <div className="w-px h-5 bg-slate-200" />
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { setCommentPanel({ nodeId: selectedNodeId }); setNewComment(''); }}
+                className="h-7 px-2 text-amber-600 hover:bg-amber-50"
+                title="Kommentare"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setNotePanel({ nodeId: selectedNodeId, note: selectedNode.note || '' })}
+                className="h-7 px-2 text-slate-600 hover:bg-slate-100"
+                title="Notiz"
+              >
+                <StickyNote className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setFileHubPanel({ nodeId: selectedNodeId })}
+                className="h-7 px-2 text-violet-600 hover:bg-violet-50"
+                title="Datei anhaengen"
+              >
+                <Paperclip className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setTaskLinkPanel({ nodeId: selectedNodeId, taskId: selectedNode.linked_task_id || '' })}
+                className="h-7 px-2 text-blue-600 hover:bg-blue-50"
+                title="Mit Ticket verknuepfen"
+              >
+                <ListTodo className="w-3.5 h-3.5" />
+              </Button>
+
+              <div className="w-px h-5 bg-slate-200" />
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => deleteNode.mutate(selectedNodeId)}
+                className="h-7 px-2 text-red-500 hover:bg-red-50"
+                title="Loeschen (Backspace)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
             </div>
-            
-            <Button size="sm" variant="ghost" onClick={() => deleteNode.mutate(selectedNodeId)} className="text-red-500 hover:bg-red-50 h-7 px-1.5 sm:px-2">
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Placement mode */}
       {pendingTool && (
@@ -1679,6 +1753,7 @@ export default function MindMap() {
               }
 
               const strokeColor = conn.label === 'yes' ? '#22c55e' : conn.label === 'no' ? '#ef4444' : '#94a3b8';
+              const isConnSelected = selectedConnectionId === conn.id;
 
               return (
                 <g key={conn.id}>
@@ -1729,12 +1804,45 @@ export default function MindMap() {
                       </text>
                     </g>
                   )}
-                  {/* Delete button on hover */}
-                  <circle cx={midX} cy={midY + (conn.label ? 20 : 0)} r="10" fill="white" stroke="#ef4444" strokeWidth="2"
-                    className="opacity-0 hover:opacity-100 cursor-pointer pointer-events-auto transition-opacity"
-                    onClick={() => deleteConnection.mutate(conn.id)} />
-                  <text x={midX} y={midY + (conn.label ? 24 : 4)} textAnchor="middle" fontSize="12" fill="#ef4444"
-                    className="opacity-0 hover:opacity-100 pointer-events-none">×</text>
+                  {/* Wide invisible hit area: thin lines are nearly impossible to click */}
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={Math.max(18, 18 / zoom)}
+                    strokeLinecap="round"
+                    className="pointer-events-auto cursor-pointer"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      setSelectedConnectionId(conn.id);
+                      setSelectedNodeId(null);
+                    }}
+                  />
+                  {isConnSelected && (
+                    <>
+                      <path d={path} fill="none" stroke="#6366f1" strokeWidth="5" strokeLinecap="round" opacity="0.35" />
+                      <g
+                        className="pointer-events-auto cursor-pointer"
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          deleteConnection.mutate(conn.id);
+                          setSelectedConnectionId(null);
+                        }}
+                      >
+                        <circle cx={midX} cy={midY + (conn.label ? 22 : 0)} r="11" fill="white" stroke="#ef4444" strokeWidth="2" />
+                        <text
+                          x={midX}
+                          y={midY + (conn.label ? 26 : 4)}
+                          textAnchor="middle"
+                          fontSize="13"
+                          fill="#ef4444"
+                          className="pointer-events-none select-none"
+                        >
+                          ×
+                        </text>
+                      </g>
+                    </>
+                  )}
                 </g>
               );
             })}
@@ -1781,6 +1889,42 @@ export default function MindMap() {
               setFileHubPanel({ nodeId: node.id });
             };
             const stopPointer = (e) => e.stopPropagation();
+
+            /**
+             * Drag handles: pull from a dot onto another node to connect, or into
+             * empty space to create the next node already connected.
+             */
+            const handleDot = (key, positionClass, label = null) => (
+              <button
+                key={key}
+                type="button"
+                onPointerDown={(e) => startConnectionDrag(e, node, label)}
+                className={`absolute ${positionClass} w-3.5 h-3.5 rounded-full border-2 border-white shadow-md transition-opacity touch-none ${
+                  label === 'yes'
+                    ? 'bg-green-500'
+                    : label === 'no'
+                      ? 'bg-red-500'
+                      : 'bg-indigo-500'
+                } ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} cursor-crosshair`}
+                title={label === 'yes' ? 'Ja-Zweig ziehen' : label === 'no' ? 'Nein-Zweig ziehen' : 'Zum Verbinden ziehen'}
+              />
+            );
+
+            const connectHandles = isDecision
+              ? (
+                <>
+                  {handleDot('yes', '-right-2 top-1/2 -translate-y-1/2', 'yes')}
+                  {handleDot('no', 'left-1/2 -bottom-2 -translate-x-1/2', 'no')}
+                </>
+              )
+              : (
+                <>
+                  {handleDot('right', '-right-2 top-1/2 -translate-y-1/2')}
+                  {handleDot('left', '-left-2 top-1/2 -translate-y-1/2')}
+                  {handleDot('top', 'left-1/2 -top-2 -translate-x-1/2')}
+                  {handleDot('bottom', 'left-1/2 -bottom-2 -translate-x-1/2')}
+                </>
+              );
 
             /** Round, clickable badges — the Miro pattern: icon on the node opens the content. */
             const badges = (
@@ -1849,7 +1993,7 @@ export default function MindMap() {
               <div
                 key={node.id}
                 data-mindmap-node
-                className={`pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"}`}
+                className={`group pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"}`}
                 style={{ left: node.x, top: node.y, width: isSticky ? stickySize : node.width || 160 }}
                 onPointerDown={(e) => handleNodePointerDown(e, node)}
                 onDoubleClick={() => {
@@ -1906,6 +2050,7 @@ export default function MindMap() {
                     </div>
 
                     {badges}
+                    {connectHandles}
 
                     {/* Resize handle */}
                     <button
@@ -1979,6 +2124,7 @@ export default function MindMap() {
                     </div>
                     {isDone && <Check className="absolute -top-1 -right-1 w-5 h-5 text-white bg-green-500 rounded-full p-0.5" />}
                     {badges}
+                    {connectHandles}
                   </div>
                 ) : (
                   /* Regular node */
@@ -2041,6 +2187,7 @@ export default function MindMap() {
                     </button>
                     
                     {badges}
+                    {connectHandles}
                   </div>
                 )}
                 
@@ -2086,7 +2233,7 @@ export default function MindMap() {
       <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-auto text-[10px] sm:text-xs text-slate-500 bg-white/90 backdrop-blur px-2 sm:px-3 py-1.5 rounded-lg pointer-events-none max-w-[calc(100vw-1rem)]">
         <span className="sm:hidden">Tipp: Knoten antippen → Stift (oben) zum Schreiben • Ziehen verschiebt • 2 Finger zoomen</span>
         <span className="hidden sm:inline">
-          Doppelklick = Neuer Knoten • Tippen oder Enter = Text • Backspace = Löschen • Scrollen = Bewegen • Cmd/Strg+Scroll = Zoom • Leertaste = Hand
+          Doppelklick = Neuer Knoten • Punkt am Rand ziehen = Verbinden • Tippen oder Enter = Text • Backspace = Löschen • Cmd/Strg+Scroll = Zoom • Leertaste = Hand
         </span>
       </div>
 
