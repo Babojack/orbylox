@@ -162,6 +162,7 @@ export default function MindMap() {
   const [commentPanel, setCommentPanel] = useState(null); // { nodeId }
   const [newComment, setNewComment] = useState('');
   const resizingRef = useRef(null); // { id, startX, startY, width, height }
+  const saveEditRef = useRef(null); // set below; lets pointer handlers commit an open editor
   const [taskLinkPanel, setTaskLinkPanel] = useState(null); // { nodeId, taskId }
   const [fileHubPanel, setFileHubPanel] = useState(null); // { nodeId }
   const [openTaskId, setOpenTaskId] = useState(null); // Task ID für Dialog
@@ -647,7 +648,7 @@ export default function MindMap() {
   }, [nodes, connections, isMobileVertical, originalPositions, setView]);
 
   // Add node
-  const addNode = (type = 'node', parentId = null, label = null) => {
+  const addNode = (type = 'node', parentId = null, label = null, atPos = null) => {
     const parent = parentId ? nodes.find(n => n.id === parentId) : null;
     const color = type === 'decision'
       ? { bg: '#f97316', text: '#ffffff' }
@@ -656,7 +657,11 @@ export default function MindMap() {
         : NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)];
 
     let x, y;
-    if (parent) {
+    if (atPos) {
+      const size = type === 'sticky' ? STICKY_DEFAULT_SIZE : type === 'decision' ? 140 : 160;
+      x = atPos.x - size / 2;
+      y = atPos.y - (type === 'sticky' ? size / 2 : 25);
+    } else if (parent) {
       const siblings = connections.filter(c => c.from_item_id === parentId).length;
       // Horizontal layout (default)
       x = parent.x + 220;
@@ -684,10 +689,12 @@ export default function MindMap() {
           if (parentId) {
             createConnection.mutate({ from_item_id: parentId, to_item_id: data.id, label: label || null });
           }
+          setSelectedNodeId(data.id);
           if (shouldAutoEditNewNode()) {
             setTimeout(() => {
               setEditingNodeId(data.id);
-              setEditText(newNode.content);
+              // Empty, so the first keystroke replaces the placeholder text.
+              setEditText("");
             }, 50);
           }
         }
@@ -712,6 +719,9 @@ export default function MindMap() {
 
   const handleCanvasPointerDown = useCallback(
     (e) => {
+      // Clicking the canvas commits an open editor — preventDefault below would
+      // otherwise swallow the blur and leave the text field active.
+      saveEditRef.current?.();
       if (e.pointerType === "touch") {
         pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointersRef.current.size >= 2) {
@@ -863,6 +873,10 @@ export default function MindMap() {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       // Hand tool active: let the event bubble so the canvas pans instead of dragging the node.
       if (spacePanRef.current) return;
+      // Switching to another node closes and saves the current editor.
+      if (editingNodeIdRef.current && editingNodeIdRef.current !== node.id) {
+        saveEditRef.current?.();
+      }
       e.stopPropagation();
       e.preventDefault();
 
@@ -903,6 +917,54 @@ export default function MindMap() {
       updateNode.mutate({ id: nodeId, data: { content: text } });
     }
   }, [editingNodeId, editText, updateNode]);
+
+  const editingNodeIdRef = useRef(null);
+  useEffect(() => {
+    editingNodeIdRef.current = editingNodeId;
+    saveEditRef.current = editingNodeId ? saveEdit : null;
+  }, [editingNodeId, saveEdit]);
+
+  // Keyboard on the board itself: delete, edit, deselect — no toolbar detour.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (isTypingTarget(e.target)) return;
+      if (editingNodeId) return;
+
+      if (e.key === "Escape") {
+        setSelectedNodeId(null);
+        return;
+      }
+      if (!selectedNodeId) return;
+
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        deleteNode.mutate(selectedNodeId);
+        setSelectedNodeId(null);
+        setNotePanel(null);
+        setCommentPanel(null);
+        setFileHubPanel(null);
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === "F2") {
+        e.preventDefault();
+        const node = nodes.find((n) => n.id === selectedNodeId);
+        setEditingNodeId(selectedNodeId);
+        setEditText(node?.content || "");
+        return;
+      }
+
+      // Typing on a selected node starts editing and replaces the text, like Miro.
+      if (e.key.length === 1 && e.key !== " " && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setEditingNodeId(selectedNodeId);
+        setEditText(e.key);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedNodeId, editingNodeId, nodes, deleteNode]);
 
   const toggleDone = (nodeId) => {
     const node = nodes.find(n => n.id === nodeId);
@@ -1479,6 +1541,10 @@ export default function MindMap() {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onAuxClick={(e) => e.preventDefault()}
+        onDoubleClick={(e) => {
+          if (e.target.closest?.("[data-mindmap-node]")) return;
+          addNode("node", null, null, getCanvasPos(e));
+        }}
       >
         {/* SVG for connections */}
         <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
@@ -1955,7 +2021,7 @@ export default function MindMap() {
       <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-auto text-[10px] sm:text-xs text-slate-500 bg-white/90 backdrop-blur px-2 sm:px-3 py-1.5 rounded-lg pointer-events-none max-w-[calc(100vw-1rem)]">
         <span className="sm:hidden">Tipp: Knoten antippen → Stift (oben) zum Schreiben • Ziehen verschiebt • 2 Finger zoomen</span>
         <span className="hidden sm:inline">
-          Scrollen = Bewegen • Shift+Scroll = seitlich • Cmd/Strg+Scroll = Zoom • Leertaste oder Mausrad-Klick = Hand • Shift+1 = Alles zeigen
+          Doppelklick = Neuer Knoten • Tippen oder Enter = Text • Backspace = Löschen • Scrollen = Bewegen • Cmd/Strg+Scroll = Zoom • Leertaste = Hand
         </span>
       </div>
 
