@@ -2,8 +2,12 @@
 declare(strict_types=1);
 
 /**
- * POST JSON: { "to": "email", "projectId": "...", "appUrl": "https://orbylox.de", "subject": "...", "bodyText": "..." }
- * Header: X-Invite-Api-Key: <same as invite-config api_key>
+ * POST JSON: { "to", "projectId", "appUrl", "language", "projectName", "inviterName" }
+ * Header:    Authorization: Bearer <Firebase ID token>
+ *
+ * The caller must be signed in AND able to read the project — checked against the
+ * Firestore rules — so this endpoint cannot be abused as an open mail relay.
+ * A legacy X-Invite-Api-Key is still accepted when invite-config.php defines one.
  *
  * Requires: composer install in this directory (vendor/autoload.php).
  */
@@ -53,7 +57,7 @@ function corsHeaders(string $origin, array $allowed): void
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     corsHeaders($origin, $allowed);
     header('Access-Control-Allow-Methods: POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, X-Invite-Api-Key');
+    header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Invite-Api-Key');
     header('Access-Control-Max-Age: 86400');
     http_response_code(204);
     exit;
@@ -61,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 corsHeaders($origin, $allowed);
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, X-Invite-Api-Key');
+header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Invite-Api-Key');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -69,11 +73,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$key = $_SERVER['HTTP_X_INVITE_API_KEY'] ?? '';
-if ($key === '' || !hash_equals((string)($config['api_key'] ?? ''), $key)) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Forbidden']);
-    exit;
+require_once __DIR__ . '/firebase-auth.php';
+
+$firebaseProjectId = (string)($config['firebase_project_id'] ?? 'orbylox');
+$legacyKey = $_SERVER['HTTP_X_INVITE_API_KEY'] ?? '';
+$configuredKey = (string)($config['api_key'] ?? '');
+$authorized = false;
+
+if ($legacyKey !== '' && $configuredKey !== '' && hash_equals($configuredKey, $legacyKey)) {
+    $authorized = true; // legacy path, kept so older builds keep working
+} else {
+    $inviter = requireFirebaseUser($firebaseProjectId);
+    $authorized = true;
 }
 
 $raw = file_get_contents('php://input');
@@ -102,6 +113,14 @@ if ($projectId === '') {
     http_response_code(400);
     echo json_encode(['error' => 'Missing projectId']);
     exit;
+}
+if (isset($inviter) && !orbyloxCanAccessProject($inviter['token'], $firebaseProjectId, $projectId)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Kein Zugriff auf dieses Projekt.']);
+    exit;
+}
+if ($inviterName === '' && isset($inviter['email']) && $inviter['email']) {
+    $inviterName = (string)$inviter['email'];
 }
 
 require_once __DIR__ . '/invite-template.php';

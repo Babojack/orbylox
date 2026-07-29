@@ -112,10 +112,13 @@ export default function ProjectMembersManager({ projectId }) {
           ? `✅ ${email} wurde zum Projekt hinzugefügt!\nEinladung wurde per E-Mail gesendet.`
           : `✅ ${email} added to project!\nInvitation sent via email.`);
       } catch (emailError) {
+        // Silently pretending the invite went out is how a broken mail setup
+        // stays unnoticed for weeks — say what actually happened.
         console.error('Email send failed:', emailError);
-        alert(isGerman 
-          ? `✅ ${email} wurde zum Projekt hinzugefügt!`
-          : `✅ ${email} added to project!`);
+        const reason = emailError?.message || 'Unbekannter Fehler';
+        alert(isGerman
+          ? `✅ ${email} wurde zum Projekt hinzugefügt.\n\n⚠️ Die Einladungs-E-Mail konnte NICHT gesendet werden:\n${reason}\n\nBitte den Link manuell weitergeben:\n${window.location.origin}/login?project=${encodeURIComponent(projectId)}`
+          : `✅ ${email} added to project.\n\n⚠️ The invitation email could NOT be sent:\n${reason}\n\nPlease share this link manually:\n${window.location.origin}/login?project=${encodeURIComponent(projectId)}`);
       }
       setEmail("");
     } catch (error) {

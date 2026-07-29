@@ -1405,19 +1405,26 @@ export const api = {
         const url =
           import.meta.env.VITE_INVITE_EMAIL_URL ||
           (typeof window !== "undefined" ? `${window.location.origin}/api/send-invite.php` : "");
-        const apiKey = import.meta.env.VITE_INVITE_API_KEY || "";
         if (!url) {
-          throw new Error("Invite email URL missing (VITE_INVITE_EMAIL_URL).");
+          throw new Error("Invite-Endpoint fehlt (VITE_INVITE_EMAIL_URL).");
         }
-        if (!apiKey) {
-          throw new Error("Invite API key missing (VITE_INVITE_API_KEY).");
+
+        // Firebase ID token authorises the call; the old shared key is only sent
+        // when a deployment still relies on it.
+        const headers = { "Content-Type": "application/json" };
+        const apiKey = import.meta.env.VITE_INVITE_API_KEY || "";
+        if (apiKey) headers["X-Invite-Api-Key"] = apiKey;
+
+        const currentUser = firebaseAuth?.currentUser;
+        if (currentUser) {
+          headers.Authorization = `Bearer ${await currentUser.getIdToken()}`;
+        } else if (!apiKey) {
+          throw new Error("Nicht angemeldet – Einladung kann nicht gesendet werden.");
         }
+
         const res = await fetch(url, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Invite-Api-Key": apiKey,
-          },
+          headers,
           body: JSON.stringify(payload),
         });
         const text = await res.text();
