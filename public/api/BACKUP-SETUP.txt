@@ -1,0 +1,74 @@
+ORBYLOX – Voll-Backups (Projektdaten + Dateien) auf Hostinger
+
+Was ein Backup enthält
+----------------------
+Ein Backup ist genau eine ZIP-Datei:
+
+  data.json      alle Firestore-Sammlungen des Projekts (Tasks, Subtasks, Task-
+                 Kommentare, Dokumente, Datei-Einträge, Ordner, Posts, Post-
+                 Kommentare, Nachrichten, Termine, Canvas-Elemente, Canvas-
+                 Verbindungen, Canvas-Kommentare, Kanban-Boards, Startup-Schritte
+                 und -Journeys, Ideen, Integrationen) plus die Projektfelder
+  files/…        die echten hochgeladenen Dateien, mit Original-Pfad
+  manifest.json  wie viele Dateien enthalten waren, welche extern liegen und
+                 welche auf dem Server fehlten
+
+Weil die Pfade erhalten bleiben, legt die Wiederherstellung jede Datei wieder
+genau dorthin, wohin die gespeicherte URL zeigt. Das Projekt kommt 1:1 zurück,
+Links inklusive.
+
+
+Einrichtung
+-----------
+1) Auf den Webspace laden:
+     public_html/api/backup.php
+     public_html/api/firebase-auth.php        (gemeinsame Token-Prüfung, Pflicht)
+     (optional) public_html/api/backup-config.php
+
+2) Frontend .env (Build-Zeit!):
+     VITE_BACKUP_API_URL=https://orbylox.de/api/backup.php
+   Danach npm run build und dist/ deployen.
+
+3) Voraussetzungen auf dem Server:
+     - PHP-Erweiterung "zip" (bei Hostinger standardmäßig aktiv)
+     - Schreibrechte für den Backup-Ordner
+
+4) Ablageort der ZIPs
+   Standard: ein Ordner orbylox-backups NEBEN public_html, also außerhalb des
+   Webroots – damit ist kein Backup über eine URL erreichbar. Klappt das Anlegen
+   nicht, weicht das Skript auf public_html/orbylox-backups aus und legt dort
+   eine .htaccess ab, die den Zugriff sperrt.
+   Eigener Pfad: in backup-config.php 'backup_dir' setzen.
+
+
+Berechtigungen
+--------------
+Jeder Aufruf braucht ein gültiges Firebase-ID-Token. Zusätzlich fragt backup.php
+mit genau diesem Token das Projekt-Dokument über die Firestore-REST-API ab:
+Wer das Projekt laut deiner firestore.rules lesen darf, darf auch Backups
+erstellen, herunterladen und zurückspielen – ein zweites Rechtesystem entfällt.
+
+
+Bedienung in der App
+--------------------
+- Backups-Dialog im Projekt öffnen
+- "Backup erstellen" packt sofort ein neues ZIP
+- Beim Öffnen eines Projekts entsteht automatisch ein Backup, wenn das letzte
+  älter als 24 Stunden ist. Es wird nichts automatisch gelöscht.
+- Download-Symbol lädt das ZIP herunter (empfohlen: regelmäßig eine Kopie
+  außerhalb des Servers ablegen)
+- "Wiederherstellen" ersetzt den aktuellen Projektstand vollständig. Ab drei
+  Teammitgliedern müssen zwei Personen bestätigen.
+
+
+Grenzen
+-------
+- Die Wiederherstellung legt Dokumente neu an; sie bekommen neue Firestore-IDs.
+  Verweise innerhalb des Projekts (z. B. Canvas-Verbindungen auf Knoten-IDs)
+  können dadurch brechen, wenn das Backup älter als die aktuelle Datenstruktur
+  ist. Für den Normalfall "Projekt komplett zurückholen" ist das unkritisch,
+  weil alle Daten zusammen ersetzt werden.
+- Dateien, die nicht auf orbylox.de liegen (alte Cloudinary-Uploads, data:-URLs),
+  können nicht mitgesichert werden. Sie stehen als "extern" im manifest.json.
+- Sehr große Projekte brauchen entsprechend Platz auf dem Webspace; es wird
+  bewusst nichts automatisch gelöscht.

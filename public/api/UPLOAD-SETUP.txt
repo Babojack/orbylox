@@ -11,6 +11,8 @@ aus dem Request – niemand kann in einen fremden Ordner schreiben.
 
 1) Dateien auf den Webspace laden
    public_html/api/upload.php
+   public_html/api/firebase-auth.php              – Pflicht, enthält die Token-Prüfung
+   public_html/api/backup.php                     – Voll-Backups (siehe unten)
    (optional) public_html/api/upload-config.php   – nur wenn Pfade abweichen,
                                                      Vorlage: upload-config.example.php
 
