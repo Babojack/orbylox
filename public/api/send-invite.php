@@ -14,10 +14,30 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 
-$configPath = __DIR__ . '/invite-config.php';
-if (!is_file($configPath)) {
+/**
+ * The config is looked up outside the deployed folder first: dist/ replaces
+ * public_html/api on every deploy, and a config living there gets wiped.
+ * Recommended location: one level above public_html.
+ */
+$configCandidates = [
+    dirname(dirname(__DIR__)) . '/invite-config.php', // …/orbylox-config next to public_html
+    dirname(__DIR__) . '/invite-config.php',          // public_html/invite-config.php
+    __DIR__ . '/invite-config.php',                   // public_html/api/invite-config.php
+];
+
+$configPath = null;
+foreach ($configCandidates as $candidate) {
+    if (is_file($candidate)) {
+        $configPath = $candidate;
+        break;
+    }
+}
+
+if ($configPath === null) {
     http_response_code(500);
-    echo json_encode(['error' => 'invite-config.php missing. Copy invite-config.example.php to invite-config.php']);
+    echo json_encode([
+        'error' => 'invite-config.php nicht gefunden. Erwartet in: ' . implode(' | ', $configCandidates),
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
