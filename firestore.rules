@@ -40,6 +40,16 @@ service cloud.firestore {
       return isUidOwner(resource) || isOwner(resource);
     }
 
+    /**
+     * Members are not project owners, but the work timer has to write its
+     * counter back. Allow exactly those three fields and nothing else.
+     */
+    function timerOnlyUpdate(resource) {
+      return isMember(resource)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['tracked_time_ms', 'last_worked_at', 'updated_date']);
+    }
+
     function projectSnap(projectId) {
       return get(/databases/$(database)/documents/Project/$(projectId));
     }
@@ -176,7 +186,8 @@ service cloud.firestore {
             && request.resource.data.created_by.lower() == authEmailLower()
           )
         );
-      allow update, delete: if canWriteProject(resource);
+      allow update: if canWriteProject(resource) || timerOnlyUpdate(resource);
+      allow delete: if canWriteProject(resource);
     }
 
     match /Waitlist/{id} {
@@ -243,6 +254,12 @@ service cloud.firestore {
       allow create: if projectScopedCreate() || postScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
       allow update: if projectScopedUpdate(resource) || postScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow delete: if projectScopedDelete(resource) || postScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+    match /CanvasComment/{docId} {
+      allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if projectScopedCreate() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if projectScopedUpdate(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if projectScopedDelete(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
     match /Message/{docId} {
       allow read: if projectScopedRead(resource) || (isSignedIn() && resource.data.userId == request.auth.uid);

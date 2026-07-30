@@ -1,12 +1,29 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ZoomIn, ZoomOut, RotateCcw, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, AlignVerticalJustifyStart, Pencil, Paperclip, FileText } from 'lucide-react';
+import { Plus, Trash2, ZoomIn, ZoomOut, GitBranch, Lightbulb, X, Check, Diamond, StickyNote, MessageSquare, ListTodo, Maximize2, Minimize2, Move, Pencil, Paperclip, FileText, GripHorizontal, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import TaskDetailDialog from "@/components/kanban/TaskDetailDialog";
+
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 4;
+const clampZoom = (z) => Math.min(Math.max(z, MIN_ZOOM), MAX_ZOOM);
+
+/** Wheel deltas arrive in pixels, lines or pages depending on device. */
+function wheelDeltaToPixels(delta, deltaMode) {
+  if (deltaMode === 1) return delta * 16;
+  if (deltaMode === 2) return delta * 400;
+  return delta;
+}
+
+function isTypingTarget(target) {
+  if (!target || !target.tagName) return false;
+  const tag = target.tagName.toUpperCase();
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+}
 
 const NODE_COLORS = [
   { bg: '#6366f1', text: '#ffffff' },
@@ -17,6 +34,34 @@ const NODE_COLORS = [
   { bg: '#3b82f6', text: '#ffffff' },
 ];
 
+// Paper-like tones for sticky notes; text stays dark so handwriting-style notes stay readable.
+const STICKY_COLORS = [
+  { bg: '#fde68a', text: '#1f2937' },
+  { bg: '#bbf7d0', text: '#1f2937' },
+  { bg: '#fbcfe8', text: '#1f2937' },
+  { bg: '#bfdbfe', text: '#1f2937' },
+  { bg: '#fed7aa', text: '#1f2937' },
+  { bg: '#e9d5ff', text: '#1f2937' },
+];
+
+const STICKY_DEFAULT_SIZE = 180;
+const MAX_NODE_SIZE = 800;
+
+/** Smallest sensible box per shape, so nothing can be shrunk into an unusable dot. */
+function minSizeForType(type) {
+  if (type === 'sticky') return { width: 90, height: 90 };
+  if (type === 'decision') return { width: 90, height: 60 };
+  return { width: 80, height: 40 };
+}
+const TOOLBAR_STORAGE_PREFIX = 'orbylox_canvas_toolbar_';
+
+/** Text shrinks as it grows longer and scales with the box, like Miro's auto-fit. */
+function autoFontSize(text, width, height, { min = 10, max = 28 } = {}) {
+  const length = Math.max((text || '').length, 1);
+  const box = Math.sqrt(Math.max(width, 1) * Math.max(height, 1));
+  return Math.max(min, Math.min(max, (box / Math.sqrt(length)) * 0.9));
+}
+
 export default function MindMap() {
   const queryClient = useQueryClient();
   const canvasRef = useRef(null);
@@ -26,6 +71,92 @@ export default function MindMap() {
   const [zoom, setZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
+
+  // Viewport is mirrored in a ref: wheel/keyboard handlers need the current value
+  // synchronously, and rendering only once per frame keeps zooming smooth.
+  const viewRef = useRef({ offset: { x: 0, y: 0 }, zoom: 1 });
+  const rafRef = useRef(null);
+  const [isSpacePan, setIsSpacePan] = useState(false);
+  const spacePanRef = useRef(false);
+  const fitToViewRef = useRef(null);
+  // Active touch pointers for two-finger pinch/pan.
+  const pointersRef = useRef(new Map());
+  const pinchRef = useRef(null);
+  // State (not just a ref) so the wheel effect re-runs once the canvas is mounted.
+  const [canvasEl, setCanvasEl] = useState(null);
+  const attachCanvasRef = useCallback((el) => {
+    canvasRef.current = el;
+    setCanvasEl(el);
+  }, []);
+
+  /* ------------------------------------------------- movable toolbar */
+  const toolbarRef = useRef(null);
+  const toolbarDragRef = useRef(null);
+  const [toolbarPos, setToolbarPos] = useState(null); // null = default position
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
+  const toolbarStorageKey = `${TOOLBAR_STORAGE_PREFIX}${projectId || 'default'}`;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(toolbarStorageKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved?.pos && typeof saved.pos.x === 'number') setToolbarPos(saved.pos);
+      setToolbarCollapsed(!!saved?.collapsed);
+    } catch {
+      /* ignore malformed prefs */
+    }
+  }, [toolbarStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(
+        toolbarStorageKey,
+        JSON.stringify({ pos: toolbarPos, collapsed: toolbarCollapsed }),
+      );
+    } catch {
+      /* storage full or blocked — position just won't persist */
+    }
+  }, [toolbarPos, toolbarCollapsed, toolbarStorageKey]);
+
+  const handleToolbarPointerDown = useCallback((e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = toolbarRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    toolbarDragRef.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleToolbarPointerMove = useCallback((e) => {
+    const drag = toolbarDragRef.current;
+    if (!drag) return;
+    const rect = toolbarRef.current?.getBoundingClientRect();
+    const width = rect?.width || 240;
+    const height = rect?.height || 48;
+    const maxX = Math.max(4, window.innerWidth - width - 4);
+    const maxY = Math.max(4, window.innerHeight - height - 4);
+    setToolbarPos({
+      x: Math.min(Math.max(e.clientX - drag.dx, 4), maxX),
+      y: Math.min(Math.max(e.clientY - drag.dy, 4), maxY),
+    });
+  }, []);
+
+  const handleToolbarPointerUp = useCallback((e) => {
+    toolbarDragRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   
   const [nodes, setNodes] = useState([]);
   const [connections, setConnections] = useState([]);
@@ -34,6 +165,13 @@ export default function MindMap() {
   const [editingNodeId, setEditingNodeId] = useState(null);
   const [editText, setEditText] = useState('');
   const [notePanel, setNotePanel] = useState(null); // { nodeId, note }
+  const [commentPanel, setCommentPanel] = useState(null); // { nodeId }
+  const [newComment, setNewComment] = useState('');
+  const resizingRef = useRef(null); // { id, startX, startY, width, height }
+  const saveEditRef = useRef(null); // set below; lets pointer handlers commit an open editor
+  const [pendingTool, setPendingTool] = useState(null); // 'sticky' | 'node' | 'decision' — placed on next click
+  const pendingToolRef = useRef(null);
+  const addNodeRef = useRef(null);
   const [taskLinkPanel, setTaskLinkPanel] = useState(null); // { nodeId, taskId }
   const [fileHubPanel, setFileHubPanel] = useState(null); // { nodeId }
   const [openTaskId, setOpenTaskId] = useState(null); // Task ID für Dialog
@@ -42,11 +180,11 @@ export default function MindMap() {
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const [connectingFrom, setConnectingFrom] = useState(null);
   const [connectLabel, setConnectLabel] = useState(null); // 'yes' | 'no' | null
+  const [selectedConnectionId, setSelectedConnectionId] = useState(null);
+  const connectDragRef = useRef(false);
   const mousePosRef = useRef({ x: 0, y: 0 });
   const [, forceRender] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMobileVertical, setIsMobileVertical] = useState(false); // Track if currently in vertical mode
-  const [originalPositions, setOriginalPositions] = useState(null); // Store original positions for restore
 
   const shouldAutoEditNewNode = useCallback(() => {
     if (typeof window === 'undefined') return true;
@@ -233,6 +371,62 @@ export default function MindMap() {
     // НЕ делаем invalidateQueries
   });
 
+  /* --------------------------------------------------- node comment threads */
+
+  const { data: comments = [] } = useQuery({
+    queryKey: ['canvasComments', projectId],
+    queryFn: async () => {
+      const all = await api.entities.CanvasComment.list('-created_date', 500);
+      return all.filter(c => c.project_id === projectId);
+    },
+    staleTime: 30000,
+    enabled: !!projectId,
+  });
+
+  const commentsByNode = React.useMemo(() => {
+    const map = new Map();
+    for (const comment of comments) {
+      const list = map.get(comment.item_id) || [];
+      list.push(comment);
+      map.set(comment.item_id, list);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0));
+    }
+    return map;
+  }, [comments]);
+
+  const addComment = useMutation({
+    mutationFn: ({ nodeId, content }) => api.entities.CanvasComment.create({
+      item_id: nodeId,
+      project_id: projectId,
+      content,
+      author_email: currentUser?.email || null,
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['canvasComments', projectId] }),
+  });
+
+  const deleteComment = useMutation({
+    mutationFn: (id) => api.entities.CanvasComment.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['canvasComments', projectId] });
+      const previous = queryClient.getQueryData(['canvasComments', projectId]);
+      queryClient.setQueryData(['canvasComments', projectId], old => (old || []).filter(c => c.id !== id));
+      return { previous };
+    },
+    onError: (err, id, context) => {
+      queryClient.setQueryData(['canvasComments', projectId], context?.previous ?? []);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['canvasComments', projectId] }),
+  });
+
+  const submitComment = useCallback(() => {
+    const text = newComment.trim();
+    if (!text || !commentPanel) return;
+    addComment.mutate({ nodeId: commentPanel.nodeId, content: text });
+    setNewComment('');
+  }, [newComment, commentPanel, addComment]);
+
   // Helpers — works for mouse, touch, and pen (PointerEvent)
   const getClientXY = useCallback((e) => {
     if (e && typeof e.clientX === "number" && !Number.isNaN(e.clientX)) {
@@ -242,6 +436,142 @@ export default function MindMap() {
     if (te) return { clientX: te.clientX, clientY: te.clientY };
     return { clientX: 0, clientY: 0 };
   }, []);
+
+  // Keep the mirror in sync when the viewport is changed outside the handlers below.
+  useEffect(() => {
+    viewRef.current = { offset, zoom };
+  }, [offset, zoom]);
+
+  useEffect(() => () => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  const setView = useCallback((next) => {
+    viewRef.current = next;
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      setOffset(viewRef.current.offset);
+      setZoom(viewRef.current.zoom);
+    });
+  }, []);
+
+  /** Zoom while keeping the point under the cursor fixed — the Miro/Figma behaviour. */
+  const zoomAtClientPoint = useCallback(
+    (factor, clientX, clientY) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const { offset: o, zoom: z } = viewRef.current;
+      const nextZoom = clampZoom(z * factor);
+      if (nextZoom === z) return;
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
+      const ratio = nextZoom / z;
+      setView({
+        zoom: nextZoom,
+        offset: { x: mx - (mx - o.x) * ratio, y: my - (my - o.y) * ratio },
+      });
+    },
+    [setView],
+  );
+
+  const zoomAtViewportCenter = useCallback(
+    (factor) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      zoomAtClientPoint(factor, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    },
+    [zoomAtClientPoint],
+  );
+
+  const resetZoomKeepingCenter = useCallback(() => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const { zoom: z } = viewRef.current;
+    zoomAtClientPoint(1 / z, rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }, [zoomAtClientPoint]);
+
+  // Native listener with passive:false — React attaches onWheel passively, so
+  // preventDefault() there is ignored and the browser zooms the whole page instead.
+  useEffect(() => {
+    const el = canvasEl;
+    if (!el) return undefined;
+
+    const onWheel = (e) => {
+      e.preventDefault();
+
+      // Trackpad pinch arrives as ctrlKey+wheel; cmd/ctrl+wheel is the mouse equivalent.
+      if (e.ctrlKey || e.metaKey) {
+        const dy = wheelDeltaToPixels(e.deltaY, e.deltaMode);
+        zoomAtClientPoint(Math.exp(-dy * 0.01), e.clientX, e.clientY);
+        return;
+      }
+
+      let dx = wheelDeltaToPixels(e.deltaX, e.deltaMode);
+      let dy = wheelDeltaToPixels(e.deltaY, e.deltaMode);
+      if (e.shiftKey && dx === 0) {
+        dx = dy;
+        dy = 0;
+      }
+      if (dx === 0 && dy === 0) return;
+
+      const { offset: o, zoom: z } = viewRef.current;
+      setView({ zoom: z, offset: { x: o.x - dx, y: o.y - dy } });
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [canvasEl, zoomAtClientPoint, setView]);
+
+  // Space = temporary hand tool, plus the usual zoom shortcuts.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (isTypingTarget(e.target)) return;
+
+      if (e.code === "Space" && !spacePanRef.current) {
+        e.preventDefault();
+        spacePanRef.current = true;
+        setIsSpacePan(true);
+        return;
+      }
+
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        zoomAtViewportCenter(1.2);
+      } else if (mod && (e.key === "-" || e.key === "_")) {
+        e.preventDefault();
+        zoomAtViewportCenter(1 / 1.2);
+      } else if (mod && e.key === "0") {
+        e.preventDefault();
+        resetZoomKeepingCenter();
+      } else if (e.shiftKey && e.key === "1") {
+        e.preventDefault();
+        fitToViewRef.current?.();
+      }
+    };
+
+    const onKeyUp = (e) => {
+      if (e.code === "Space") {
+        spacePanRef.current = false;
+        setIsSpacePan(false);
+      }
+    };
+
+    const onBlur = () => {
+      spacePanRef.current = false;
+      setIsSpacePan(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [zoomAtViewportCenter, resetZoomKeepingCenter]);
 
   const getCanvasPos = useCallback(
     (e) => {
@@ -256,86 +586,47 @@ export default function MindMap() {
     [offset, zoom, getClientXY],
   );
 
+  /** Hit test in board coordinates — used when a connection drag is released. */
+  const nodeAtCanvasPos = useCallback(
+    (pos, excludeId = null) =>
+      [...nodes].reverse().find((n) => {
+        if (n.id === excludeId) return false;
+        const w = n.width || 160;
+        const h = n.height || 50;
+        return pos.x >= n.x && pos.x <= n.x + w && pos.y >= n.y && pos.y <= n.y + h;
+      }) || null,
+    [nodes],
+  );
+
+  const startConnectionDrag = useCallback((e, node, label = null) => {
+    e.stopPropagation();
+    e.preventDefault();
+    connectDragRef.current = true;
+    setConnectingFrom(node);
+    setConnectLabel(label);
+    setSelectedNodeId(node.id);
+  }, []);
+
   const getCenter = (node) => ({
     x: node.x + (node.width || 160) / 2,
     y: node.y + (node.height || 50) / 2
   });
 
-  // Toggle between vertical and original layout
-  const toggleVerticalLayout = useCallback(() => {
-    if (nodes.length === 0) return;
-
-    if (isMobileVertical && originalPositions) {
-      // Restore original positions
-      setNodes(prev => prev.map(n => {
-        const orig = originalPositions.find(o => o.id === n.id);
-        return orig ? { ...n, x: orig.x, y: orig.y } : n;
-      }));
-      setIsMobileVertical(false);
-      setOriginalPositions(null);
-      fitToView();
-    } else {
-      // Save current positions and arrange vertically
-      setOriginalPositions(nodes.map(n => ({ id: n.id, x: n.x, y: n.y })));
-
-      // Find root nodes (nodes without incoming connections)
-      const hasIncoming = new Set(connections.map(c => c.to_item_id));
-      const rootNodes = nodes.filter(n => !hasIncoming.has(n.id));
-
-      // BFS to arrange
-      const visited = new Set();
-      const updates = [];
-      let currentY = 50;
-      const centerX = 100;
-
-      const queue = rootNodes.length > 0 ? [...rootNodes] : [nodes[0]];
-
-      while (queue.length > 0) {
-        const node = queue.shift();
-        if (visited.has(node.id)) continue;
-        visited.add(node.id);
-
-        updates.push({ id: node.id, x: centerX, y: currentY });
-        currentY += (node.height || 60) + 50;
-
-        // Find children
-        const children = connections
-          .filter(c => c.from_item_id === node.id)
-          .map(c => nodes.find(n => n.id === c.to_item_id))
-          .filter(Boolean);
-
-        queue.push(...children);
-      }
-
-      // Add any unvisited nodes
-      nodes.forEach(n => {
-        if (!visited.has(n.id)) {
-          updates.push({ id: n.id, x: centerX, y: currentY });
-          currentY += (n.height || 60) + 50;
-        }
-      });
-
-      // Apply updates (local only, don't save to server)
-      setNodes(prev => prev.map(n => {
-        const update = updates.find(u => u.id === n.id);
-        return update ? { ...n, x: update.x, y: update.y } : n;
-      }));
-
-      setIsMobileVertical(true);
-      setOffset({ x: 20, y: 20 });
-      setZoom(1);
-    }
-  }, [nodes, connections, isMobileVertical, originalPositions]);
-
   // Add node
-  const addNode = (type = 'node', parentId = null, label = null) => {
+  const addNode = (type = 'node', parentId = null, label = null, atPos = null) => {
     const parent = parentId ? nodes.find(n => n.id === parentId) : null;
-    const color = type === 'decision' 
+    const color = type === 'decision'
       ? { bg: '#f97316', text: '#ffffff' }
-      : NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)];
+      : type === 'sticky'
+        ? STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)]
+        : NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)];
 
     let x, y;
-    if (parent) {
+    if (atPos) {
+      const size = type === 'sticky' ? STICKY_DEFAULT_SIZE : type === 'decision' ? 140 : 160;
+      x = atPos.x - size / 2;
+      y = atPos.y - (type === 'sticky' ? size / 2 : 25);
+    } else if (parent) {
       const siblings = connections.filter(c => c.from_item_id === parentId).length;
       // Horizontal layout (default)
       x = parent.x + 220;
@@ -349,11 +640,11 @@ export default function MindMap() {
     const newNode = {
       type,
       x, y,
-      content: type === 'decision' ? 'Ja / Nein?' : 'Neue Idee',
+      content: type === 'decision' ? 'Ja / Nein?' : type === 'sticky' ? 'Notiz' : 'Neue Idee',
       color: color.bg,
       borderColor: color.text,
-      width: type === 'decision' ? 140 : 160,
-      height: type === 'decision' ? 70 : 50,
+      width: type === 'decision' ? 140 : type === 'sticky' ? STICKY_DEFAULT_SIZE : 160,
+      height: type === 'decision' ? 70 : type === 'sticky' ? STICKY_DEFAULT_SIZE : 50,
       is_done: false
     };
 
@@ -363,10 +654,12 @@ export default function MindMap() {
           if (parentId) {
             createConnection.mutate({ from_item_id: parentId, to_item_id: data.id, label: label || null });
           }
+          setSelectedNodeId(data.id);
           if (shouldAutoEditNewNode()) {
             setTimeout(() => {
               setEditingNodeId(data.id);
-              setEditText(newNode.content);
+              // Empty, so the first keystroke replaces the placeholder text.
+              setEditText("");
             }, 50);
           }
         }
@@ -374,10 +667,75 @@ export default function MindMap() {
     });
   };
 
+  useEffect(() => {
+    addNodeRef.current = addNode;
+  });
+
+  const armTool = useCallback((tool) => {
+    setPendingTool((current) => {
+      const next = current === tool ? null : tool;
+      pendingToolRef.current = next;
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!pendingTool) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        pendingToolRef.current = null;
+        setPendingTool(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pendingTool]);
+
+  const beginPinch = useCallback(() => {
+    const points = [...pointersRef.current.values()];
+    if (points.length < 2) return;
+    const [a, b] = points;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    pinchRef.current = {
+      distance: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+      centerX: (a.x + b.x) / 2 - rect.left,
+      centerY: (a.y + b.y) / 2 - rect.top,
+      zoom: viewRef.current.zoom,
+      offset: { ...viewRef.current.offset },
+    };
+  }, []);
+
   const handleCanvasPointerDown = useCallback(
     (e) => {
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      if (e.target.closest?.("[data-mindmap-node]")) return;
+      // Clicking the canvas commits an open editor — preventDefault below would
+      // otherwise swallow the blur and leave the text field active.
+      saveEditRef.current?.();
+
+      // Armed tool: the next click drops the item exactly where the user clicked.
+      if (pendingToolRef.current && (e.pointerType !== "mouse" || e.button === 0) && !spacePanRef.current) {
+        const tool = pendingToolRef.current;
+        e.preventDefault();
+        e.stopPropagation();
+        pendingToolRef.current = null;
+        setPendingTool(null);
+        addNodeRef.current?.(tool, null, null, getCanvasPos(e));
+        return;
+      }
+      if (e.pointerType === "touch") {
+        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointersRef.current.size >= 2) {
+          setIsPanning(false);
+          draggingRef.current = null;
+          beginPinch();
+          return;
+        }
+      }
+      const isMiddleButton = e.pointerType === "mouse" && e.button === 1;
+      const isHandTool = isMiddleButton || spacePanRef.current;
+      if (e.pointerType === "mouse" && e.button !== 0 && !isMiddleButton) return;
+      // Hand tool pans from anywhere, including on top of a node.
+      if (!isHandTool && e.target.closest?.("[data-mindmap-node]")) return;
       e.preventDefault();
       try {
         canvasRef.current?.setPointerCapture?.(e.pointerId);
@@ -387,21 +745,67 @@ export default function MindMap() {
       setIsPanning(true);
       const { clientX, clientY } = getClientXY(e);
       panStartRef.current = { x: clientX - offset.x, y: clientY - offset.y };
-      setSelectedNodeId(null);
-      setNotePanel(null);
-      setFileHubPanel(null);
+      if (!isHandTool) {
+        setSelectedNodeId(null);
+        setSelectedConnectionId(null);
+        setNotePanel(null);
+        setFileHubPanel(null);
+      }
     },
-    [offset, getClientXY],
+    [offset, getClientXY, beginPinch, getCanvasPos],
   );
 
   const handlePointerMove = useCallback(
     (e) => {
+      if (e.pointerType === "touch" && pointersRef.current.has(e.pointerId)) {
+        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+
+      // Two fingers: zoom around the midpoint and follow it, like Miro.
+      const pinch = pinchRef.current;
+      if (pinch && pointersRef.current.size >= 2) {
+        const [a, b] = [...pointersRef.current.values()];
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const distance = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        const centerX = (a.x + b.x) / 2 - rect.left;
+        const centerY = (a.y + b.y) / 2 - rect.top;
+        const nextZoom = clampZoom(pinch.zoom * (distance / pinch.distance));
+        const ratio = nextZoom / pinch.zoom;
+        setView({
+          zoom: nextZoom,
+          offset: {
+            x: centerX - (pinch.centerX - pinch.offset.x) * ratio,
+            y: centerY - (pinch.centerY - pinch.offset.y) * ratio,
+          },
+        });
+        return;
+      }
+
+      // Resize: deltas are in screen pixels, so divide by zoom.
+      const resize = resizingRef.current;
+      if (resize) {
+        const { clientX, clientY } = getClientXY(e);
+        const z = viewRef.current.zoom || 1;
+        const width = Math.round(
+          Math.min(MAX_NODE_SIZE, Math.max(resize.minWidth, resize.width + (clientX - resize.startX) / z)),
+        );
+        const height = Math.round(
+          Math.min(MAX_NODE_SIZE, Math.max(resize.minHeight, resize.height + (clientY - resize.startY) / z)),
+        );
+        setNodes((prev) => prev.map((n) => (n.id === resize.id ? { ...n, width, height } : n)));
+        return;
+      }
+
       const pos = getCanvasPos(e);
       mousePosRef.current = pos;
 
       if (isPanning) {
         const { clientX, clientY } = getClientXY(e);
-        setOffset({ x: clientX - panStartRef.current.x, y: clientY - panStartRef.current.y });
+        setView({
+          zoom: viewRef.current.zoom,
+          offset: { x: clientX - panStartRef.current.x, y: clientY - panStartRef.current.y },
+        });
         return;
       }
 
@@ -416,7 +820,7 @@ export default function MindMap() {
 
       if (connectingFrom) forceRender((n) => n + 1);
     },
-    [isPanning, getCanvasPos, connectingFrom, getClientXY],
+    [isPanning, getCanvasPos, connectingFrom, getClientXY, setView],
   );
 
   const handlePointerUp = useCallback(
@@ -426,7 +830,21 @@ export default function MindMap() {
       } catch {
         /* ignore */
       }
+      if (e.pointerType === "touch") {
+        pointersRef.current.delete(e.pointerId);
+        if (pointersRef.current.size < 2) pinchRef.current = null;
+      }
       setIsPanning(false);
+
+      const resize = resizingRef.current;
+      if (resize) {
+        resizingRef.current = null;
+        const node = nodes.find((n) => n.id === resize.id);
+        if (node && !String(node.id).startsWith("temp_")) {
+          updateNode.mutate({ id: node.id, data: { width: node.width, height: node.height } });
+        }
+        return;
+      }
 
       const dragNode = draggingRef.current;
       if (dragNode) {
@@ -437,17 +855,50 @@ export default function MindMap() {
         draggingRef.current = null;
       }
 
+      // Released a connection drag: land on a node, or drop in empty space to
+      // create the next node right there.
+      if (connectingFrom && connectDragRef.current) {
+        connectDragRef.current = false;
+        const pos = getCanvasPos(e);
+        const target = nodeAtCanvasPos(pos, connectingFrom.id);
+        if (target) {
+          const exists = connections.some(
+            (c) =>
+              (c.from_item_id === connectingFrom.id && c.to_item_id === target.id) ||
+              (c.from_item_id === target.id && c.to_item_id === connectingFrom.id),
+          );
+          if (!exists) {
+            createConnection.mutate({
+              from_item_id: connectingFrom.id,
+              to_item_id: target.id,
+              label: connectLabel,
+            });
+          }
+        } else {
+          addNodeRef.current?.('node', connectingFrom.id, connectLabel, pos);
+        }
+        setConnectingFrom(null);
+        setConnectLabel(null);
+        return;
+      }
+
       if (connectingFrom) {
         setConnectingFrom(null);
         setConnectLabel(null);
       }
     },
-    [nodes, connectingFrom, updateNode],
+    [nodes, connections, connectingFrom, connectLabel, updateNode, createConnection, getCanvasPos, nodeAtCanvasPos],
   );
 
   const handleNodePointerDown = useCallback(
     (e, node) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
+      // Hand tool active: let the event bubble so the canvas pans instead of dragging the node.
+      if (spacePanRef.current) return;
+      // Switching to another node closes and saves the current editor.
+      if (editingNodeIdRef.current && editingNodeIdRef.current !== node.id) {
+        saveEditRef.current?.();
+      }
       e.stopPropagation();
       e.preventDefault();
 
@@ -471,52 +922,10 @@ export default function MindMap() {
       draggingRef.current = node;
       dragOffsetRef.current = { x: pos.x - node.x, y: pos.y - node.y };
       setSelectedNodeId(node.id);
+      setSelectedConnectionId(null);
     },
     [connectingFrom, connectLabel, connections, getCanvasPos, createConnection],
   );
-
-  const handleWheel = useCallback((e) => {
-    // Only handle if it's NOT a pinch-to-zoom (ctrlKey is true for pinch on macOS)
-    if (e.ctrlKey) {
-      // Pinch-to-zoom - prevent default browser zoom
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      
-      // Zoom with pinch
-      const delta = e.deltaY > 0 ? 0.95 : 1.05;
-      const newZoom = Math.min(Math.max(0.3, zoom * delta), 2);
-      
-      setOffset({
-        x: mx - (mx - offset.x) * (newZoom / zoom),
-        y: my - (my - offset.y) * (newZoom / zoom)
-      });
-      setZoom(newZoom);
-    } else {
-      // Regular scroll - zoom canvas
-      e.preventDefault();
-      
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      
-      const delta = e.deltaY > 0 ? 0.92 : 1.08;
-      const newZoom = Math.min(Math.max(0.3, zoom * delta), 2);
-      
-      setOffset({
-        x: mx - (mx - offset.x) * (newZoom / zoom),
-        y: my - (my - offset.y) * (newZoom / zoom)
-      });
-      setZoom(newZoom);
-    }
-  }, [zoom, offset]);
 
   const saveEdit = useCallback(() => {
     const nodeId = editingNodeId;
@@ -531,6 +940,63 @@ export default function MindMap() {
       updateNode.mutate({ id: nodeId, data: { content: text } });
     }
   }, [editingNodeId, editText, updateNode]);
+
+  const editingNodeIdRef = useRef(null);
+  useEffect(() => {
+    editingNodeIdRef.current = editingNodeId;
+    saveEditRef.current = editingNodeId ? saveEdit : null;
+  }, [editingNodeId, saveEdit]);
+
+  // Keyboard on the board itself: delete, edit, deselect — no toolbar detour.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (isTypingTarget(e.target)) return;
+      if (editingNodeId) return;
+
+      if (e.key === "Escape") {
+        setSelectedNodeId(null);
+        setSelectedConnectionId(null);
+        return;
+      }
+
+      if (selectedConnectionId && (e.key === "Backspace" || e.key === "Delete")) {
+        e.preventDefault();
+        deleteConnection.mutate(selectedConnectionId);
+        setSelectedConnectionId(null);
+        return;
+      }
+
+      if (!selectedNodeId) return;
+
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        deleteNode.mutate(selectedNodeId);
+        setSelectedNodeId(null);
+        setNotePanel(null);
+        setCommentPanel(null);
+        setFileHubPanel(null);
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === "F2") {
+        e.preventDefault();
+        const node = nodes.find((n) => n.id === selectedNodeId);
+        setEditingNodeId(selectedNodeId);
+        setEditText(node?.content || "");
+        return;
+      }
+
+      // Typing on a selected node starts editing and replaces the text, like Miro.
+      if (e.key.length === 1 && e.key !== " " && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setEditingNodeId(selectedNodeId);
+        setEditText(e.key);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedNodeId, selectedConnectionId, editingNodeId, nodes, deleteNode, deleteConnection]);
 
   const toggleDone = (nodeId) => {
     const node = nodes.find(n => n.id === nodeId);
@@ -572,20 +1038,8 @@ export default function MindMap() {
     updateNode.mutate({ id: fileHubPanel.nodeId, data: { file_hub_refs: next } });
   };
 
-  const clearAll = async () => {
-    if (!confirm('Alle Knoten löschen?')) return;
-    // Сначала очищаем UI
-    setNodes([]);
-    setConnections([]);
-    // Затем удаляем на сервере
-    await Promise.all([
-      ...nodes.map(n => api.entities.CanvasItem.delete(n.id).catch(() => {})),
-      ...connections.map(c => api.entities.CanvasConnection.delete(c.id).catch(() => {}))
-    ]);
-  };
-
   // Fit all nodes to view
-  const fitToView = () => {
+  const fitToView = useCallback(() => {
     if (nodes.length === 0) return;
     
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -615,17 +1069,20 @@ export default function MindMap() {
     // Calculate zoom to fit
     const zoomX = rect.width / contentWidth;
     const zoomY = rect.height / contentHeight;
-    const newZoom = Math.min(Math.max(Math.min(zoomX, zoomY), 0.3), 1.5);
-    
+    const newZoom = Math.min(Math.max(Math.min(zoomX, zoomY), MIN_ZOOM), 1.5);
+
     // Calculate offset to center
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
     const newOffsetX = rect.width / 2 - centerX * newZoom;
     const newOffsetY = rect.height / 2 - centerY * newZoom;
-    
-    setZoom(newZoom);
-    setOffset({ x: newOffsetX, y: newOffsetY });
-  };
+
+    setView({ zoom: newZoom, offset: { x: newOffsetX, y: newOffsetY } });
+  }, [nodes, setView]);
+
+  useEffect(() => {
+    fitToViewRef.current = fitToView;
+  }, [fitToView]);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
@@ -642,11 +1099,67 @@ export default function MindMap() {
       }`}
     >
       
-      {/* Floating toolbar: always visible while panning/zooming */}
+      {/* Floating toolbar: draggable by its grip, collapsible, position remembered per project */}
       <div
-        className={`fixed z-[70] ${isFullscreen ? 'top-2 sm:top-3' : 'top-[4.5rem] sm:top-3'} left-2 sm:left-1/2 sm:-translate-x-1/2`}
+        ref={toolbarRef}
+        className={
+          toolbarPos
+            ? "fixed z-[70]"
+            : `fixed z-[70] ${isFullscreen ? 'top-2 sm:top-3' : 'top-[4.5rem] sm:top-3'} left-2 sm:left-1/2 sm:-translate-x-1/2`
+        }
+        style={toolbarPos ? { left: toolbarPos.x, top: toolbarPos.y } : undefined}
       >
-        <div className="bg-white/95 backdrop-blur-xl shadow-2xl border border-slate-200/80 rounded-xl sm:rounded-2xl p-1.5 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-1">
+        {toolbarCollapsed && (
+          <div className="bg-white/95 backdrop-blur-xl shadow-2xl border border-slate-200/80 rounded-full p-1 flex items-center gap-0.5">
+            <button
+              type="button"
+              onPointerDown={handleToolbarPointerDown}
+              onPointerMove={handleToolbarPointerMove}
+              onPointerUp={handleToolbarPointerUp}
+              onPointerCancel={handleToolbarPointerUp}
+              className="h-8 w-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 cursor-grab active:cursor-grabbing touch-none"
+              title="Leiste verschieben"
+            >
+              <GripHorizontal className="w-4 h-4" />
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setToolbarCollapsed(false)}
+              className="h-8 w-8 rounded-full text-indigo-600 hover:bg-indigo-50"
+              title="Werkzeuge einblenden"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+        <div className={`bg-white/95 backdrop-blur-xl shadow-2xl border border-slate-200/80 rounded-xl sm:rounded-2xl p-1.5 flex-col sm:flex-row items-center gap-1.5 sm:gap-1 ${toolbarCollapsed ? 'hidden' : 'flex'}`}>
+          {/* Drag grip + collapse */}
+          <div className="flex sm:flex-row flex-col items-center gap-0.5">
+            <button
+              type="button"
+              onPointerDown={handleToolbarPointerDown}
+              onPointerMove={handleToolbarPointerMove}
+              onPointerUp={handleToolbarPointerUp}
+              onPointerCancel={handleToolbarPointerUp}
+              className="h-9 w-6 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 cursor-grab active:cursor-grabbing touch-none"
+              title="Leiste verschieben"
+            >
+              <GripHorizontal className="w-4 h-4" />
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setToolbarCollapsed(true)}
+              className="h-7 w-6 rounded-lg text-slate-400 hover:bg-slate-100"
+              title="Leiste einklappen"
+            >
+              <ChevronUp className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="w-full h-px sm:w-px sm:h-7 bg-slate-200" />
+
           {/* Add Buttons */}
           <div className="flex sm:flex-row flex-col items-center gap-1">
             <Button onClick={() => addNode('node')} size="sm" className="bg-indigo-600 hover:bg-indigo-700 h-9 w-9 sm:w-auto sm:px-3 rounded-xl shadow-lg shadow-indigo-200">
@@ -657,17 +1170,38 @@ export default function MindMap() {
               <Diamond className="w-4 h-4" />
               <span className="text-xs font-medium hidden md:inline ml-1.5">Frage</span>
             </Button>
+            <Button
+              onClick={() => armTool('sticky')}
+              size="sm"
+              variant={pendingTool === 'sticky' ? 'default' : 'outline'}
+              className={`h-9 w-9 sm:w-auto sm:px-3 rounded-xl ${
+                pendingTool === 'sticky'
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200'
+                  : 'border-amber-300 text-amber-600 hover:bg-amber-50'
+              }`}
+              title="Post-it — danach auf die Flaeche klicken"
+            >
+              <StickyNote className="w-4 h-4" />
+              <span className="text-xs font-medium hidden md:inline ml-1.5">Post-it</span>
+            </Button>
           </div>
 
           <div className="w-full h-px sm:w-px sm:h-7 bg-slate-200" />
 
           {/* Zoom Controls */}
           <div className="flex sm:flex-row flex-col items-center bg-slate-100 rounded-xl p-0.5 gap-0.5">
-            <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(z * 0.8, 0.3))} className="h-8 w-8 rounded-lg hover:bg-white">
+            <Button variant="ghost" size="icon" onClick={() => zoomAtViewportCenter(1 / 1.2)} className="h-8 w-8 rounded-lg hover:bg-white" title="Verkleinern (Cmd/Strg + -)">
               <ZoomOut className="w-4 h-4 text-slate-600" />
             </Button>
-            <span className="text-xs font-semibold text-slate-600 w-10 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-            <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(z * 1.2, 2))} className="h-8 w-8 rounded-lg hover:bg-white">
+            <button
+              type="button"
+              onClick={resetZoomKeepingCenter}
+              title="Auf 100 % zuruecksetzen (Cmd/Strg + 0)"
+              className="text-xs font-semibold text-slate-600 w-10 text-center tabular-nums hover:text-indigo-600"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <Button variant="ghost" size="icon" onClick={() => zoomAtViewportCenter(1.2)} className="h-8 w-8 rounded-lg hover:bg-white" title="Vergroessern (Cmd/Strg + +)">
               <ZoomIn className="w-4 h-4 text-slate-600" />
             </Button>
           </div>
@@ -676,18 +1210,6 @@ export default function MindMap() {
 
           {/* View Controls */}
           <div className="flex sm:flex-row flex-col items-center gap-0.5">
-            <Button variant="ghost" size="icon" onClick={() => { setOffset({ x: 0, y: 0 }); setZoom(1); }} className="h-8 w-8 rounded-lg" title="Zurücksetzen">
-              <RotateCcw className="w-4 h-4 text-slate-500" />
-            </Button>
-            <Button 
-              variant={isMobileVertical ? "default" : "ghost"}
-              size="icon" 
-              onClick={toggleVerticalLayout} 
-              className={`h-8 w-8 rounded-lg sm:hidden ${isMobileVertical ? 'bg-green-600 text-white hover:bg-green-700' : 'text-green-600 hover:bg-green-50'}`}
-              title={isMobileVertical ? "Original wiederherstellen" : "Vertikal anordnen"}
-            >
-              <AlignVerticalJustifyStart className="w-4 h-4" />
-            </Button>
             <Button variant="ghost" size="icon" onClick={fitToView} className="h-8 w-8 rounded-lg text-indigo-600 hover:bg-indigo-50" title="Alle Knoten anzeigen">
               <Move className="w-4 h-4" />
             </Button>
@@ -700,91 +1222,120 @@ export default function MindMap() {
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </Button>
-            <Button variant="ghost" size="icon" onClick={clearAll} className="h-8 w-8 rounded-lg text-red-500 hover:bg-red-50" title="Alles löschen">
-              <Trash2 className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </div>
 
-      {/* Selected Node Panel - Mobile optimized */}
-      {selectedNodeId && !editingNodeId && selectedNode && (
-        <div className={`fixed ${isFullscreen ? 'top-14 sm:top-16' : 'top-[8.5rem] sm:top-16'} left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-[70] sm:w-auto`}>
-          <div className="bg-white/95 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-1 sm:p-2 flex items-center justify-center gap-0.5 sm:gap-2 flex-wrap">
-            <Button size="sm" variant="outline" onClick={() => addNode('node', selectedNodeId)} className="gap-1 h-7 px-1.5 sm:px-2 text-xs">
-              <Plus className="w-3 h-3" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setEditingNodeId(selectedNodeId);
-                setEditText(selectedNode.content || "");
-              }}
-              className="inline-flex h-7 px-1.5 sm:px-2 text-xs"
-              title="Text bearbeiten"
-            >
-              <Pencil className="w-3 h-3 sm:mr-1" />
-              <span className="hidden sm:inline">Text</span>
-            </Button>
-            
-            {selectedNode.type === 'decision' && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => { setConnectingFrom(selectedNode); setConnectLabel('yes'); }} className="h-7 px-1.5 sm:px-2 text-xs border-green-300 text-green-600 hover:bg-green-50">
-                  ✓
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => { setConnectingFrom(selectedNode); setConnectLabel('no'); }} className="h-7 px-1.5 sm:px-2 text-xs border-red-300 text-red-600 hover:bg-red-50">
-                  ✗
-                </Button>
-              </>
-            )}
-            
-            <Button size="sm" variant="outline" onClick={() => setConnectingFrom(selectedNode)} className="h-7 px-1.5 sm:px-2">
-              <GitBranch className="w-3 h-3" />
-            </Button>
-            
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => setNotePanel({ nodeId: selectedNodeId, note: selectedNode.note || '' })} 
-              className="h-7 px-1.5 sm:px-2"
-            >
-              <MessageSquare className="w-3 h-3" />
-            </Button>
-            
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => setTaskLinkPanel({ nodeId: selectedNodeId, taskId: selectedNode.linked_task_id || '' })} 
-              className="h-7 px-1.5 sm:px-2 border-blue-300 text-blue-600 hover:bg-blue-50"
-            >
-              <ListTodo className="w-3 h-3" />
-            </Button>
+      {/* Context bar: sits right above the selected node instead of at the screen edge */}
+      {selectedNodeId && !editingNodeId && selectedNode && (() => {
+        const nodeW = (selectedNode.width || 160) * zoom;
+        const nodeH = (selectedNode.height || 50) * zoom;
+        const screenX = offset.x + selectedNode.x * zoom;
+        const screenY = offset.y + selectedNode.y * zoom;
+        const above = screenY > 60;
+        const palette = selectedNode.type === 'sticky' ? STICKY_COLORS : NODE_COLORS;
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setFileHubPanel({ nodeId: selectedNodeId })}
-              className="h-7 px-1.5 sm:px-2 border-violet-300 text-violet-600 hover:bg-violet-50"
-              title="Datei aus File Hub"
+        return (
+          <div
+            className="absolute z-[60] pointer-events-none"
+            style={{
+              left: Math.max(8, screenX + nodeW / 2),
+              top: above ? screenY - 12 : screenY + nodeH + 12,
+              transform: above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+            }}
+          >
+            <div
+              className="pointer-events-auto bg-white/95 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-1 flex items-center gap-0.5"
+              onPointerDown={(e) => e.stopPropagation()}
             >
-              <Paperclip className="w-3 h-3" />
-            </Button>
-            
-            <div className="flex gap-0.5">
-              {NODE_COLORS.slice(0, 4).map(c => (
-                <button
-                  key={c.bg}
-                  className="w-5 h-5 rounded-full border border-white shadow hover:scale-110 active:scale-95"
-                  style={{ backgroundColor: c.bg }}
-                  onClick={() => updateNode.mutate({ id: selectedNodeId, data: { color: c.bg, borderColor: c.text } })}
-                />
-              ))}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setEditingNodeId(selectedNodeId);
+                  setEditText(selectedNode.content || "");
+                }}
+                className="h-7 px-2"
+                title="Text bearbeiten (Enter)"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+
+              <div className="w-px h-5 bg-slate-200" />
+
+              <div className="flex gap-0.5 px-1">
+                {palette.slice(0, 5).map((c) => (
+                  <button
+                    key={c.bg}
+                    className={`w-4 h-4 rounded-full border shadow-sm hover:scale-125 active:scale-95 transition-transform ${
+                      selectedNode.color === c.bg ? 'border-slate-700' : 'border-white'
+                    }`}
+                    style={{ backgroundColor: c.bg }}
+                    title="Farbe"
+                    onClick={() => updateNode.mutate({ id: selectedNodeId, data: { color: c.bg, borderColor: c.text } })}
+                  />
+                ))}
+              </div>
+
+              <div className="w-px h-5 bg-slate-200" />
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { setCommentPanel({ nodeId: selectedNodeId }); setNewComment(''); }}
+                className="h-7 px-2 text-amber-600 hover:bg-amber-50"
+                title="Kommentare"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setFileHubPanel({ nodeId: selectedNodeId })}
+                className="h-7 px-2 text-violet-600 hover:bg-violet-50"
+                title="Datei anhaengen"
+              >
+                <Paperclip className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setTaskLinkPanel({ nodeId: selectedNodeId, taskId: selectedNode.linked_task_id || '' })}
+                className="h-7 px-2 text-blue-600 hover:bg-blue-50"
+                title="Mit Ticket verknuepfen"
+              >
+                <ListTodo className="w-3.5 h-3.5" />
+              </Button>
+
+              <div className="w-px h-5 bg-slate-200" />
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => deleteNode.mutate(selectedNodeId)}
+                className="h-7 px-2 text-red-500 hover:bg-red-50"
+                title="Loeschen (Backspace)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
             </div>
-            
-            <Button size="sm" variant="ghost" onClick={() => deleteNode.mutate(selectedNodeId)} className="text-red-500 hover:bg-red-50 h-7 px-1.5 sm:px-2">
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
+          </div>
+        );
+      })()}
+
+      {/* Placement mode */}
+      {pendingTool && (
+        <div className="absolute top-14 sm:top-16 left-1/2 -translate-x-1/2 z-[65]">
+          <div className="px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2 text-white text-xs bg-amber-500">
+            <StickyNote className="w-3 h-3" />
+            <span>Klicke auf die Fläche, um das Post-it zu kleben</span>
+            <button
+              onClick={() => { pendingToolRef.current = null; setPendingTool(null); }}
+              className="hover:bg-white/20 rounded-full p-0.5"
+              title="Abbrechen (Esc)"
+            >
+              <X className="w-3 h-3" />
+            </button>
           </div>
         </div>
       )}
@@ -800,6 +1351,87 @@ export default function MindMap() {
             <button onClick={() => { setConnectingFrom(null); setConnectLabel(null); }} className="hover:bg-white/20 rounded-full p-0.5">
               <X className="w-3 h-3" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Comment thread for a single node */}
+      {commentPanel && (
+        <div className="absolute top-28 sm:top-32 left-2 right-2 sm:left-auto sm:right-4 z-[60] sm:w-80">
+          <div className="bg-white shadow-xl border border-slate-200 rounded-xl flex flex-col max-h-[60vh]">
+            <div className="flex justify-between items-center px-3 py-2 border-b border-slate-100">
+              <span className="font-medium text-slate-700 flex items-center gap-2 text-sm">
+                <MessageSquare className="w-4 h-4 text-amber-500" />
+                Kommentare
+                <span className="text-xs text-slate-400">
+                  {(commentsByNode.get(commentPanel.nodeId) || []).length}
+                </span>
+              </span>
+              <button onClick={() => setCommentPanel(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
+              {(commentsByNode.get(commentPanel.nodeId) || []).length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-4">Noch keine Kommentare</p>
+              ) : (
+                (commentsByNode.get(commentPanel.nodeId) || []).map((comment) => (
+                  <div key={comment.id} className="group bg-slate-50 rounded-lg px-2.5 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-600 truncate">
+                        {(comment.author_email || 'Unbekannt').split('@')[0]}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] text-slate-400">
+                          {comment.created_date
+                            ? new Date(comment.created_date).toLocaleString('de-DE', {
+                                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                              })
+                            : ''}
+                        </span>
+                        {comment.author_email === currentUser?.email && (
+                          <button
+                            onClick={() => deleteComment.mutate(comment.id)}
+                            className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Kommentar löschen"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-0.5">
+                      {comment.content}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex gap-2 p-2 border-t border-slate-100">
+              <Input
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submitComment();
+                  }
+                }}
+                placeholder="Kommentar schreiben..."
+                className="flex-1 min-w-0 h-9"
+              />
+              <Button
+                size="sm"
+                onClick={submitComment}
+                disabled={!newComment.trim() || addComment.isPending}
+                className="bg-amber-500 hover:bg-amber-600 h-9"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -930,8 +1562,10 @@ export default function MindMap() {
 
       {/* Canvas */}
       <div
-        ref={canvasRef}
-        className={`w-full h-full canvas-bg touch-none ${isPanning ? "cursor-grabbing" : "cursor-grab"}`}
+        ref={attachCanvasRef}
+        className={`w-full h-full canvas-bg touch-none ${
+          pendingTool ? "cursor-crosshair" : isPanning ? "cursor-grabbing" : isSpacePan ? "cursor-grab" : "cursor-default"
+        }`}
         style={{
           touchAction: "none",
           backgroundImage: "radial-gradient(circle, #cbd5e1 1px, transparent 1px)",
@@ -942,7 +1576,11 @@ export default function MindMap() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onWheel={handleWheel}
+        onAuxClick={(e) => e.preventDefault()}
+        onDoubleClick={(e) => {
+          if (e.target.closest?.("[data-mindmap-node]")) return;
+          addNode("node", null, null, getCanvasPos(e));
+        }}
       >
         {/* SVG for connections */}
         <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
@@ -1012,6 +1650,7 @@ export default function MindMap() {
               }
 
               const strokeColor = conn.label === 'yes' ? '#22c55e' : conn.label === 'no' ? '#ef4444' : '#94a3b8';
+              const isConnSelected = selectedConnectionId === conn.id;
 
               return (
                 <g key={conn.id}>
@@ -1062,12 +1701,45 @@ export default function MindMap() {
                       </text>
                     </g>
                   )}
-                  {/* Delete button on hover */}
-                  <circle cx={midX} cy={midY + (conn.label ? 20 : 0)} r="10" fill="white" stroke="#ef4444" strokeWidth="2"
-                    className="opacity-0 hover:opacity-100 cursor-pointer pointer-events-auto transition-opacity"
-                    onClick={() => deleteConnection.mutate(conn.id)} />
-                  <text x={midX} y={midY + (conn.label ? 24 : 4)} textAnchor="middle" fontSize="12" fill="#ef4444"
-                    className="opacity-0 hover:opacity-100 pointer-events-none">×</text>
+                  {/* Wide invisible hit area: thin lines are nearly impossible to click */}
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={Math.max(18, 18 / zoom)}
+                    strokeLinecap="round"
+                    className="pointer-events-auto cursor-pointer"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      setSelectedConnectionId(conn.id);
+                      setSelectedNodeId(null);
+                    }}
+                  />
+                  {isConnSelected && (
+                    <>
+                      <path d={path} fill="none" stroke="#6366f1" strokeWidth="5" strokeLinecap="round" opacity="0.35" />
+                      <g
+                        className="pointer-events-auto cursor-pointer"
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          deleteConnection.mutate(conn.id);
+                          setSelectedConnectionId(null);
+                        }}
+                      >
+                        <circle cx={midX} cy={midY + (conn.label ? 22 : 0)} r="11" fill="white" stroke="#ef4444" strokeWidth="2" />
+                        <text
+                          x={midX}
+                          y={midY + (conn.label ? 26 : 4)}
+                          textAnchor="middle"
+                          fontSize="13"
+                          fill="#ef4444"
+                          className="pointer-events-none select-none"
+                        >
+                          ×
+                        </text>
+                      </g>
+                    </>
+                  )}
                 </g>
               );
             })}
@@ -1093,29 +1765,227 @@ export default function MindMap() {
             const isSelected = selectedNodeId === node.id;
             const isEditing = editingNodeId === node.id;
             const isDecision = node.type === 'decision';
+            const isSticky = node.type === 'sticky';
             const isDone = node.is_done;
             const hasNote = !!node.note;
             const hasLinkedTask = !!node.linked_task_id;
             const linkedTask = hasLinkedTask ? tasks.find(t => t.id === node.linked_task_id) : null;
             const fileHubCount = Array.isArray(node.file_hub_refs) ? node.file_hub_refs.length : 0;
+            const commentCount = (commentsByNode.get(node.id) || []).length;
+            const defaultW = isSticky ? STICKY_DEFAULT_SIZE : isDecision ? 140 : 160;
+            const defaultH = isSticky ? STICKY_DEFAULT_SIZE : isDecision ? 70 : 50;
+            const nodeW = node.width || defaultW;
+            const nodeH = node.height || defaultH;
+
+            const openComments = (e) => {
+              e.stopPropagation();
+              setSelectedNodeId(node.id);
+              setCommentPanel({ nodeId: node.id });
+              setNewComment('');
+            };
+            const openFiles = (e) => {
+              e.stopPropagation();
+              setSelectedNodeId(node.id);
+              setFileHubPanel({ nodeId: node.id });
+            };
+            const stopPointer = (e) => e.stopPropagation();
+
+            /** Corner grip: free width/height for every shape. */
+            const resizeHandle = (
+              <button
+                type="button"
+                title="Groesse aendern"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const { clientX, clientY } = getClientXY(e);
+                  const min = minSizeForType(node.type);
+                  resizingRef.current = {
+                    id: node.id,
+                    startX: clientX,
+                    startY: clientY,
+                    width: nodeW,
+                    height: nodeH,
+                    minWidth: min.width,
+                    minHeight: min.height,
+                  };
+                  setSelectedNodeId(node.id);
+                }}
+                className={`absolute -bottom-1.5 -right-1.5 w-5 h-5 cursor-nwse-resize touch-none transition-opacity ${
+                  isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+              >
+                <span className="block w-3 h-3 bg-white border-b-2 border-r-2 border-indigo-500 rounded-sm absolute bottom-0.5 right-0.5 shadow-sm" />
+              </button>
+            );
+
+            /**
+             * Drag handles: pull from a dot onto another node to connect, or into
+             * empty space to create the next node already connected.
+             */
+            const handleDot = (key, positionClass, label = null) => (
+              <button
+                key={key}
+                type="button"
+                onPointerDown={(e) => startConnectionDrag(e, node, label)}
+                className={`absolute ${positionClass} w-3.5 h-3.5 rounded-full border-2 border-white shadow-md transition-opacity touch-none ${
+                  label === 'yes'
+                    ? 'bg-green-500'
+                    : label === 'no'
+                      ? 'bg-red-500'
+                      : 'bg-indigo-500'
+                } ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} cursor-crosshair`}
+                title={label === 'yes' ? 'Ja-Zweig ziehen' : label === 'no' ? 'Nein-Zweig ziehen' : 'Zum Verbinden ziehen'}
+              />
+            );
+
+            const connectHandles = isDecision
+              ? (
+                <>
+                  {handleDot('yes', '-right-2 top-1/2 -translate-y-1/2', 'yes')}
+                  {handleDot('no', 'left-1/2 -bottom-2 -translate-x-1/2', 'no')}
+                </>
+              )
+              : (
+                <>
+                  {handleDot('right', '-right-2 top-1/2 -translate-y-1/2')}
+                  {handleDot('left', '-left-2 top-1/2 -translate-y-1/2')}
+                  {handleDot('top', 'left-1/2 -top-2 -translate-x-1/2')}
+                  {handleDot('bottom', 'left-1/2 -bottom-2 -translate-x-1/2')}
+                </>
+              );
+
+            /** Round, clickable badges — the Miro pattern: icon on the node opens the content. */
+            const badges = (
+              <>
+                {commentCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={openComments}
+                    onPointerDown={stopPointer}
+                    onMouseDown={stopPointer}
+                    className="absolute -top-2 -left-2 min-w-[22px] h-[22px] px-1 bg-amber-400 text-slate-900 rounded-full text-[10px] font-bold flex items-center justify-center gap-0.5 shadow-md hover:bg-amber-300 hover:scale-110 transition-transform"
+                    title={`${commentCount} Kommentar(e) öffnen`}
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    {commentCount > 1 ? <span>{commentCount}</span> : null}
+                  </button>
+                )}
+                {fileHubCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={openFiles}
+                    onPointerDown={stopPointer}
+                    onMouseDown={stopPointer}
+                    className="absolute -bottom-2 -left-2 min-w-[22px] h-[22px] px-1 bg-violet-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center gap-0.5 shadow-md hover:bg-violet-500 hover:scale-110 transition-transform"
+                    title={`${fileHubCount} Datei(en) öffnen`}
+                  >
+                    <Paperclip className="w-3 h-3" />
+                    {fileHubCount > 1 ? <span>{fileHubCount}</span> : null}
+                  </button>
+                )}
+                {hasNote && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedNodeId(node.id);
+                      setNotePanel({ nodeId: node.id, note: node.note || '' });
+                    }}
+                    onPointerDown={stopPointer}
+                    onMouseDown={stopPointer}
+                    className="absolute -bottom-2 -right-2 w-[22px] h-[22px] bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                    title="Notiz öffnen"
+                  >
+                    <StickyNote className="w-3 h-3" />
+                  </button>
+                )}
+                {hasLinkedTask && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenTaskId(node.linked_task_id);
+                    }}
+                    onPointerDown={stopPointer}
+                    onMouseDown={stopPointer}
+                    className="absolute -bottom-2 left-6 w-[22px] h-[22px] bg-blue-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-blue-600 hover:scale-110 transition-transform"
+                    title={linkedTask?.title || 'Ticket öffnen'}
+                  >
+                    <ListTodo className="w-3 h-3" />
+                  </button>
+                )}
+              </>
+            );
 
             return (
               <div
                 key={node.id}
                 data-mindmap-node
-                className={`pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"}`}
-                style={{ left: node.x, top: node.y, width: node.width || 160 }}
+                className={`group pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"}`}
+                style={{ left: node.x, top: node.y, width: nodeW }}
                 onPointerDown={(e) => handleNodePointerDown(e, node)}
                 onDoubleClick={() => {
                   setEditingNodeId(node.id);
                   setEditText(node.content || "");
                 }}
               >
-                {/* Decision diamond shape */}
-                {isDecision ? (
+                {/* Sticky note */}
+                {isSticky ? (
+                  <div
+                    className={`relative cursor-grab active:cursor-grabbing rounded-sm ${
+                      isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''
+                    }`}
+                    style={{
+                      width: nodeW,
+                      height: nodeH,
+                      backgroundColor: node.color || STICKY_COLORS[0].bg,
+                      color: node.borderColor || '#1f2937',
+                      boxShadow: '0 10px 20px -8px rgba(15, 23, 42, 0.35), 0 2px 4px rgba(15, 23, 42, 0.15)',
+                    }}
+                  >
+                    <div className="absolute inset-0 p-3 flex items-center justify-center overflow-hidden">
+                      {isEditing ? (
+                        <Textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              saveEdit();
+                            }
+                            if (e.key === 'Escape') {
+                              setEditingNodeId(null);
+                              setEditText('');
+                            }
+                          }}
+                          onBlur={saveEdit}
+                          autoFocus
+                          onClick={stopPointer}
+                          onMouseDown={stopPointer}
+                          onPointerDown={stopPointer}
+                          className="w-full h-full resize-none bg-white/60 border-0 text-slate-900 text-center focus-visible:ring-1"
+                          style={{ fontSize: autoFontSize(editText, nodeW, nodeH, { min: 11 }) }}
+                        />
+                      ) : (
+                        <span
+                          className="w-full text-center font-medium leading-snug break-words [overflow-wrap:anywhere] whitespace-pre-wrap"
+                          style={{ fontSize: autoFontSize(node.content, nodeW, nodeH, { min: 11 }) }}
+                        >
+                          {node.content || 'Doppelklick zum Schreiben'}
+                        </span>
+                      )}
+                    </div>
+
+                    {badges}
+                    {connectHandles}
+                    {resizeHandle}
+                  </div>
+                ) : isDecision ? (
                   <div
                     className={`relative cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}
-                    style={{ width: node.width || 140, height: node.height || 70 }}
+                    style={{ width: nodeW, height: nodeH }}
                   >
                     <svg viewBox="0 0 100 70" className="w-full h-full" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>
                       <polygon
@@ -1149,10 +2019,10 @@ export default function MindMap() {
                           className="text-xs text-center bg-white/90 border-0 h-6 w-20 max-w-[90%]"
                         />
                       ) : (
-                        <span 
+                        <span
                           className="font-semibold text-white text-center leading-tight break-words overflow-hidden"
-                          style={{ 
-                            fontSize: `${Math.max(8, Math.min(12, 120 / Math.max(node.content?.length || 1, 10)))}px`,
+                          style={{
+                            fontSize: autoFontSize(node.content, nodeW * 0.7, nodeH * 0.7, { min: 8, max: 16 }),
                             wordBreak: 'break-word',
                             maxWidth: '90%'
                           }}
@@ -1162,38 +2032,24 @@ export default function MindMap() {
                       )}
                     </div>
                     {isDone && <Check className="absolute -top-1 -right-1 w-5 h-5 text-white bg-green-500 rounded-full p-0.5" />}
-                    {hasNote && <MessageSquare className="absolute -bottom-1 -right-1 w-4 h-4 text-indigo-600 bg-white rounded-full p-0.5" />}
-                    {fileHubCount > 0 && (
-                      <span
-                        className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-0.5 bg-violet-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center shadow"
-                        title={`${fileHubCount} Datei(en) aus File Hub`}
-                      >
-                        <Paperclip className="w-2.5 h-2.5" />
-                      </span>
-                    )}
-                    {hasLinkedTask && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTaskId(node.linked_task_id);
-                        }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="absolute -bottom-1 -left-1 w-5 h-5 bg-blue-500 text-white rounded-full p-0.5 flex items-center justify-center hover:bg-blue-600"
-                        title={linkedTask?.title || 'Ticket öffnen'}
-                      >
-                        <ListTodo className="w-3 h-3" />
-                      </button>
-                    )}
+                    {badges}
+                    {connectHandles}
+                    {resizeHandle}
                   </div>
                 ) : (
                   /* Regular node */
                   <div
-                    className={`rounded-2xl px-4 py-3 shadow-lg cursor-grab active:cursor-grabbing relative ${
+                    className={`rounded-2xl px-4 py-3 shadow-lg cursor-grab active:cursor-grabbing relative flex items-center justify-center ${
                       isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''
                     }`}
-                    style={{ backgroundColor: isDone ? '#22c55e' : (node.color || '#6366f1'), color: node.borderColor || '#fff', minWidth: 80, maxWidth: 200 }}
+                    style={{
+                      width: nodeW,
+                      // minHeight, not height: existing boards keep growing with long text
+                      // instead of suddenly clipping it.
+                      minHeight: nodeH,
+                      backgroundColor: isDone ? '#22c55e' : (node.color || '#6366f1'),
+                      color: node.borderColor || '#fff',
+                    }}
                   >
                     {isEditing ? (
                       <Input
@@ -1221,7 +2077,7 @@ export default function MindMap() {
                       <div
                         className={`font-semibold text-center break-words [overflow-wrap:anywhere] whitespace-pre-wrap max-w-full px-0.5 ${isDone ? "line-through opacity-80" : ""}`}
                         style={{
-                          fontSize: `${Math.max(10, Math.min(14, 180 / Math.max(node.content?.length || 1, 12)))}px`,
+                          fontSize: autoFontSize(node.content, nodeW, nodeH, { min: 10, max: 22 }),
                           wordBreak: "break-word",
                         }}
                       >
@@ -1247,36 +2103,14 @@ export default function MindMap() {
                       {isDone && <Check className="w-4 h-4 text-green-600" />}
                     </button>
                     
-                    {hasNote && <MessageSquare className="absolute -bottom-2 -left-2 w-5 h-5 text-indigo-600 bg-white rounded-full p-0.5 shadow" />}
-                    {fileHubCount > 0 && (
-                      <span
-                        className="absolute -top-2 -left-2 min-w-[20px] h-5 px-1 bg-violet-600 text-white rounded-full text-[10px] font-semibold flex items-center justify-center gap-0.5 shadow"
-                        title={`${fileHubCount} Datei(en)`}
-                      >
-                        <Paperclip className="w-3 h-3" />
-                        {fileHubCount > 1 ? <span>{fileHubCount}</span> : null}
-                      </span>
-                    )}
-                    {hasLinkedTask && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTaskId(node.linked_task_id);
-                        }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="absolute -bottom-2 right-6 w-5 h-5 bg-blue-500 text-white rounded-full p-0.5 flex items-center justify-center hover:bg-blue-600 shadow"
-                        title={linkedTask?.title || 'Ticket öffnen'}
-                      >
-                        <ListTodo className="w-3 h-3" />
-                      </button>
-                    )}
+                    {badges}
+                    {connectHandles}
+                    {resizeHandle}
                   </div>
                 )}
-                
-                {/* Quick add button */}
-                {isSelected && !isEditing && (
+
+                {/* Quick add button — mind-map only; sticky notes stay standalone */}
+                {isSelected && !isEditing && !isSticky && (
                   <button
                     type="button"
                     className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-indigo-600 hover:scale-110 pointer-events-auto"
@@ -1316,7 +2150,9 @@ export default function MindMap() {
 
       <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-auto text-[10px] sm:text-xs text-slate-500 bg-white/90 backdrop-blur px-2 sm:px-3 py-1.5 rounded-lg pointer-events-none max-w-[calc(100vw-1rem)]">
         <span className="sm:hidden">Tipp: Knoten antippen → Stift (oben) zum Schreiben • Ziehen verschiebt • 2 Finger zoomen</span>
-        <span className="hidden sm:inline">Doppelklick = Bearbeiten • Ziehen = Verschieben • Scroll = Zoom</span>
+        <span className="hidden sm:inline">
+          Doppelklick = Neuer Knoten • Punkt am Rand ziehen = Verbinden • Ecke ziehen = Größe • Tippen = Text • Backspace = Löschen • Cmd/Strg+Scroll = Zoom • Leertaste = Hand
+        </span>
       </div>
 
       {/* Task Detail Dialog */}

@@ -7,6 +7,9 @@
 public/api/invite-config.php
 public/api/vendor/
 
+# Serverkonfiguration mit Passwoertern – liegt nur lokal und auf dem Server
+server-config/
+
 # Logs
 logs
 *.log

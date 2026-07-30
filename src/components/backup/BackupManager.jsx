@@ -1,219 +1,198 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/apiClient";
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Database, Download, Upload, Clock, Check, X, 
-  AlertTriangle, Users, RefreshCw, Trash2, Shield
+import { motion } from 'framer-motion';
+import {
+  Database, Download, Upload, Clock, Check, X,
+  AlertTriangle, Users, RefreshCw, Trash2, Shield, HardDrive, FileWarning
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "@/components/ui/use-toast";
+import {
+  createBackup as createFullBackup,
+  listBackups,
+  deleteBackup as deleteFullBackup,
+  downloadBackup,
+  restoreBackup,
+} from "@/lib/projectBackup";
+
+const AUTO_BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(0)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
 
 export default function BackupManager({ projectId, project, currentUser }) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [backupName, setBackupName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState(null);
+  const autoBackupTriedRef = useRef(false);
 
   const memberCount = (project?.members?.length || 0) + 1; // +1 for creator
   const needsMultipleConfirmations = memberCount > 2;
 
-  // Fetch backups
-  const { data: backups = [], isLoading: backupsLoading } = useQuery({
+  const {
+    data: backups = [],
+    isLoading: backupsLoading,
+    isError: backupsError,
+    error: backupsErrorObj,
+    refetch: refetchBackups,
+  } = useQuery({
     queryKey: ['backups', projectId],
-    queryFn: async () => {
-      const all = await api.entities.ProjectBackup.list('-created_date', 50);
-      return all.filter(b => b.project_id === projectId);
-    },
-    enabled: !!projectId && isOpen
+    queryFn: () => listBackups(projectId),
+    enabled: !!projectId && isOpen,
+    staleTime: 10000,
   });
 
-  // Fetch restore requests
   const { data: restoreRequests = [] } = useQuery({
     queryKey: ['restoreRequests', projectId],
     queryFn: async () => {
       const all = await api.entities.RestoreRequest.list('-created_date', 20);
       return all.filter(r => r.project_id === projectId && r.status === 'pending');
     },
-    enabled: !!projectId && isOpen
+    enabled: !!projectId && isOpen,
   });
 
-  // Auto backup effect
+  // Daily automatic backup, checked once per mounted project.
   useEffect(() => {
-    if (!projectId || !project) return;
-    
-    const autoBackup = async () => {
-      // Check last backup
-      const backups = await api.entities.ProjectBackup.list('-created_date', 1);
-      const lastBackup = backups.find(b => b.project_id === projectId);
-      
-      // Auto backup every 24 hours
-      const shouldBackup = !lastBackup || 
-        (new Date() - new Date(lastBackup.created_date)) > 24 * 60 * 60 * 1000;
-      
-      if (shouldBackup) {
-        await createBackup('auto');
+    if (!projectId || !project || autoBackupTriedRef.current) return;
+    autoBackupTriedRef.current = true;
+
+    (async () => {
+      try {
+        const existing = await listBackups(projectId);
+        const last = existing[0];
+        const due = !last || (Date.now() - new Date(last.created_date).getTime()) > AUTO_BACKUP_INTERVAL_MS;
+        if (!due) return;
+        await createFullBackup({
+          projectId,
+          project,
+          name: `Auto-Backup ${new Date().toLocaleDateString('de-DE')}`,
+          type: 'auto',
+        });
+        queryClient.invalidateQueries({ queryKey: ['backups', projectId] });
+      } catch (err) {
+        // Silent: a missing endpoint should not block the project view.
+        console.error('[Backup] Auto-Backup fehlgeschlagen:', err?.message || err);
       }
-    };
+    })();
+  }, [projectId, project, queryClient]);
 
-    autoBackup();
-  }, [projectId, project]);
-
-  const createBackup = async (type = 'manual') => {
+  const handleCreate = async () => {
     setIsCreating(true);
-    
-    // Fetch all project data
-    const [tasks, documents, files, posts, messages, events, canvasItems, startupSteps] = await Promise.all([
-      api.entities.Task.list('-created_date', 500).then(all => all.filter(t => t.project_id === projectId)),
-      api.entities.Document.list('-created_date', 200).then(all => all.filter(d => d.project_id === projectId)),
-      api.entities.FileRecord.list('-created_date', 200).then(all => all.filter(f => f.project_id === projectId)),
-      api.entities.Post.list('-created_date', 200).then(all => all.filter(p => p.project_id === projectId)),
-      api.entities.Message.list('-created_date', 500).then(all => all.filter(m => m.project_id === projectId)),
-      api.entities.Event.list('-created_date', 200).then(all => all.filter(e => e.project_id === projectId)),
-      api.entities.CanvasItem.list('-created_date', 200).then(all => all.filter(c => c.project_id === projectId)),
-      api.entities.StartupStep.list('-created_date', 100).then(all => all.filter(s => s.project_id === projectId))
-    ]);
+    try {
+      const meta = await createFullBackup({
+        projectId,
+        project,
+        name: backupName.trim(),
+        type: 'manual',
+      });
+      setBackupName('');
+      queryClient.invalidateQueries({ queryKey: ['backups', projectId] });
+      toast({
+        title: 'Backup erstellt',
+        description: `${meta.included_files || 0} Datei(en), ${formatBytes(meta.size)}`,
+      });
+    } catch (err) {
+      toast({ title: 'Backup fehlgeschlagen', description: err?.message, variant: 'destructive' });
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
-    await api.entities.ProjectBackup.create({
-      project_id: projectId,
-      project_data: project,
-      tasks_data: tasks,
-      documents_data: documents,
-      files_data: files,
-      posts_data: posts,
-      messages_data: messages,
-      events_data: events,
-      canvas_items_data: canvasItems,
-      startup_steps_data: startupSteps,
-      backup_type: type,
-      backup_name: backupName || `Backup ${new Date().toLocaleDateString('de')}`
-    });
-
-    setIsCreating(false);
-    setBackupName('');
-    queryClient.invalidateQueries(['backups', projectId]);
+  const performRestore = async (backup) => {
+    setRestoreStatus('Wiederherstellung startet…');
+    try {
+      const result = await restoreBackup({
+        projectId,
+        id: backup.id,
+        onProgress: (message) => setRestoreStatus(message),
+      });
+      queryClient.invalidateQueries();
+      toast({
+        title: 'Wiederherstellung abgeschlossen',
+        description: `${result.restoredFiles} Datei(en) zurueckgespielt.`,
+      });
+      setIsOpen(false);
+    } catch (err) {
+      toast({ title: 'Wiederherstellung fehlgeschlagen', description: err?.message, variant: 'destructive' });
+    } finally {
+      setRestoreStatus(null);
+    }
   };
 
   const requestRestore = async (backup) => {
+    if (!window.confirm(
+      'Wiederherstellung ueberschreibt den aktuellen Stand des Projekts vollstaendig. Fortfahren?'
+    )) return;
+
     if (needsMultipleConfirmations) {
-      // Create restore request that needs confirmations
       await api.entities.RestoreRequest.create({
         project_id: projectId,
         backup_id: backup.id,
-        requested_by: currentUser.email,
+        requested_by: currentUser?.email,
         required_confirmations: 2,
-        confirmed_by: [currentUser.email],
-        status: 'pending'
+        confirmed_by: [currentUser?.email],
+        status: 'pending',
       });
-      queryClient.invalidateQueries(['restoreRequests', projectId]);
-    } else {
-      // Direct restore for <= 2 members
-      await performRestore(backup);
+      queryClient.invalidateQueries({ queryKey: ['restoreRequests', projectId] });
+      return;
     }
+    await performRestore(backup);
   };
 
   const confirmRestore = async (request) => {
-    const updatedConfirmed = [...(request.confirmed_by || [])];
-    if (!updatedConfirmed.includes(currentUser.email)) {
-      updatedConfirmed.push(currentUser.email);
-    }
+    const confirmed = [...(request.confirmed_by || [])];
+    if (!confirmed.includes(currentUser?.email)) confirmed.push(currentUser?.email);
 
-    if (updatedConfirmed.length >= request.required_confirmations) {
-      // Enough confirmations - perform restore
+    if (confirmed.length >= request.required_confirmations) {
       const backup = backups.find(b => b.id === request.backup_id);
       if (backup) {
         await performRestore(backup);
-        await api.entities.RestoreRequest.update(request.id, { 
-          status: 'restored',
-          confirmed_by: updatedConfirmed 
-        });
+        await api.entities.RestoreRequest.update(request.id, { status: 'restored', confirmed_by: confirmed });
       }
     } else {
-      await api.entities.RestoreRequest.update(request.id, { 
-        confirmed_by: updatedConfirmed 
-      });
+      await api.entities.RestoreRequest.update(request.id, { confirmed_by: confirmed });
     }
-    queryClient.invalidateQueries(['restoreRequests', projectId]);
+    queryClient.invalidateQueries({ queryKey: ['restoreRequests', projectId] });
   };
 
   const cancelRestore = async (request) => {
     await api.entities.RestoreRequest.update(request.id, { status: 'cancelled' });
-    queryClient.invalidateQueries(['restoreRequests', projectId]);
+    queryClient.invalidateQueries({ queryKey: ['restoreRequests', projectId] });
   };
 
-  const performRestore = async (backup) => {
-    setIsRestoring(true);
-
-    // Delete current data
-    const [tasks, documents, files, posts, messages, events, canvasItems, startupSteps] = await Promise.all([
-      api.entities.Task.list('-created_date', 500).then(all => all.filter(t => t.project_id === projectId)),
-      api.entities.Document.list('-created_date', 200).then(all => all.filter(d => d.project_id === projectId)),
-      api.entities.FileRecord.list('-created_date', 200).then(all => all.filter(f => f.project_id === projectId)),
-      api.entities.Post.list('-created_date', 200).then(all => all.filter(p => p.project_id === projectId)),
-      api.entities.Message.list('-created_date', 500).then(all => all.filter(m => m.project_id === projectId)),
-      api.entities.Event.list('-created_date', 200).then(all => all.filter(e => e.project_id === projectId)),
-      api.entities.CanvasItem.list('-created_date', 200).then(all => all.filter(c => c.project_id === projectId)),
-      api.entities.StartupStep.list('-created_date', 100).then(all => all.filter(s => s.project_id === projectId))
-    ]);
-
-    // Delete all current data
-    await Promise.all([
-      ...tasks.map(t => api.entities.Task.delete(t.id)),
-      ...documents.map(d => api.entities.Document.delete(d.id)),
-      ...files.map(f => api.entities.FileRecord.delete(f.id)),
-      ...posts.map(p => api.entities.Post.delete(p.id)),
-      ...messages.map(m => api.entities.Message.delete(m.id)),
-      ...events.map(e => api.entities.Event.delete(e.id)),
-      ...canvasItems.map(c => api.entities.CanvasItem.delete(c.id)),
-      ...startupSteps.map(s => api.entities.StartupStep.delete(s.id))
-    ]);
-
-    // Restore from backup (without IDs so new ones are generated)
-    const stripId = (item) => {
-      const { id, created_date, updated_date, ...rest } = item;
-      return rest;
-    };
-
-    await Promise.all([
-      ...(backup.tasks_data || []).map(t => api.entities.Task.create(stripId(t))),
-      ...(backup.documents_data || []).map(d => api.entities.Document.create(stripId(d))),
-      ...(backup.files_data || []).map(f => api.entities.FileRecord.create(stripId(f))),
-      ...(backup.posts_data || []).map(p => api.entities.Post.create(stripId(p))),
-      ...(backup.messages_data || []).map(m => api.entities.Message.create(stripId(m))),
-      ...(backup.events_data || []).map(e => api.entities.Event.create(stripId(e))),
-      ...(backup.canvas_items_data || []).map(c => api.entities.CanvasItem.create(stripId(c))),
-      ...(backup.startup_steps_data || []).map(s => api.entities.StartupStep.create(stripId(s)))
-    ]);
-
-    // Restore project data
-    if (backup.project_data) {
-      const { id, created_date, updated_date, created_by, ...projectData } = backup.project_data;
-      await api.entities.Project.update(projectId, projectData);
+  const handleDelete = async (backup) => {
+    if (!window.confirm('Backup wirklich löschen?')) return;
+    try {
+      await deleteFullBackup(projectId, backup.id);
+      queryClient.invalidateQueries({ queryKey: ['backups', projectId] });
+    } catch (err) {
+      toast({ title: 'Löschen fehlgeschlagen', description: err?.message, variant: 'destructive' });
     }
-
-    setIsRestoring(false);
-    queryClient.invalidateQueries();
-    setIsOpen(false);
   };
 
-  const deleteBackup = async (backupId) => {
-    if (window.confirm('Backup wirklich löschen?')) {
-      await api.entities.ProjectBackup.delete(backupId);
-      queryClient.invalidateQueries(['backups', projectId]);
+  const handleDownload = async (backup) => {
+    try {
+      await downloadBackup(projectId, backup.id);
+    } catch (err) {
+      toast({ title: 'Download fehlgeschlagen', description: err?.message, variant: 'destructive' });
     }
   };
 
   return (
     <>
-      <Button
-        variant="outline"
-        onClick={() => setIsOpen(true)}
-        className="gap-2"
-      >
+      <Button variant="outline" onClick={() => setIsOpen(true)} className="gap-2">
         <Database className="w-4 h-4" />
         Backups
         {restoreRequests.length > 0 && (
@@ -230,7 +209,14 @@ export default function BackupManager({ projectId, project, currentUser }) {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Info Banner */}
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-start gap-2">
+            <HardDrive className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-slate-600">
+              Jedes Backup enthält alle Projektdaten <strong>und</strong> die hochgeladenen Dateien als ZIP.
+              Beim Wiederherstellen landen die Dateien wieder unter ihren Original-Pfaden, alle Links stimmen also weiterhin.
+            </p>
+          </div>
+
           {needsMultipleConfirmations && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
               <Shield className="w-5 h-5 text-amber-600" />
@@ -240,7 +226,13 @@ export default function BackupManager({ projectId, project, currentUser }) {
             </div>
           )}
 
-          {/* Pending Restore Requests */}
+          {restoreStatus && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-indigo-600 animate-spin" />
+              <p className="text-sm text-indigo-700">{restoreStatus}</p>
+            </div>
+          )}
+
           {restoreRequests.length > 0 && (
             <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-3">
               <h3 className="font-medium text-indigo-900 flex items-center gap-2">
@@ -254,12 +246,8 @@ export default function BackupManager({ projectId, project, currentUser }) {
                   <div key={request.id} className="bg-white rounded-lg p-3 border border-indigo-100">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-slate-900">
-                          {backup?.backup_name || 'Backup'}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Angefragt von {request.requested_by}
-                        </p>
+                        <p className="font-medium text-slate-900">{backup?.name || 'Backup'}</p>
+                        <p className="text-xs text-slate-500">Angefragt von {request.requested_by}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <Users className="w-3 h-3 text-slate-400" />
                           <span className="text-xs text-slate-600">
@@ -268,28 +256,18 @@ export default function BackupManager({ projectId, project, currentUser }) {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {!hasConfirmed && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => confirmRestore(request)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
+                        {!hasConfirmed ? (
+                          <Button size="sm" onClick={() => confirmRestore(request)} className="bg-green-600 hover:bg-green-700">
                             <Check className="w-4 h-4 mr-1" />
                             Bestätigen
                           </Button>
-                        )}
-                        {hasConfirmed && (
+                        ) : (
                           <Badge className="bg-green-100 text-green-700">
                             <Check className="w-3 h-3 mr-1" />
                             Bestätigt
                           </Badge>
                         )}
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => cancelRestore(request)}
-                          className="text-red-600"
-                        >
+                        <Button size="sm" variant="outline" onClick={() => cancelRestore(request)} className="text-red-600">
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
@@ -300,7 +278,6 @@ export default function BackupManager({ projectId, project, currentUser }) {
             </div>
           )}
 
-          {/* Create Backup */}
           <div className="flex gap-2">
             <Input
               value={backupName}
@@ -308,24 +285,23 @@ export default function BackupManager({ projectId, project, currentUser }) {
               placeholder="Backup-Name (optional)"
               className="flex-1"
             />
-            <Button 
-              onClick={() => createBackup('manual')}
-              disabled={isCreating}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              {isCreating ? (
-                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Download className="w-4 h-4 mr-2" />
-              )}
-              Backup erstellen
+            <Button onClick={handleCreate} disabled={isCreating} className="bg-indigo-600 hover:bg-indigo-700">
+              {isCreating ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Database className="w-4 h-4 mr-2" />}
+              {isCreating ? 'Wird gepackt…' : 'Backup erstellen'}
             </Button>
           </div>
 
-          {/* Backups List */}
           <ScrollArea className="max-h-[40vh]">
             <div className="space-y-2">
-              {backupsLoading ? (
+              {backupsError ? (
+                <div className="text-center py-8 px-4">
+                  <FileWarning className="w-10 h-10 mx-auto mb-2 text-red-300" />
+                  <p className="text-sm text-red-600">{backupsErrorObj?.message}</p>
+                  <Button size="sm" variant="outline" className="mt-3" onClick={() => refetchBackups()}>
+                    Erneut laden
+                  </Button>
+                </div>
+              ) : backupsLoading ? (
                 <div className="text-center py-8 text-slate-500">
                   <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                   Laden...
@@ -343,49 +319,54 @@ export default function BackupManager({ projectId, project, currentUser }) {
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:border-indigo-300 transition-colors"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-medium text-slate-900">
-                            {backup.backup_name || 'Backup'}
-                          </h4>
+                          <h4 className="font-medium text-slate-900 truncate">{backup.name || 'Backup'}</h4>
                           <Badge variant="outline" className={
-                            backup.backup_type === 'auto' 
+                            backup.backup_type === 'auto'
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
                               : 'bg-purple-50 text-purple-700 border-purple-200'
                           }>
                             {backup.backup_type === 'auto' ? 'Auto' : 'Manuell'}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {new Date(backup.created_date).toLocaleString('de')}
+                            {new Date(backup.created_date).toLocaleString('de-DE')}
                           </span>
-                          <span>{backup.tasks_data?.length || 0} Tasks</span>
-                          <span>{backup.documents_data?.length || 0} Docs</span>
-                          <span>{backup.posts_data?.length || 0} Posts</span>
+                          <span>{backup.included_files ?? 0} Dateien</span>
+                          <span>{formatBytes(backup.size)}</span>
+                          {backup.missing_files > 0 && (
+                            <span className="text-amber-600">{backup.missing_files} Datei(en) fehlten</span>
+                          )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDownload(backup)}
+                          title="ZIP herunterladen"
+                          className="text-slate-600"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => requestRestore(backup)}
-                          disabled={isRestoring}
+                          disabled={!!restoreStatus}
                           className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
                         >
-                          {isRestoring ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Upload className="w-4 h-4 mr-1" />
-                          )}
+                          <Upload className="w-4 h-4 mr-1" />
                           Wiederherstellen
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => deleteBackup(backup.id)}
+                          onClick={() => handleDelete(backup)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -398,9 +379,8 @@ export default function BackupManager({ projectId, project, currentUser }) {
             </div>
           </ScrollArea>
 
-          {/* Info */}
           <p className="text-xs text-slate-400 text-center">
-            Automatische Backups werden alle 24 Stunden erstellt
+            Automatisches Backup einmal täglich beim Öffnen des Projekts · alle Stände bleiben erhalten
           </p>
         </DialogContent>
       </Dialog>

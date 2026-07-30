@@ -19,6 +19,13 @@ export default function ProjectMembersManager({ projectId }) {
   const [email, setEmail] = useState("");
   const [inviting, setInviting] = useState(false);
 
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => api.auth.me(),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', projectId],
     queryFn: async () => {
@@ -57,49 +64,16 @@ export default function ProjectMembersManager({ projectId }) {
   });
 
   const sendInviteMutation = useMutation({
-    mutationFn: async (email) => {
-      const appUrl = window.location.origin;
-      const isGerman = language === 'de';
-      return api.integrations.Core.SendEmail({
-        to: email,
-        projectId,
-        appUrl,
-        subject: isGerman 
-          ? "🎉 Du wurdest zu einem Projekt in ORBYLOX eingeladen!"
-          : "🎉 You've been invited to a project in ORBYLOX!",
-        bodyText: isGerman ? `
-Hallo!
-
-Du wurdest eingeladen, einem Projekt in ORBYLOX beizutreten - der Plattform für Teamarbeit.
-
-🚀 Was dich erwartet:
-• Gemeinsame Arbeit an Aufgaben in Echtzeit
-• Visuelles Canvas-Board
-• Team-Chat
-• Dokumente und Dateien
-
-👉 Klicke hier, um zu starten: ${appUrl}/login?project=${encodeURIComponent(projectId)}
-
-Bis bald im Projekt!
-Dein ORBYLOX Team
-        ` : `
-Hello!
-
-You've been invited to join a project in ORBYLOX - the platform for team collaboration.
-
-🚀 What awaits you:
-• Real-time collaborative task management
-• Visual Canvas board
-• Team chat
-• Documents and files
-
-👉 Click here to get started: ${appUrl}/login?project=${encodeURIComponent(projectId)}
-
-See you in the project!
-Your ORBYLOX Team
-        `
-      });
-    }
+    // Subject and body are built by the server template, so every invite looks
+    // the same and stays translatable in one place.
+    mutationFn: async (email) => api.integrations.Core.SendEmail({
+      to: email,
+      projectId,
+      appUrl: window.location.origin,
+      language: language === 'en' ? 'en' : 'de',
+      projectName: project?.name || '',
+      inviterName: currentUser?.full_name || currentUser?.displayName || currentUser?.email || '',
+    }),
   });
 
   const addMember = async () => {
@@ -138,10 +112,13 @@ Your ORBYLOX Team
           ? `✅ ${email} wurde zum Projekt hinzugefügt!\nEinladung wurde per E-Mail gesendet.`
           : `✅ ${email} added to project!\nInvitation sent via email.`);
       } catch (emailError) {
+        // Silently pretending the invite went out is how a broken mail setup
+        // stays unnoticed for weeks — say what actually happened.
         console.error('Email send failed:', emailError);
-        alert(isGerman 
-          ? `✅ ${email} wurde zum Projekt hinzugefügt!`
-          : `✅ ${email} added to project!`);
+        const reason = emailError?.message || 'Unbekannter Fehler';
+        alert(isGerman
+          ? `✅ ${email} wurde zum Projekt hinzugefügt.\n\n⚠️ Die Einladungs-E-Mail konnte NICHT gesendet werden:\n${reason}\n\nBitte den Link manuell weitergeben:\n${window.location.origin}/login?project=${encodeURIComponent(projectId)}`
+          : `✅ ${email} added to project.\n\n⚠️ The invitation email could NOT be sent:\n${reason}\n\nPlease share this link manually:\n${window.location.origin}/login?project=${encodeURIComponent(projectId)}`);
       }
       setEmail("");
     } catch (error) {
