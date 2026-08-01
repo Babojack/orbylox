@@ -3,27 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Video, X, Minus, Maximize2, Minimize2, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
-const JITSI_DOMAIN = import.meta.env.VITE_JITSI_DOMAIN || 'meet.jit.si';
-const SCRIPT_URL = `https://${JITSI_DOMAIN}/external_api.js`;
+import { JITSI_DOMAIN, projectRoomName } from '@/lib/meetingRoom';
 
-/**
- * Room names are public on meet.jit.si, so a plain project id would be easy to
- * guess. A short deterministic hash keeps the name stable per project without
- * spelling the id out.
- */
-function roomNameFor(projectId, projectName = '') {
-  const seed = `orbylox:${projectId || 'lobby'}`;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  }
-  const slug = (projectName || 'projekt')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 24) || 'projekt';
-  return `orbylox-${slug}-${hash.toString(36)}`;
-}
+const SCRIPT_URL = `https://${JITSI_DOMAIN}/external_api.js`;
 
 let scriptPromise = null;
 function loadJitsiScript() {
@@ -54,7 +36,7 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
   const frameRef = useRef(null);
   const apiRef = useRef(null);
 
-  const room = roomNameFor(projectId, projectName);
+  const room = projectRoomName(projectId, projectName);
   const directLink = `https://${JITSI_DOMAIN}/${room}`;
 
   const disposeCall = useCallback(() => {

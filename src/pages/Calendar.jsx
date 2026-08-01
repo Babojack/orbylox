@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from "@/api/apiClient";
+import { eventRoomName, roomUrl, roomFromUrl, meetingPageUrl } from "@/lib/meetingRoom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -223,11 +225,7 @@ export default function Calendar() {
   };
 
   /** One room per event, so parallel meetings never collide. */
-  const buildMeetingUrl = () => {
-    const domain = import.meta.env.VITE_JITSI_DOMAIN || 'meet.jit.si';
-    const random = Math.random().toString(36).slice(2, 8);
-    return `https://${domain}/orbylox-termin-${(projectId || 'projekt').slice(0, 8)}-${random}`;
-  };
+  const buildMeetingUrl = () => roomUrl(eventRoomName(projectId));
 
   const withMeeting = (eventData) => {
     if (!eventData.video_enabled) return { ...eventData, video_url: '' };
@@ -324,16 +322,14 @@ export default function Calendar() {
                       style={{ backgroundColor: event.color || '#6366f1' }}
                     >
                       {event.video_url && (
-                        <a
-                          href={event.video_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <Link
+                          to={meetingPageUrl(projectId, roomFromUrl(event.video_url))}
                           onClick={(e) => e.stopPropagation()}
-                          title="Videokonferenz beitreten"
+                          title="Videokonferenz in ORBYLOX beitreten"
                           className="shrink-0 hover:scale-110 transition-transform"
                         >
                           <Video className="w-3 h-3" />
-                        </a>
+                        </Link>
                       )}
                       <span className="truncate">{event.title}</span>
                     </div>
