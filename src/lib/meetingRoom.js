@@ -49,6 +49,49 @@ export function roomFromUrl(value) {
   }
 }
 
+/**
+ * Chrome only forwards camera and microphone into a cross-origin iframe if the
+ * embedding page holds the permission itself. Asking here makes the browser show
+ * its prompt for orbylox.de before Jitsi loads.
+ *
+ * @returns {Promise<{ok: boolean, error?: string}>}
+ */
+export async function ensureMediaPermission() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return { ok: false, error: 'Dieser Browser unterstützt keine Kamera-/Mikrofonfreigabe.' };
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    // Release the devices immediately — Jitsi opens them again itself.
+    stream.getTracks().forEach((track) => track.stop());
+    return { ok: true };
+  } catch (err) {
+    const messages = {
+      NotAllowedError:
+        'Kamera und Mikrofon wurden blockiert. Klicke links in der Adressleiste auf das Schloss-Symbol und erlaube beides für orbylox.de.',
+      NotFoundError: 'Keine Kamera oder kein Mikrofon gefunden.',
+      NotReadableError: 'Kamera oder Mikrofon wird bereits von einem anderen Programm benutzt.',
+      SecurityError: 'Zugriff nur über HTTPS möglich.',
+    };
+    return { ok: false, error: messages[err?.name] || err?.message || 'Zugriff auf Kamera/Mikrofon fehlgeschlagen.' };
+  }
+}
+
+/** Explicit permission delegation on the embedded frame. */
+export function allowMediaInFrame(jitsiApi) {
+  try {
+    const iframe = jitsiApi?.getIFrame?.();
+    if (!iframe) return;
+    iframe.setAttribute(
+      'allow',
+      'camera; microphone; display-capture; autoplay; clipboard-write; fullscreen; speaker-selection'
+    );
+    iframe.setAttribute('allowfullscreen', 'true');
+  } catch {
+    /* older API versions have no getIFrame */
+  }
+}
+
 /** In-app meeting page — keeps the conference inside ORBYLOX. */
 export function meetingPageUrl(projectId, room) {
   const params = new URLSearchParams();

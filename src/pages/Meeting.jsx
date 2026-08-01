@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/apiClient';
 import { Video, AlertTriangle, Copy, Check, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { JITSI_DOMAIN, projectRoomName, roomUrl } from '@/lib/meetingRoom';
+import { JITSI_DOMAIN, projectRoomName, roomUrl, ensureMediaPermission, allowMediaInFrame } from '@/lib/meetingRoom';
 
 let scriptPromise = null;
 function loadJitsiScript() {
@@ -36,6 +36,7 @@ export default function Meeting() {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [permissionHint, setPermissionHint] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { data: currentUser } = useQuery({
@@ -74,7 +75,14 @@ export default function Meeting() {
     setError(null);
     setIsLoading(true);
 
-    loadJitsiScript()
+    // Ask for camera/mic on our own origin first, otherwise the embedded frame
+    // shows "Sie müssen den Zugriff erlauben" with no way to grant it.
+    Promise.resolve()
+      .then(async () => {
+        const permission = await ensureMediaPermission();
+        if (!cancelled && !permission.ok) setPermissionHint(permission.error);
+      })
+      .then(loadJitsiScript)
       .then(() => {
         if (cancelled || !frameRef.current) return;
         dispose();
@@ -104,6 +112,7 @@ export default function Meeting() {
         });
 
         apiRef.current = jitsi;
+        allowMediaInFrame(jitsi);
         jitsi.addEventListener('videoConferenceJoined', () => setIsLoading(false));
         setTimeout(() => !cancelled && setIsLoading(false), 2500);
       })
@@ -172,6 +181,16 @@ export default function Meeting() {
           </Button>
         </div>
       </div>
+
+      {permissionHint && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-800">
+            <p className="font-medium">Kamera und Mikrofon sind noch nicht freigegeben</p>
+            <p className="mt-0.5">{permissionHint}</p>
+          </div>
+        </div>
+      )}
 
       <div
         ref={containerRef}

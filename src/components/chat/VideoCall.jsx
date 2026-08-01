@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Video, X, Minus, Maximize2, Minimize2, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
-import { JITSI_DOMAIN, projectRoomName } from '@/lib/meetingRoom';
+import { JITSI_DOMAIN, projectRoomName, ensureMediaPermission, allowMediaInFrame } from '@/lib/meetingRoom';
 
 const SCRIPT_URL = `https://${JITSI_DOMAIN}/external_api.js`;
 
@@ -30,6 +30,7 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [error, setError] = useState(null);
+  const [permissionHint, setPermissionHint] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const containerRef = useRef(null);
@@ -55,7 +56,13 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
     setError(null);
     setIsLoading(true);
 
-    loadJitsiScript()
+    // Grant camera/mic on our own origin first — a cross-origin frame cannot ask.
+    Promise.resolve()
+      .then(async () => {
+        const permission = await ensureMediaPermission();
+        if (!cancelled && !permission.ok) setPermissionHint(permission.error);
+      })
+      .then(loadJitsiScript)
       .then(() => {
         if (cancelled || !frameRef.current) return;
         disposeCall();
@@ -84,6 +91,7 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
         });
 
         apiRef.current = api;
+        allowMediaInFrame(api);
         api.addEventListener('videoConferenceLeft', () => onClose?.());
         api.addEventListener('readyToClose', () => onClose?.());
         api.addEventListener('videoConferenceJoined', () => setIsLoading(false));
@@ -194,6 +202,12 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
               </Button>
             </div>
           </div>
+
+          {permissionHint && !isMinimized && (
+            <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-800 shrink-0">
+              {permissionHint}
+            </div>
+          )}
 
           {/* Meeting */}
           <div className="relative flex-1 min-h-0 bg-slate-900">
