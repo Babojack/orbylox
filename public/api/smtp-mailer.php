@@ -67,6 +67,52 @@ function smtpFormatAddress(string $email, string $name = ''): string
     return $name !== '' ? smtpEncodeHeader($name) . ' <' . $email . '>' : $email;
 }
 
+/**
+ * Connects and authenticates only — used by the diagnostics endpoint to tell
+ * "wrong password" apart from "wrong config file" without sending anything.
+ */
+function checkSmtpLogin(array $options): array
+{
+    $host = (string)($options['host'] ?? '');
+    $port = (int)($options['port'] ?? 465);
+    $user = (string)($options['user'] ?? '');
+    $pass = (string)($options['pass'] ?? '');
+
+    $useImplicitTls = ($port === 465);
+    $socket = @stream_socket_client(
+        ($useImplicitTls ? 'ssl://' : 'tcp://') . $host . ':' . $port,
+        $errno,
+        $errstr,
+        15,
+        STREAM_CLIENT_CONNECT,
+        stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'SNI_enabled' => true]])
+    );
+    if (!$socket) {
+        return ['ok' => false, 'step' => 'connect', 'message' => $errstr ?: (string)$errno];
+    }
+    stream_set_timeout($socket, 15);
+
+    try {
+        smtpSend($socket, '', [220], 'Begruessung');
+        $clientName = $_SERVER['SERVER_NAME'] ?? 'orbylox.de';
+        smtpSend($socket, 'EHLO ' . $clientName, [250], 'EHLO');
+        if (!$useImplicitTls) {
+            smtpSend($socket, 'STARTTLS', [220], 'STARTTLS');
+            stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+            smtpSend($socket, 'EHLO ' . $clientName, [250], 'EHLO nach STARTTLS');
+        }
+        smtpSend($socket, 'AUTH LOGIN', [334], 'AUTH LOGIN');
+        smtpSend($socket, base64_encode($user), [334], 'Benutzername');
+        smtpSend($socket, base64_encode($pass), [235], 'Passwort');
+        @fwrite($socket, "QUIT\r\n");
+        return ['ok' => true, 'step' => 'auth', 'message' => 'Anmeldung erfolgreich'];
+    } catch (Throwable $e) {
+        return ['ok' => false, 'step' => 'auth', 'message' => $e->getMessage()];
+    } finally {
+        @fclose($socket);
+    }
+}
+
 function sendSmtpMail(array $options): void
 {
     $host = (string)($options['host'] ?? '');

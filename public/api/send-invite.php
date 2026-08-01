@@ -43,6 +43,7 @@ if ($configPath === null) {
 
 /** @var array $config */
 $config = require $configPath;
+$usedConfigPath = $configPath;
 
 // PHPMailer when it happens to be installed, otherwise the bundled SMTP client —
 // no Composer step needed on the server.
@@ -90,6 +91,43 @@ header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Invite-Api-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
+    exit;
+}
+
+/* --------------------------------------------------------------- diagnostics */
+// Runs before auth so it can be opened in a browser; throttled and secret-free.
+if (($_GET['action'] ?? '') === 'diag') {
+    $throttleFile = sys_get_temp_dir() . '/orbylox_diag_last';
+    if (is_file($throttleFile) && (time() - (int)filemtime($throttleFile)) < 20) {
+        http_response_code(429);
+        echo json_encode(['error' => 'Diagnose zu oft aufgerufen. Bitte 20 Sekunden warten.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    @touch($throttleFile);
+    require_once __DIR__ . '/smtp-mailer.php';
+    $pass = (string)($config['smtp_pass'] ?? '');
+    $login = $pass === ''
+        ? ['ok' => false, 'step' => 'config', 'message' => 'smtp_pass ist leer']
+        : checkSmtpLogin([
+            'host' => (string)($config['smtp_host'] ?? 'smtp.hostinger.com'),
+            'port' => (int)($config['smtp_port'] ?? 465),
+            'user' => (string)($config['smtp_user'] ?? ''),
+            'pass' => $pass,
+        ]);
+
+    echo json_encode([
+        'config_file' => $usedConfigPath,
+        'note' => 'Diagnose ohne Versand. Zeigt nie das Passwort, nur einen Fingerabdruck.',
+        'smtp_host' => (string)($config['smtp_host'] ?? ''),
+        'smtp_port' => (int)($config['smtp_port'] ?? 0),
+        'smtp_user' => (string)($config['smtp_user'] ?? ''),
+        // Fingerprint only — never the password itself.
+        'password_length' => strlen($pass),
+        'password_fingerprint' => $pass === '' ? '' : substr(hash('sha256', $pass), 0, 8),
+        'password_is_placeholder' => stripos($pass, 'HIER_DAS_POSTFACH') !== false,
+        'mailer' => $hasPhpMailer ? 'phpmailer' : 'builtin',
+        'login' => $login,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
     exit;
 }
 
