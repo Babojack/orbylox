@@ -69,7 +69,11 @@ export default function Chat() {
     enabled: !!projectId
   });
 
-  const projectMembers = project?.members || [];
+  // The creator's address can also sit in members — without this filter you
+  // show up twice: once as "You" and once as a regular member.
+  const projectMembers = (project?.members || []).filter(
+    (email) => (email || '').toLowerCase() !== (currentUser?.email || '').toLowerCase()
+  );
 
   const sendMessageMutation = useMutation({
     mutationFn: (content) => api.entities.Message.create({
