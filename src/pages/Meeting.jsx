@@ -71,15 +71,28 @@ export default function Meeting() {
     // shows "Sie müssen den Zugriff erlauben" with no way to grant it.
     Promise.resolve()
       .then(async () => {
-        const permission = await ensureMediaPermission();
+        const state = await mediaPermissionState();
         if (cancelled) return;
-        if (permission.ok) {
+
+        if (state === 'granted') {
+          await ensureMediaPermission();
           setPermissionHint(null);
           setPermissionBlocked(false);
-        } else {
-          setPermissionHint(permission.error);
-          setPermissionBlocked(!!permission.blocked);
+          return;
         }
+        if (state === 'denied') {
+          setPermissionHint(
+            'Kamera und Mikrofon sind für orbylox.de blockiert. Unten steht, wie du das aufhebst.'
+          );
+          setPermissionBlocked(true);
+          return;
+        }
+        // 'prompt' or unknown: ask via the button — a click makes Chrome show the
+        // dialog reliably, an automatic request is often dismissed silently.
+        setPermissionHint(
+          'Klicke auf „Zugriff erlauben“ und bestätige die Nachfrage von Chrome. Ohne Freigabe siehst du nur das schwarze Bild.'
+        );
+        setPermissionBlocked(false);
       })
       .then(loadJitsiApi)
       .then(() => {
@@ -203,6 +216,17 @@ export default function Meeting() {
           <div className="text-sm text-amber-900 flex-1">
             <p className="font-medium">Kamera und Mikrofon sind noch nicht freigegeben</p>
             <p className="mt-0.5 text-amber-800">{permissionHint}</p>
+            <details className="mt-2">
+              <summary className="cursor-pointer text-amber-900 font-medium">
+                Es kommt gar keine Nachfrage? Dann fehlt macOS-Freigabe
+              </summary>
+              <p className="mt-1.5 text-amber-800">
+                macOS muss Chrome selbst den Zugriff erlauben, sonst kann keine Website fragen:
+                Systemeinstellungen → Datenschutz &amp; Sicherheit → Kamera (und Mikrofon) → Google Chrome
+                einschalten. Chrome danach komplett beenden und neu starten.
+              </p>
+            </details>
+
             {permissionBlocked && (
               <details className="mt-2">
                 <summary className="cursor-pointer text-amber-900 font-medium">
