@@ -208,6 +208,25 @@ export default function Meeting() {
                 <summary className="cursor-pointer text-amber-900 font-medium">
                   Schritt für Schritt freigeben
                 </summary>
+                <p className="mt-1.5 text-amber-800">
+                  Am schnellsten geht es über die Chrome-Einstellungen — Adresse kopieren und in einem neuen Tab
+                  einfügen (anklickbar sind chrome://-Adressen nicht):
+                </p>
+                <div className="flex items-center gap-2 mt-1.5 mb-2">
+                  <code className="bg-white/70 border border-amber-200 rounded px-2 py-1 text-[12px] text-amber-900">
+                    chrome://settings/content/camera
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-amber-300"
+                    onClick={() => navigator.clipboard?.writeText('chrome://settings/content/camera')}
+                  >
+                    Kopieren
+                  </Button>
+                </div>
+                <p className="text-amber-800">Dort orbylox.de auf „Zulassen“ stellen — dasselbe unter …/content/microphone.</p>
+                <p className="mt-2 font-medium text-amber-900">Oder direkt in der Adressleiste:</p>
                 <ol className="list-decimal ml-5 mt-1.5 space-y-1 text-amber-800">
                   <li>Oben links in der Adressleiste auf das Symbol direkt vor „orbylox.de“ klicken (Regler-Symbol).</li>
                   <li>Bei „Kamera“ und „Mikrofon“ jeweils auf „Zulassen“ stellen.</li>
