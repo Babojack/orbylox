@@ -183,11 +183,12 @@ export default function Chat() {
 
   return (
     <>
-    <VideoCall 
-      isOpen={showVideoCall} 
-      onClose={() => setShowVideoCall(false)} 
+    <VideoCall
+      isOpen={showVideoCall}
+      onClose={() => setShowVideoCall(false)}
       currentUser={currentUser}
-      projectMembers={projectMembers}
+      projectId={projectId}
+      projectName={project?.name}
     />
     <div className="h-[calc(100dvh-140px)] min-h-[280px] flex bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm overflow-hidden max-w-full">
        {/* Sidebar - Channels & Users - Hidden on mobile */}
