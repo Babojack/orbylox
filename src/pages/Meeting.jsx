@@ -28,6 +28,7 @@ export default function Meeting() {
   const [copied, setCopied] = useState(false);
   const [permissionHint, setPermissionHint] = useState(null);
   const [permissionBlocked, setPermissionBlocked] = useState(false);
+  const [permissionState, setPermissionState] = useState('unknown');
   const [requestingPermission, setRequestingPermission] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -73,6 +74,7 @@ export default function Meeting() {
       .then(async () => {
         const state = await mediaPermissionState();
         if (cancelled) return;
+        setPermissionState(state);
 
         if (state === 'granted') {
           await ensureMediaPermission();
@@ -151,6 +153,7 @@ export default function Meeting() {
       return;
     }
     const state = await mediaPermissionState();
+    setPermissionState(state);
     setPermissionHint(permission.error);
     setPermissionBlocked(state === 'denied' || !!permission.blocked);
     setRequestingPermission(false);
@@ -216,10 +219,21 @@ export default function Meeting() {
           <div className="text-sm text-amber-900 flex-1">
             <p className="font-medium">Kamera und Mikrofon sind noch nicht freigegeben</p>
             <p className="mt-0.5 text-amber-800">{permissionHint}</p>
+            <p className="mt-1 text-[11px] text-amber-700">
+              Status laut Browser:{' '}
+              {{ granted: 'erlaubt', denied: 'blockiert', prompt: 'fragt nach', unknown: 'unbekannt' }[permissionState]}
+              {permissionState === 'prompt' &&
+                ' — kommt trotzdem kein Dialog, hat Chrome die Nachfrage vorübergehend stummgeschaltet (siehe unten).'}
+            </p>
             <details className="mt-2">
               <summary className="cursor-pointer text-amber-900 font-medium">
-                Es kommt gar keine Nachfrage? Dann fehlt macOS-Freigabe
+                Es kommt gar keine Nachfrage?
               </summary>
+              <p className="mt-1.5 text-amber-800">
+                Chrome schaltet Nachfragen stumm, wenn sie mehrfach weggeklickt wurden — die Website taucht dann in
+                keiner Liste auf. Abhilfe: Symbol links neben der Adresse anklicken → „Berechtigungen zurücksetzen“,
+                Seite neu laden, dann erneut auf „Zugriff erlauben“.
+              </p>
               <p className="mt-1.5 text-amber-800">
                 macOS muss Chrome selbst den Zugriff erlauben, sonst kann keine Website fragen:
                 Systemeinstellungen → Datenschutz &amp; Sicherheit → Kamera (und Mikrofon) → Google Chrome
