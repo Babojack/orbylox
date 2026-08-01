@@ -7,6 +7,10 @@ import {
   onAuthStateChanged,
   firebaseSignOut,
   mapFirebaseUser,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
 } from "@/lib/firebase";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
@@ -1055,13 +1059,32 @@ export const api = {
       );
       return updated;
     },
-    async register({ email, password }) {
+    /**
+     * Real Firebase account when the project is configured — same cloud data as
+     * Google sign-in. Falls back to the browser-local store otherwise.
+     */
+    async register({ email, password, fullName = "", photoFile = null }) {
       await delay();
       if (typeof window === "undefined") return null;
       if (hasFirebaseConfig && firebaseAuth) {
-        throw new Error(
-          "Registrierung per E-Mail speichert nur in diesem Browser. Bitte „Mit Google anmelden“ für Cloud-Sync auf allen Geräten.",
-        );
+        const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        const profile = {};
+        if (fullName.trim()) profile.displayName = fullName.trim();
+
+        if (photoFile) {
+          try {
+            // The user is signed in at this point, so the upload endpoint accepts the token.
+            const { file_url } = await api.integrations.Core.UploadFile({ file: photoFile });
+            if (file_url) profile.photoURL = file_url;
+          } catch (err) {
+            console.error("[Auth] Profilbild konnte nicht gespeichert werden:", err?.message || err);
+          }
+        }
+
+        if (Object.keys(profile).length > 0) {
+          await updateProfile(credential.user, profile);
+        }
+        return mapFirebaseUser(firebaseAuth.currentUser || credential.user);
       }
       const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "users");
       const users = raw ? JSON.parse(raw) : [];
@@ -1086,9 +1109,8 @@ export const api = {
       await delay();
       if (typeof window === "undefined") return null;
       if (hasFirebaseConfig && firebaseAuth) {
-        throw new Error(
-          "E-Mail-Login speichert nur in diesem Browser. Bitte „Mit Google anmelden“ — dann sind Projekte in Chrome, Brave & Co. gleich.",
-        );
+        const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+        return mapFirebaseUser(credential.user);
       }
       const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + "users");
       const users = raw ? JSON.parse(raw) : [];
@@ -1120,6 +1142,14 @@ export const api = {
         JSON.stringify({ email, plan: found.plan || "basic" }),
       );
       return { email, plan: found.plan || "basic" };
+    },
+    /** Sends the Firebase reset email; local accounts have no reset flow. */
+    async resetPassword(email) {
+      if (!hasFirebaseConfig || !firebaseAuth) {
+        throw new Error("Passwort-Reset benoetigt ein Firebase-Konto.");
+      }
+      await sendPasswordResetEmail(firebaseAuth, email);
+      return { status: "ok" };
     },
     async isAuthenticated() {
       const user = await this.me();
