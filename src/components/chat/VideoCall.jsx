@@ -3,28 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Video, X, Minus, Maximize2, Minimize2, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
-import { JITSI_DOMAIN, projectRoomName, ensureMediaPermission, allowMediaInFrame } from '@/lib/meetingRoom';
-
-const SCRIPT_URL = `https://${JITSI_DOMAIN}/external_api.js`;
-
-let scriptPromise = null;
-function loadJitsiScript() {
-  if (window.JitsiMeetExternalAPI) return Promise.resolve();
-  if (scriptPromise) return scriptPromise;
-
-  scriptPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = SCRIPT_URL;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => {
-      scriptPromise = null;
-      reject(new Error('Jitsi konnte nicht geladen werden.'));
-    };
-    document.head.appendChild(script);
-  });
-  return scriptPromise;
-}
+import {
+  JITSI_DOMAIN,
+  projectRoomName,
+  roomUrl,
+  apiRoomName,
+  loadJitsiApi,
+  ensureMediaPermission,
+  allowMediaInFrame,
+} from '@/lib/meetingRoom';
 
 export default function VideoCall({ isOpen, onClose, currentUser, projectId, projectName }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -38,7 +25,7 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
   const apiRef = useRef(null);
 
   const room = projectRoomName(projectId, projectName);
-  const directLink = `https://${JITSI_DOMAIN}/${room}`;
+  const directLink = roomUrl(room);
 
   const disposeCall = useCallback(() => {
     try {
@@ -62,13 +49,13 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
         const permission = await ensureMediaPermission();
         if (!cancelled && !permission.ok) setPermissionHint(permission.error);
       })
-      .then(loadJitsiScript)
+      .then(loadJitsiApi)
       .then(() => {
         if (cancelled || !frameRef.current) return;
         disposeCall();
 
         const api = new window.JitsiMeetExternalAPI(JITSI_DOMAIN, {
-          roomName: room,
+          roomName: apiRoomName(room),
           parentNode: frameRef.current,
           width: '100%',
           height: '100%',

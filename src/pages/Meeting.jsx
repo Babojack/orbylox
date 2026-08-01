@@ -3,26 +3,15 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/apiClient';
 import { Video, AlertTriangle, Copy, Check, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { JITSI_DOMAIN, projectRoomName, roomUrl, ensureMediaPermission, allowMediaInFrame } from '@/lib/meetingRoom';
-
-let scriptPromise = null;
-function loadJitsiScript() {
-  if (window.JitsiMeetExternalAPI) return Promise.resolve();
-  if (scriptPromise) return scriptPromise;
-
-  scriptPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://${JITSI_DOMAIN}/external_api.js`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => {
-      scriptPromise = null;
-      reject(new Error(`${JITSI_DOMAIN} konnte nicht geladen werden.`));
-    };
-    document.head.appendChild(script);
-  });
-  return scriptPromise;
-}
+import {
+  JITSI_DOMAIN,
+  projectRoomName,
+  roomUrl,
+  apiRoomName,
+  loadJitsiApi,
+  ensureMediaPermission,
+  allowMediaInFrame,
+} from '@/lib/meetingRoom';
 
 export default function Meeting() {
   const params = new URLSearchParams(window.location.search);
@@ -82,13 +71,13 @@ export default function Meeting() {
         const permission = await ensureMediaPermission();
         if (!cancelled && !permission.ok) setPermissionHint(permission.error);
       })
-      .then(loadJitsiScript)
+      .then(loadJitsiApi)
       .then(() => {
         if (cancelled || !frameRef.current) return;
         dispose();
 
         const jitsi = new window.JitsiMeetExternalAPI(JITSI_DOMAIN, {
-          roomName: room,
+          roomName: apiRoomName(room),
           parentNode: frameRef.current,
           width: '100%',
           height: '100%',

@@ -4,7 +4,46 @@
  * Room names on a public Jitsi server are effectively passwords, so the project
  * id is folded into a short hash instead of being spelled out.
  */
-export const JITSI_DOMAIN = import.meta.env.VITE_JITSI_DOMAIN || 'meet.jit.si';
+/**
+ * Two modes:
+ *   JaaS (8x8)  — set VITE_JAAS_APP_ID to the vpaas magic cookie of the account.
+ *   Public Jitsi — no app id; falls back to meet.jit.si.
+ */
+export const JAAS_APP_ID = import.meta.env.VITE_JAAS_APP_ID || '';
+export const JITSI_DOMAIN =
+  import.meta.env.VITE_JITSI_DOMAIN || (JAAS_APP_ID ? '8x8.vc' : 'meet.jit.si');
+
+/** JaaS serves its own build of the embed script per account. */
+export function externalApiUrl() {
+  return JAAS_APP_ID
+    ? `https://${JITSI_DOMAIN}/${JAAS_APP_ID}/external_api.js`
+    : `https://${JITSI_DOMAIN}/external_api.js`;
+}
+
+/** JaaS expects "<appId>/<room>" as the room name. */
+export function apiRoomName(room) {
+  return JAAS_APP_ID ? `${JAAS_APP_ID}/${room}` : room;
+}
+
+let apiScriptPromise = null;
+/** Loads the embed script once, no matter how many components ask for it. */
+export function loadJitsiApi() {
+  if (typeof window !== 'undefined' && window.JitsiMeetExternalAPI) return Promise.resolve();
+  if (apiScriptPromise) return apiScriptPromise;
+
+  apiScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = externalApiUrl();
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      apiScriptPromise = null;
+      reject(new Error(`Konferenz-Dienst (${JITSI_DOMAIN}) konnte nicht geladen werden.`));
+    };
+    document.head.appendChild(script);
+  });
+  return apiScriptPromise;
+}
 
 function shortHash(value) {
   let hash = 0;
@@ -36,17 +75,22 @@ export function eventRoomName(projectId, seed = '') {
 }
 
 export function roomUrl(room) {
-  return `https://${JITSI_DOMAIN}/${room}`;
+  return JAAS_APP_ID
+    ? `https://${JITSI_DOMAIN}/${JAAS_APP_ID}/${room}`
+    : `https://${JITSI_DOMAIN}/${room}`;
 }
 
-/** Accepts a full URL or a bare room name and returns the room name. */
+/** Accepts a full URL or a bare room name and returns the plain room name. */
 export function roomFromUrl(value) {
   if (!value) return '';
+  let path;
   try {
-    return new URL(value).pathname.replace(/^\//, '');
+    path = new URL(value).pathname.replace(/^\//, '');
   } catch {
-    return String(value).replace(/^\//, '');
+    path = String(value).replace(/^\//, '');
   }
+  // Strip a JaaS app id prefix so stored links keep working after a switch.
+  return path.replace(/^vpaas-magic-cookie-[a-z0-9]+\//i, '');
 }
 
 /**
