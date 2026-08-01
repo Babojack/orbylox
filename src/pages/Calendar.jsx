@@ -73,73 +73,82 @@ export default function Calendar() {
     }
   }, [currentUser, userLoading, userError]);
 
+  /** Sends one invitation per attendee; failures are collected, not thrown away. */
+  const sendEventInvites = async (eventData) => {
+    const attendees = (eventData.attendees || []).filter((a) => a && a.includes('@'));
+    if (attendees.length === 0) return { sent: 0, failed: [] };
+
+    const payloadBase = {
+      type: 'event',
+      projectId,
+      appUrl: window.location.origin,
+      language: 'de',
+      projectName: project?.name || '',
+      inviterName: currentUser?.full_name || currentUser?.displayName || currentUser?.email || '',
+      event: {
+        title: eventData.title,
+        description: eventData.description || '',
+        start: eventData.start_date,
+        end: eventData.end_date,
+        all_day: !!eventData.all_day,
+        video_url: eventData.video_url || '',
+      },
+    };
+
+    const failed = [];
+    let sent = 0;
+    for (const to of attendees) {
+      try {
+        await api.integrations.Core.SendEmail({ ...payloadBase, to });
+        sent += 1;
+      } catch (err) {
+        console.error('[Kalender] Einladung fehlgeschlagen:', to, err?.message || err);
+        failed.push(`${to}: ${err?.message || 'unbekannter Fehler'}`);
+      }
+    }
+    return { sent, failed };
+  };
+
   const createEventMutation = useMutation({
     mutationFn: async (eventData) => {
-      // Create event in Google Calendar with invitations
-      const googleResult = await api.functions.invoke('googleCalendar', {
-        action: 'createEvent',
-        event: {
-          title: eventData.title,
-          description: eventData.description,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          all_day: eventData.all_day,
-          attendees: eventData.attendees || []
-        }
-      });
-
-      // Save to local database with Google Event ID
-      const event = await api.entities.Event.create({ 
-        ...eventData, 
-        project_id: projectId,
-        google_event_id: googleResult.data?.googleEventId 
-      });
-      
-      return event;
+      const event = await api.entities.Event.create({ ...eventData, project_id: projectId });
+      const result = await sendEventInvites(eventData);
+      return { event, ...result };
     },
-    onSuccess: () => {
+    onSuccess: ({ sent, failed }) => {
       queryClient.invalidateQueries(['events', projectId]);
       setIsEventDialogOpen(false);
       resetEventForm();
-    }
+      if (failed.length > 0) {
+        window.alert(`Termin gespeichert.\n\n⚠️ ${failed.length} Einladung(en) konnten nicht gesendet werden:\n${failed.join('\n')}`);
+      } else if (sent > 0) {
+        window.alert(`Termin gespeichert und ${sent} Einladung(en) verschickt.`);
+      }
+    },
+    onError: (err) => {
+      window.alert(`Termin konnte nicht gespeichert werden: ${err?.message || 'Unbekannter Fehler'}`);
+    },
   });
 
   const updateEventMutation = useMutation({
     mutationFn: async (eventData) => {
-      // Update in Google Calendar if linked
-      if (eventData.google_event_id) {
-        await api.functions.invoke('googleCalendar', {
-          action: 'updateEvent',
-          event: {
-            googleEventId: eventData.google_event_id,
-            title: eventData.title,
-            description: eventData.description,
-            start_date: eventData.start_date,
-            end_date: eventData.end_date,
-            all_day: eventData.all_day,
-            attendees: eventData.attendees || []
-          }
-        });
-      }
       await api.entities.Event.update(eventData.id, eventData);
+      // Re-send so attendees get the corrected time and the meeting link.
+      return sendEventInvites(eventData);
     },
-    onSuccess: () => {
+    onSuccess: ({ failed }) => {
       queryClient.invalidateQueries(['events', projectId]);
       setEditingEvent(null);
       setIsEventDialogOpen(false);
       resetEventForm();
-    }
+      if (failed.length > 0) {
+        window.alert(`Termin aktualisiert.\n\n⚠️ Einladungen fehlgeschlagen:\n${failed.join('\n')}`);
+      }
+    },
   });
 
   const deleteEventMutation = useMutation({
     mutationFn: async (event) => {
-      // Delete from Google Calendar if linked
-      if (event.google_event_id) {
-        await api.functions.invoke('googleCalendar', {
-          action: 'deleteEvent',
-          event: { googleEventId: event.google_event_id }
-        });
-      }
       await api.entities.Event.delete(event.id);
     },
     onSuccess: () => {

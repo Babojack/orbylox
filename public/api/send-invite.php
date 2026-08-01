@@ -123,6 +123,8 @@ $bodyText = trim((string)($data['bodyText'] ?? ''));
 $language = strtolower(trim((string)($data['language'] ?? 'de'))) === 'en' ? 'en' : 'de';
 $projectName = trim((string)($data['projectName'] ?? ''));
 $inviterName = trim((string)($data['inviterName'] ?? ''));
+$type = trim((string)($data['type'] ?? 'project')); // 'project' | 'event'
+$eventData = is_array($data['event'] ?? null) ? $data['event'] : [];
 
 if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
     http_response_code(400);
@@ -147,13 +149,41 @@ require_once __DIR__ . '/invite-template.php';
 
 $base = rtrim($appUrl, '/');
 $inviteLink = $base . '/login?project=' . rawurlencode($projectId);
+$icsBody = '';
 
-if ($subject === '') {
-    $subject = inviteSubject($language, $projectName);
-}
-$bodyHtml = inviteHtml($language, $inviteLink, $projectName, $inviterName, $base);
-if ($bodyText === '') {
-    $bodyText = inviteText($language, $inviteLink, $projectName, $inviterName);
+if ($type === 'event') {
+    $event = [
+        'title' => trim((string)($eventData['title'] ?? 'Termin')),
+        'description' => (string)($eventData['description'] ?? ''),
+        'start' => (string)($eventData['start'] ?? ''),
+        'end' => (string)($eventData['end'] ?? ''),
+        'all_day' => (bool)($eventData['all_day'] ?? false),
+        'video_url' => (string)($eventData['video_url'] ?? ''),
+        'project_id' => $projectId,
+        'project_name' => $projectName,
+        'organiser' => $inviterName,
+    ];
+    if ($event['start'] === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Termin ohne Startzeit.']);
+        exit;
+    }
+    if ($subject === '') {
+        $subject = eventSubject($language, $event['title']);
+    }
+    $bodyHtml = eventHtml($language, $event, $base);
+    if ($bodyText === '') {
+        $bodyText = eventText($language, $event, $base);
+    }
+    $icsBody = eventIcs($event, (string)($config['from_email'] ?? ''));
+} else {
+    if ($subject === '') {
+        $subject = inviteSubject($language, $projectName);
+    }
+    $bodyHtml = inviteHtml($language, $inviteLink, $projectName, $inviterName, $base);
+    if ($bodyText === '') {
+        $bodyText = inviteText($language, $inviteLink, $projectName, $inviterName);
+    }
 }
 
 $smtpHost = (string)($config['smtp_host'] ?? 'smtp.hostinger.com');
@@ -193,6 +223,9 @@ try {
         $mail->Body = $bodyHtml;
         // Plain-text twin for clients that block HTML — and it keeps spam scores down.
         $mail->AltBody = $bodyText;
+        if ($icsBody !== '') {
+            $mail->addStringAttachment($icsBody, 'termin.ics', 'base64', 'text/calendar; charset=UTF-8; method=REQUEST');
+        }
 
         $mail->send();
     } else {
@@ -208,6 +241,7 @@ try {
             'subject' => $subject,
             'text' => $bodyText,
             'html' => $bodyHtml,
+            'ics' => $icsBody,
         ]);
     }
 

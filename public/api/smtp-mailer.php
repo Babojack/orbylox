@@ -80,6 +80,7 @@ function sendSmtpMail(array $options): void
     $subject = (string)($options['subject'] ?? '');
     $text = (string)($options['text'] ?? '');
     $html = (string)($options['html'] ?? '');
+    $ics = (string)($options['ics'] ?? '');
 
     if ($host === '' || $user === '' || $pass === '' || $to === '') {
         throw new SmtpException('SMTP: Zugangsdaten oder Empfaenger fehlen.');
@@ -139,8 +140,7 @@ function sendSmtpMail(array $options): void
         ];
 
         if ($html !== '') {
-            $headers[] = 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
-            $body = "--{$boundary}\r\n"
+            $alternative = "--{$boundary}\r\n"
                 . "Content-Type: text/plain; charset=UTF-8\r\n"
                 . "Content-Transfer-Encoding: base64\r\n\r\n"
                 . chunk_split(base64_encode($text !== '' ? $text : strip_tags($html)), 76, "\r\n")
@@ -149,6 +149,24 @@ function sendSmtpMail(array $options): void
                 . "Content-Transfer-Encoding: base64\r\n\r\n"
                 . chunk_split(base64_encode($html), 76, "\r\n")
                 . "\r\n--{$boundary}--\r\n";
+
+            if ($ics !== '') {
+                // Calendar file: wrap the alternative part in multipart/mixed.
+                $outer = 'orbylox-mixed-' . bin2hex(random_bytes(10));
+                $headers[] = 'Content-Type: multipart/mixed; boundary="' . $outer . '"';
+                $body = "--{$outer}\r\n"
+                    . "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n\r\n"
+                    . $alternative
+                    . "\r\n--{$outer}\r\n"
+                    . "Content-Type: text/calendar; charset=UTF-8; method=REQUEST; name=\"termin.ics\"\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n"
+                    . "Content-Disposition: attachment; filename=\"termin.ics\"\r\n\r\n"
+                    . chunk_split(base64_encode($ics), 76, "\r\n")
+                    . "\r\n--{$outer}--\r\n";
+            } else {
+                $headers[] = 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
+                $body = $alternative;
+            }
         } else {
             $headers[] = 'Content-Type: text/plain; charset=UTF-8';
             $headers[] = 'Content-Transfer-Encoding: base64';
