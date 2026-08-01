@@ -419,7 +419,9 @@ export default function Calendar() {
                   ))}
                 </div>
               )}
-              <p className="text-xs text-slate-400 mt-1">Einladungen werden über Google Kalender versendet</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Einladung kommt per E-Mail von invite@orbylox.de — mit Kalenderdatei und Konferenzlink
+              </p>
             </div>
 
             <div>
