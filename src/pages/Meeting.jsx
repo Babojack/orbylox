@@ -11,6 +11,7 @@ import {
   loadJitsiApi,
   ensureMediaPermission,
   allowMediaInFrame,
+  mediaPermissionState,
 } from '@/lib/meetingRoom';
 
 export default function Meeting() {
@@ -26,6 +27,8 @@ export default function Meeting() {
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [permissionHint, setPermissionHint] = useState(null);
+  const [permissionBlocked, setPermissionBlocked] = useState(false);
+  const [requestingPermission, setRequestingPermission] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { data: currentUser } = useQuery({
@@ -69,7 +72,14 @@ export default function Meeting() {
     Promise.resolve()
       .then(async () => {
         const permission = await ensureMediaPermission();
-        if (!cancelled && !permission.ok) setPermissionHint(permission.error);
+        if (cancelled) return;
+        if (permission.ok) {
+          setPermissionHint(null);
+          setPermissionBlocked(false);
+        } else {
+          setPermissionHint(permission.error);
+          setPermissionBlocked(!!permission.blocked);
+        }
       })
       .then(loadJitsiApi)
       .then(() => {
@@ -116,6 +126,22 @@ export default function Meeting() {
       dispose();
     };
   }, [room, projectId, roomParam, project, currentUser, dispose]);
+
+  /** Second attempt — works while the browser still shows its prompt. */
+  const requestPermission = async () => {
+    setRequestingPermission(true);
+    const permission = await ensureMediaPermission();
+    if (permission.ok) {
+      setPermissionHint(null);
+      setPermissionBlocked(false);
+      window.location.reload();
+      return;
+    }
+    const state = await mediaPermissionState();
+    setPermissionHint(permission.error);
+    setPermissionBlocked(state === 'denied' || !!permission.blocked);
+    setRequestingPermission(false);
+  };
 
   const copyLink = async () => {
     try {
@@ -172,12 +198,36 @@ export default function Meeting() {
       </div>
 
       {permissionHint && (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-sm text-amber-800">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+          <div className="text-sm text-amber-900 flex-1">
             <p className="font-medium">Kamera und Mikrofon sind noch nicht freigegeben</p>
-            <p className="mt-0.5">{permissionHint}</p>
+            <p className="mt-0.5 text-amber-800">{permissionHint}</p>
+            {permissionBlocked && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-amber-900 font-medium">
+                  Schritt für Schritt freigeben
+                </summary>
+                <ol className="list-decimal ml-5 mt-1.5 space-y-1 text-amber-800">
+                  <li>Oben links in der Adressleiste auf das Symbol direkt vor „orbylox.de“ klicken (Regler-Symbol).</li>
+                  <li>Bei „Kamera“ und „Mikrofon“ jeweils auf „Zulassen“ stellen.</li>
+                  <li>Seite neu laden (Cmd+R).</li>
+                </ol>
+                <p className="mt-2 text-amber-800">
+                  Alternativ in Chrome: Einstellungen → Datenschutz und Sicherheit → Website-Einstellungen → Kamera
+                  bzw. Mikrofon → orbylox.de auf „Zulassen“.
+                </p>
+              </details>
+            )}
           </div>
+          <Button
+            size="sm"
+            onClick={requestPermission}
+            disabled={requestingPermission}
+            className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+          >
+            {requestingPermission ? 'Wird geprüft…' : 'Zugriff erlauben'}
+          </Button>
         </div>
       )}
 

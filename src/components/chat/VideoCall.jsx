@@ -13,6 +13,8 @@ import {
   allowMediaInFrame,
 } from '@/lib/meetingRoom';
 
+const MEETING_PAGE_HINT = 'Tipp: Über „Meeting“ in der Seitenleiste gibt es die große Ansicht mit Freigabe-Hilfe.';
+
 export default function VideoCall({ isOpen, onClose, currentUser, projectId, projectName }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -191,8 +193,22 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
           </div>
 
           {permissionHint && !isMinimized && (
-            <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-800 shrink-0">
-              {permissionHint}
+            <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-800 shrink-0 flex items-center gap-2 flex-wrap">
+              <span className="flex-1 min-w-[12rem]">{permissionHint}</span>
+              <Button
+                size="sm"
+                className="h-7 bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                onClick={async () => {
+                  const permission = await ensureMediaPermission();
+                  if (permission.ok) {
+                    setPermissionHint(null);
+                    window.location.reload();
+                  }
+                }}
+              >
+                Zugriff erlauben
+              </Button>
+              <span className="w-full text-[11px] text-amber-700">{MEETING_PAGE_HINT}</span>
             </div>
           )}
 

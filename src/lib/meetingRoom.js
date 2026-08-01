@@ -112,12 +112,32 @@ export async function ensureMediaPermission() {
   } catch (err) {
     const messages = {
       NotAllowedError:
-        'Kamera und Mikrofon wurden blockiert. Klicke links in der Adressleiste auf das Schloss-Symbol und erlaube beides für orbylox.de.',
+        'Kamera und Mikrofon sind für orbylox.de blockiert. Klicke oben links in der Adressleiste auf das Symbol direkt vor der Adresse (Regler-Symbol, früher ein Schloss) und stelle Kamera und Mikrofon auf „Zulassen“. Danach die Seite neu laden.',
       NotFoundError: 'Keine Kamera oder kein Mikrofon gefunden.',
-      NotReadableError: 'Kamera oder Mikrofon wird bereits von einem anderen Programm benutzt.',
+      NotReadableError: 'Kamera oder Mikrofon wird bereits von einem anderen Programm benutzt (z. B. Zoom oder Teams).',
       SecurityError: 'Zugriff nur über HTTPS möglich.',
     };
-    return { ok: false, error: messages[err?.name] || err?.message || 'Zugriff auf Kamera/Mikrofon fehlgeschlagen.' };
+    return {
+      ok: false,
+      blocked: err?.name === 'NotAllowedError',
+      error: messages[err?.name] || err?.message || 'Zugriff auf Kamera/Mikrofon fehlgeschlagen.',
+    };
+  }
+}
+
+/** 'granted' | 'denied' | 'prompt' | 'unknown' — used to show the right hint. */
+export async function mediaPermissionState() {
+  if (!navigator.permissions?.query) return 'unknown';
+  try {
+    const [camera, microphone] = await Promise.all([
+      navigator.permissions.query({ name: 'camera' }),
+      navigator.permissions.query({ name: 'microphone' }),
+    ]);
+    if (camera.state === 'denied' || microphone.state === 'denied') return 'denied';
+    if (camera.state === 'granted' && microphone.state === 'granted') return 'granted';
+    return 'prompt';
+  } catch {
+    return 'unknown';
   }
 }
 
