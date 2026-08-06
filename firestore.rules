@@ -41,6 +41,20 @@ service cloud.firestore {
     }
 
     /**
+     * A member may remove themselves from a project — and nothing else.
+     * The size check plus "own address gone" makes it impossible to drop
+     * anyone but oneself.
+     */
+    function selfLeaveUpdate(resource) {
+      return isMember(resource)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'updated_date'])
+        && ('members' in request.resource.data)
+        && request.resource.data.members.size() == resource.data.members.size() - 1
+        && !(request.auth.token.email in request.resource.data.members)
+        && !(authEmailLower() in request.resource.data.members);
+    }
+
+    /**
      * Members are not project owners, but the work timer has to write its
      * counter back. Allow exactly those three fields and nothing else.
      */
@@ -186,7 +200,7 @@ service cloud.firestore {
             && request.resource.data.created_by.lower() == authEmailLower()
           )
         );
-      allow update: if canWriteProject(resource) || timerOnlyUpdate(resource);
+      allow update: if canWriteProject(resource) || timerOnlyUpdate(resource) || selfLeaveUpdate(resource);
       allow delete: if canWriteProject(resource);
     }
 
