@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { api } from "@/api/apiClient";
-import { previewablePdfUrl } from "@/lib/fileUrls";
+import { previewablePdfUrl, describeFileUrl, checkFileReachable } from "@/lib/fileUrls";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Folder, File, UploadCloud, MoreVertical, Download, Trash2, FileImage, FileText, FolderPlus, CloudUpload, Eye, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Folder, File, UploadCloud, MoreVertical, Download, Trash2, FileImage, FileText, FolderPlus, CloudUpload, Eye, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,7 @@ export default function FileHub() {
   const [newFolderName, setNewFolderName] = useState('');
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
+  const [previewStatus, setPreviewStatus] = useState(null);
   const [zoom, setZoom] = useState(100);
   const [draggingFileId, setDraggingFileId] = useState(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState(null);
@@ -74,6 +75,22 @@ export default function FileHub() {
     refetchOnWindowFocus: true,
     enabled: !!projectId
   });
+
+  // Check availability whenever a preview opens, so a dead link says why.
+  React.useEffect(() => {
+    if (!previewFile?.url) {
+      setPreviewStatus(null);
+      return;
+    }
+    let cancelled = false;
+    setPreviewStatus(null);
+    checkFileReachable(previewFile.url).then((status) => {
+      if (!cancelled && !status.ok) setPreviewStatus(status);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [previewFile]);
 
   const uploadMutation = useMutation({
     mutationFn: async (file) => {
@@ -595,7 +612,13 @@ export default function FileHub() {
                 
                 <div className="text-center w-full mt-2">
                     <p className="font-medium text-sm truncate text-slate-700" title={file.name}>{file.name}</p>
-                    <p className="text-xs text-slate-400">{formatSize(file.size)}</p>
+                    {describeFileUrl(file.url).ok ? (
+                      <p className="text-xs text-slate-400">{formatSize(file.size)}</p>
+                    ) : (
+                      <p className="text-xs text-amber-600 flex items-center justify-center gap-1" title={describeFileUrl(file.url).hint}>
+                        <AlertTriangle className="w-3 h-3" /> Datei fehlt
+                      </p>
+                    )}
                 </div>
              </Card>
         ))}
@@ -651,6 +674,17 @@ export default function FileHub() {
                   </Button>
                 </div>
               </div>
+
+              {previewStatus && (
+                <div className="px-4 py-3 bg-amber-50 border-b border-amber-200 text-sm text-amber-900 shrink-0">
+                  <p className="font-medium flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" /> Diese Datei ist nicht mehr abrufbar
+                  </p>
+                  <p className="mt-0.5 text-amber-800">{previewStatus.reason}</p>
+                  {previewStatus.hint && <p className="text-amber-800">{previewStatus.hint}</p>}
+                  <p className="mt-1 text-[11px] text-amber-700 break-all">Gespeicherter Link: {previewFile.url}</p>
+                </div>
+              )}
 
               {/* Content */}
               <div className="flex-1 min-h-0 bg-slate-100 overflow-hidden relative flex flex-col">

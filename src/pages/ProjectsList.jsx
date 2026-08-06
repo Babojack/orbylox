@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, EyeOff, Pencil, LayoutGrid, List, CheckCircle2, Share2 } from 'lucide-react';
+import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, Eye, EyeOff, Pencil, LayoutGrid, List, CheckCircle2, Share2, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
@@ -124,6 +124,7 @@ function ProjectsListContent() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editProjectId, setEditProjectId] = useState(null);
   const [editDraft, setEditDraft] = useState({ name: "", description: "", cover_image: "", members: [], is_done: false });
+  const [showHidden, setShowHidden] = useState(false);
   const [editingCoverUpload, setEditingCoverUpload] = useState(false);
 
   React.useEffect(() => {
@@ -406,10 +407,36 @@ function ProjectsListContent() {
   const toggleFavorite = (projectId) => persistFavorites(toggleInArray(favoriteIds, projectId));
   const toggleHidden = (projectId) => persistHidden(toggleInArray(hiddenIds, projectId));
 
+  /** Removes the current user from a project they were invited to. */
+  const leaveProject = async (project) => {
+    const email = (user?.email || "").toLowerCase();
+    if (!email) return;
+    const confirmed = window.confirm(
+      language === "de"
+        ? `Projekt „${project.name}“ wirklich verlassen? Du verlierst den Zugriff, bis dich jemand erneut einlädt.`
+        : `Really leave "${project.name}"? You lose access until someone invites you again.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      const remaining = (project.members || []).filter((m) => (m || "").toLowerCase() !== email);
+      await api.entities.Project.update(project.id, { members: remaining });
+      persistHidden(hiddenIds.filter((id) => id !== project.id));
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    } catch (err) {
+      window.alert(
+        (language === "de" ? "Verlassen fehlgeschlagen: " : "Could not leave: ") +
+          (err?.message || "Unbekannter Fehler"),
+      );
+    }
+  };
+
+  // Showing hidden projects is a view switch — the list itself stays intact,
+  // otherwise "einblenden" would silently throw away what was hidden.
   const visibleProjects = useMemo(() => {
-    const base = projects.filter((p) => !hiddenIds.includes(p.id));
-    return base;
-  }, [projects, hiddenIds]);
+    if (showHidden) return projects;
+    return projects.filter((p) => !hiddenIds.includes(p.id));
+  }, [projects, hiddenIds, showHidden]);
 
   const myVisibleProjects = useMemo(
     () => visibleProjects.filter((p) => isProjectMine(p, userEmailLower, user?.uid)),
@@ -945,7 +972,7 @@ function ProjectsListContent() {
             <p className="text-slate-600 mb-6">{hiddenIds.length > 0 ? "Blende Projekte wieder ein oder erstelle ein neues." : t('noProjectsDesc')}</p>
             {hiddenIds.length > 0 && (
               <Button
-                onClick={() => persistHidden([])}
+                onClick={() => setShowHidden(true)}
                 variant="outline"
                 className="mr-2"
               >
@@ -978,11 +1005,13 @@ function ProjectsListContent() {
                     variant="outline"
                     size="sm"
                     className="border-slate-300"
-                    onClick={() => persistHidden([])}
-                    title={t('showHidden')}
+                    onClick={() => setShowHidden((v) => !v)}
+                    title={showHidden ? 'Ausgeblendete wieder verbergen' : t('showHidden')}
                   >
-                    <EyeOff className="w-4 h-4 mr-2" />
-                    {t('showHidden')} ({hiddenIds.length})
+                    {showHidden ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                    {showHidden
+                      ? (language === 'de' ? 'Ausgeblendete verbergen' : 'Hide hidden again')
+                      : `${t('showHidden')} (${hiddenIds.length})`}
                   </Button>
                 )}
               </div>
@@ -1019,6 +1048,7 @@ function ProjectsListContent() {
                               formatDuration={formatDuration}
                               onToggleFavorite={toggleFavorite}
                               onToggleHidden={toggleHidden}
+                          isHidden={hiddenIds.includes(project.id)}
                               onEdit={openEditProject}
                               onToggleDone={toggleProjectDone}
                               isOwner
@@ -1057,6 +1087,7 @@ function ProjectsListContent() {
                           formatDuration={formatDuration}
                           onToggleFavorite={toggleFavorite}
                           onToggleHidden={toggleHidden}
+                          isHidden={hiddenIds.includes(project.id)}
                           onEdit={openEditProject}
                           onToggleDone={toggleProjectDone}
                           isOwner
@@ -1085,6 +1116,7 @@ function ProjectsListContent() {
                           formatDuration={formatDuration}
                           onToggleFavorite={toggleFavorite}
                           onToggleHidden={toggleHidden}
+                          isHidden={hiddenIds.includes(project.id)}
                           onEdit={openEditProject}
                           onToggleDone={toggleProjectDone}
                           isOwner
@@ -1140,9 +1172,11 @@ function ProjectsListContent() {
                             formatDuration={formatDuration}
                             onToggleFavorite={toggleFavorite}
                             onToggleHidden={toggleHidden}
+                          isHidden={hiddenIds.includes(project.id)}
                             onEdit={openEditProject}
                             onToggleDone={toggleProjectDone}
                             isOwner={false}
+                        onLeave={leaveProject}
                             isFavorite
                             stats={projectStats?.[project.id]}
                           />
@@ -1178,9 +1212,11 @@ function ProjectsListContent() {
                         formatDuration={formatDuration}
                         onToggleFavorite={toggleFavorite}
                         onToggleHidden={toggleHidden}
+                          isHidden={hiddenIds.includes(project.id)}
                         onEdit={openEditProject}
                         onToggleDone={toggleProjectDone}
                         isOwner={false}
+                        onLeave={leaveProject}
                         isFavorite={false}
                         stats={projectStats?.[project.id]}
                         compact
@@ -1206,9 +1242,11 @@ function ProjectsListContent() {
                         formatDuration={formatDuration}
                         onToggleFavorite={toggleFavorite}
                         onToggleHidden={toggleHidden}
+                          isHidden={hiddenIds.includes(project.id)}
                         onEdit={openEditProject}
                         onToggleDone={toggleProjectDone}
                         isOwner={false}
+                        onLeave={leaveProject}
                         isFavorite={false}
                         stats={projectStats?.[project.id]}
                       />
@@ -1239,6 +1277,8 @@ function ProjectCard({
   formatDuration,
   onToggleFavorite,
   onToggleHidden,
+  onLeave,
+  isHidden = false,
   onEdit,
   onToggleDone,
   isOwner = true,
@@ -1367,13 +1407,35 @@ function ProjectCard({
                   e.stopPropagation();
                   onToggleHidden(project.id);
                 }}
-                title="Hide project"
-                className="h-8 w-8 rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center"
+                title={isHidden
+                  ? (language === 'de' ? 'Projekt wieder einblenden' : 'Show project again')
+                  : (language === 'de' ? 'Projekt ausblenden' : 'Hide project')}
+                className={`h-8 w-8 rounded-full border flex items-center justify-center ${
+                  isHidden
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'
+                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                }`}
                 whileHover={{ scale: 1.06 }}
                 whileTap={{ scale: 0.92 }}
               >
-                <EyeOff className="w-4 h-4" />
+                {isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </motion.button>
+              {!isOwner && onLeave && (
+                <motion.button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onLeave(project);
+                  }}
+                  title={language === 'de' ? 'Projekt verlassen' : 'Leave project'}
+                  className="h-8 w-8 rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 flex items-center justify-center"
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.92 }}
+                >
+                  <LogOut className="w-4 h-4" />
+                </motion.button>
+              )}
               <motion.button
                 type="button"
                 onClick={(e) => {

@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from "@/api/apiClient";
+import { eventRoomName, roomUrl, roomFromUrl, meetingPageUrl } from "@/lib/meetingRoom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, X, Clock, CalendarDays, Loader2, UserPlus, Sparkles, Video } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, Loader2, UserPlus, Video } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { motion, AnimatePresence } from 'framer-motion';
 
 const EVENT_COLORS = [
   { value: '#6366f1', label: 'Indigo' },
@@ -20,105 +20,6 @@ const EVENT_COLORS = [
   { value: '#8b5cf6', label: 'Violett' },
   { value: '#ef4444', label: 'Rot' },
 ];
-
-// Feature Demo Component with Video
-function FeatureDemo() {
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mb-6 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl"
-    >
-      <div className="relative aspect-video bg-slate-950">
-        {/* Video Player */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          {!isPlaying ? (
-            <motion.button
-              onClick={() => setIsPlaying(true)}
-              className="group relative"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <motion.div 
-                className="absolute inset-0 bg-indigo-500/20 rounded-full blur-xl"
-                animate={{ scale: [1, 1.3, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              <div className="relative w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-indigo-500/50 transition-shadow">
-                <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
-              <motion.div
-                className="absolute inset-0 border-4 border-white/30 rounded-full"
-                animate={{ scale: [1, 1.2, 1], opacity: [1, 0, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            </motion.button>
-          ) : (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="w-full h-full"
-            >
-              {/* Placeholder für dein Video - ersetze VIDEO_URL mit deinem Link */}
-              <iframe
-                className="w-full h-full"
-                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1"
-                title="Kalender Demo"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </motion.div>
-          )}
-          
-          {/* Overlay mit Features wenn Video nicht läuft */}
-          {!isPlaying && (
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-6 left-6 flex items-center gap-2">
-                <motion.div
-                  animate={{ rotate: [0, 360] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                >
-                  <Sparkles className="w-5 h-5 text-indigo-400" />
-                </motion.div>
-                <span className="text-white font-bold text-lg">Kalender Features Demo</span>
-              </div>
-              
-              <div className="absolute bottom-6 left-6 right-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  { icon: '📅', text: 'Events erstellen' },
-                  { icon: '🔗', text: 'Google Sync' },
-                  { icon: '👥', text: 'Team einladen' },
-                  { icon: '🎨', text: 'Farbcodes' }
-                ].map((item, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 + 0.3 }}
-                    className="bg-black/40 backdrop-blur-md rounded-lg p-2 border border-white/10"
-                  >
-                    <div className="text-2xl mb-1">{item.icon}</div>
-                    <div className="text-white text-xs font-medium">{item.text}</div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className="p-4 bg-slate-900/50 backdrop-blur-sm border-t border-slate-700">
-        <p className="text-white/80 text-sm text-center">
-          <strong className="text-white">Kalender Tutorial:</strong> Events anlegen, Google Calendar synchronisieren & Team einladen
-        </p>
-      </div>
-    </motion.div>
-  );
-}
 
 export default function Calendar() {
   const queryClient = useQueryClient();
@@ -132,11 +33,12 @@ export default function Calendar() {
     end_date: '',
     all_day: true,
     color: '#6366f1',
-    attendees: []
+    attendees: [],
+    video_enabled: false,
+    video_url: ''
   });
   const [attendeeInput, setAttendeeInput] = useState('');
   const [editingEvent, setEditingEvent] = useState(null);
-  const [showDemo, setShowDemo] = useState(true);
 
   const searchParams = new URLSearchParams(window.location.search);
   const projectId = searchParams.get('project');
@@ -173,73 +75,82 @@ export default function Calendar() {
     }
   }, [currentUser, userLoading, userError]);
 
+  /** Sends one invitation per attendee; failures are collected, not thrown away. */
+  const sendEventInvites = async (eventData) => {
+    const attendees = (eventData.attendees || []).filter((a) => a && a.includes('@'));
+    if (attendees.length === 0) return { sent: 0, failed: [] };
+
+    const payloadBase = {
+      type: 'event',
+      projectId,
+      appUrl: window.location.origin,
+      language: 'de',
+      projectName: project?.name || '',
+      inviterName: currentUser?.full_name || currentUser?.displayName || currentUser?.email || '',
+      event: {
+        title: eventData.title,
+        description: eventData.description || '',
+        start: eventData.start_date,
+        end: eventData.end_date,
+        all_day: !!eventData.all_day,
+        video_url: eventData.video_url || '',
+      },
+    };
+
+    const failed = [];
+    let sent = 0;
+    for (const to of attendees) {
+      try {
+        await api.integrations.Core.SendEmail({ ...payloadBase, to });
+        sent += 1;
+      } catch (err) {
+        console.error('[Kalender] Einladung fehlgeschlagen:', to, err?.message || err);
+        failed.push(`${to}: ${err?.message || 'unbekannter Fehler'}`);
+      }
+    }
+    return { sent, failed };
+  };
+
   const createEventMutation = useMutation({
     mutationFn: async (eventData) => {
-      // Create event in Google Calendar with invitations
-      const googleResult = await api.functions.invoke('googleCalendar', {
-        action: 'createEvent',
-        event: {
-          title: eventData.title,
-          description: eventData.description,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          all_day: eventData.all_day,
-          attendees: eventData.attendees || []
-        }
-      });
-
-      // Save to local database with Google Event ID
-      const event = await api.entities.Event.create({ 
-        ...eventData, 
-        project_id: projectId,
-        google_event_id: googleResult.data?.googleEventId 
-      });
-      
-      return event;
+      const event = await api.entities.Event.create({ ...eventData, project_id: projectId });
+      const result = await sendEventInvites(eventData);
+      return { event, ...result };
     },
-    onSuccess: () => {
+    onSuccess: ({ sent, failed }) => {
       queryClient.invalidateQueries(['events', projectId]);
       setIsEventDialogOpen(false);
       resetEventForm();
-    }
+      if (failed.length > 0) {
+        window.alert(`Termin gespeichert.\n\n⚠️ ${failed.length} Einladung(en) konnten nicht gesendet werden:\n${failed.join('\n')}`);
+      } else if (sent > 0) {
+        window.alert(`Termin gespeichert und ${sent} Einladung(en) verschickt.`);
+      }
+    },
+    onError: (err) => {
+      window.alert(`Termin konnte nicht gespeichert werden: ${err?.message || 'Unbekannter Fehler'}`);
+    },
   });
 
   const updateEventMutation = useMutation({
     mutationFn: async (eventData) => {
-      // Update in Google Calendar if linked
-      if (eventData.google_event_id) {
-        await api.functions.invoke('googleCalendar', {
-          action: 'updateEvent',
-          event: {
-            googleEventId: eventData.google_event_id,
-            title: eventData.title,
-            description: eventData.description,
-            start_date: eventData.start_date,
-            end_date: eventData.end_date,
-            all_day: eventData.all_day,
-            attendees: eventData.attendees || []
-          }
-        });
-      }
       await api.entities.Event.update(eventData.id, eventData);
+      // Re-send so attendees get the corrected time and the meeting link.
+      return sendEventInvites(eventData);
     },
-    onSuccess: () => {
+    onSuccess: ({ failed }) => {
       queryClient.invalidateQueries(['events', projectId]);
       setEditingEvent(null);
       setIsEventDialogOpen(false);
       resetEventForm();
-    }
+      if (failed.length > 0) {
+        window.alert(`Termin aktualisiert.\n\n⚠️ Einladungen fehlgeschlagen:\n${failed.join('\n')}`);
+      }
+    },
   });
 
   const deleteEventMutation = useMutation({
     mutationFn: async (event) => {
-      // Delete from Google Calendar if linked
-      if (event.google_event_id) {
-        await api.functions.invoke('googleCalendar', {
-          action: 'deleteEvent',
-          event: { googleEventId: event.google_event_id }
-        });
-      }
       await api.entities.Event.delete(event.id);
     },
     onSuccess: () => {
@@ -251,7 +162,7 @@ export default function Calendar() {
   });
 
   const resetEventForm = () => {
-    setNewEvent({ title: '', description: '', start_date: '', end_date: '', all_day: true, color: '#6366f1', attendees: [] });
+    setNewEvent({ title: '', description: '', start_date: '', end_date: '', all_day: true, color: '#6366f1', attendees: [], video_enabled: false, video_url: '' });
     setAttendeeInput('');
   };
 
@@ -290,7 +201,9 @@ export default function Calendar() {
       end_date: format(date, "yyyy-MM-dd'T'10:00"),
       all_day: true,
       color: '#6366f1',
-      attendees: []
+      attendees: [],
+      video_enabled: false,
+      video_url: ''
     });
     setIsEventDialogOpen(true);
   };
@@ -304,9 +217,19 @@ export default function Calendar() {
       end_date: event.end_date?.slice(0, 16) || '',
       all_day: event.all_day || false,
       color: event.color || '#6366f1',
-      attendees: event.attendees || []
+      attendees: event.attendees || [],
+      video_enabled: !!event.video_url,
+      video_url: event.video_url || ''
     });
     setIsEventDialogOpen(true);
+  };
+
+  /** One room per event, so parallel meetings never collide. */
+  const buildMeetingUrl = () => roomUrl(eventRoomName(projectId));
+
+  const withMeeting = (eventData) => {
+    if (!eventData.video_enabled) return { ...eventData, video_url: '' };
+    return { ...eventData, video_url: eventData.video_url || buildMeetingUrl() };
   };
 
   const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -333,33 +256,6 @@ export default function Calendar() {
 
   return (
     <div className="space-y-6">
-      <AnimatePresence>
-        {showDemo && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-            <FeatureDemo />
-            <motion.button
-              onClick={() => setShowDemo(false)}
-              className="mx-auto block text-xs text-slate-400 hover:text-slate-600 mb-2"
-              whileHover={{ scale: 1.05 }}
-            >
-              Demo ausblenden ✕
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {!showDemo && (
-        <motion.button
-          onClick={() => setShowDemo(true)}
-          className="mx-auto block mb-2 text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-          whileHover={{ scale: 1.05 }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <Video className="w-3 h-3" /> Demo anzeigen
-        </motion.button>
-      )}
-
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-900">Kalender</h2>
         <Button onClick={() => openNewEventDialog(new Date())} className="bg-indigo-600 hover:bg-indigo-700">
@@ -422,10 +318,20 @@ export default function Calendar() {
                         e.stopPropagation();
                         openEditEventDialog(event);
                       }}
-                      className="text-xs px-2 py-1 rounded truncate text-white cursor-pointer hover:opacity-80"
+                      className="text-xs px-2 py-1 rounded text-white cursor-pointer hover:opacity-80 flex items-center gap-1"
                       style={{ backgroundColor: event.color || '#6366f1' }}
                     >
-                      {event.title}
+                      {event.video_url && (
+                        <Link
+                          to={meetingPageUrl(projectId, roomFromUrl(event.video_url))}
+                          onClick={(e) => e.stopPropagation()}
+                          title="Videokonferenz in ORBYLOX beitreten"
+                          className="shrink-0 hover:scale-110 transition-transform"
+                        >
+                          <Video className="w-3 h-3" />
+                        </Link>
+                      )}
+                      <span className="truncate">{event.title}</span>
                     </div>
                   ))}
                   {dayEvents.length > 3 && (
@@ -509,7 +415,9 @@ export default function Calendar() {
                   ))}
                 </div>
               )}
-              <p className="text-xs text-slate-400 mt-1">Einladungen werden über Google Kalender versendet</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Einladung kommt per E-Mail von invite@orbylox.de — mit Kalenderdatei und Konferenzlink
+              </p>
             </div>
 
             <div>
@@ -525,6 +433,42 @@ export default function Calendar() {
                 ))}
               </div>
             </div>
+            {/* Videokonferenz */}
+            <div className="rounded-xl border border-slate-200 p-3 space-y-2">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!newEvent.video_enabled}
+                  onChange={(e) => setNewEvent({ ...newEvent, video_enabled: e.target.checked })}
+                  className="mt-1 w-4 h-4 accent-indigo-600"
+                />
+                <span>
+                  <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <Video className="w-4 h-4 text-indigo-600" />
+                    Videokonferenz hinzufügen
+                  </span>
+                  <span className="block text-xs text-slate-500 mt-0.5">
+                    Erzeugt einen eigenen Konferenzraum für diesen Termin. Der Link steht danach im Termin und in der Einladung.
+                  </span>
+                </span>
+              </label>
+
+              {newEvent.video_enabled && newEvent.video_url && (
+                <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2 py-1.5">
+                  <span className="text-xs text-slate-600 truncate flex-1">{newEvent.video_url}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => navigator.clipboard?.writeText(newEvent.video_url)}
+                  >
+                    Kopieren
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {editingEvent ? (
               <div className="flex gap-2">
                 <Button
@@ -537,7 +481,7 @@ export default function Calendar() {
                 </Button>
                 <Button
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700"
-                  onClick={() => updateEventMutation.mutate({ ...editingEvent, ...newEvent })}
+                  onClick={() => updateEventMutation.mutate(withMeeting({ ...editingEvent, ...newEvent }))}
                   disabled={!newEvent.title.trim() || updateEventMutation.isPending}
                 >
                   {updateEventMutation.isPending ? (
@@ -550,7 +494,7 @@ export default function Calendar() {
             ) : (
               <Button
                 className="w-full bg-indigo-600 hover:bg-indigo-700"
-                onClick={() => createEventMutation.mutate(newEvent)}
+                onClick={() => createEventMutation.mutate(withMeeting(newEvent))}
                 disabled={!newEvent.title.trim() || createEventMutation.isPending}
               >
                 {createEventMutation.isPending ? (

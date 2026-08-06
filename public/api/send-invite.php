@@ -43,6 +43,7 @@ if ($configPath === null) {
 
 /** @var array $config */
 $config = require $configPath;
+$usedConfigPath = $configPath;
 
 // PHPMailer when it happens to be installed, otherwise the bundled SMTP client —
 // no Composer step needed on the server.
@@ -93,6 +94,43 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+/* --------------------------------------------------------------- diagnostics */
+// Runs before auth so it can be opened in a browser; throttled and secret-free.
+if (($_GET['action'] ?? '') === 'diag') {
+    $throttleFile = sys_get_temp_dir() . '/orbylox_diag_last';
+    if (is_file($throttleFile) && (time() - (int)filemtime($throttleFile)) < 20) {
+        http_response_code(429);
+        echo json_encode(['error' => 'Diagnose zu oft aufgerufen. Bitte 20 Sekunden warten.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    @touch($throttleFile);
+    require_once __DIR__ . '/smtp-mailer.php';
+    $pass = (string)($config['smtp_pass'] ?? '');
+    $login = $pass === ''
+        ? ['ok' => false, 'step' => 'config', 'message' => 'smtp_pass ist leer']
+        : checkSmtpLogin([
+            'host' => (string)($config['smtp_host'] ?? 'smtp.hostinger.com'),
+            'port' => (int)($config['smtp_port'] ?? 465),
+            'user' => (string)($config['smtp_user'] ?? ''),
+            'pass' => $pass,
+        ]);
+
+    echo json_encode([
+        'config_file' => $usedConfigPath,
+        'note' => 'Diagnose ohne Versand. Zeigt nie das Passwort, nur einen Fingerabdruck.',
+        'smtp_host' => (string)($config['smtp_host'] ?? ''),
+        'smtp_port' => (int)($config['smtp_port'] ?? 0),
+        'smtp_user' => (string)($config['smtp_user'] ?? ''),
+        // Fingerprint only — never the password itself.
+        'password_length' => strlen($pass),
+        'password_fingerprint' => $pass === '' ? '' : substr(hash('sha256', $pass), 0, 8),
+        'password_is_placeholder' => stripos($pass, 'HIER_DAS_POSTFACH') !== false,
+        'mailer' => $hasPhpMailer ? 'phpmailer' : 'builtin',
+        'login' => $login,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    exit;
+}
+
 require_once __DIR__ . '/firebase-auth.php';
 
 $firebaseProjectId = (string)($config['firebase_project_id'] ?? 'orbylox');
@@ -123,6 +161,8 @@ $bodyText = trim((string)($data['bodyText'] ?? ''));
 $language = strtolower(trim((string)($data['language'] ?? 'de'))) === 'en' ? 'en' : 'de';
 $projectName = trim((string)($data['projectName'] ?? ''));
 $inviterName = trim((string)($data['inviterName'] ?? ''));
+$type = trim((string)($data['type'] ?? 'project')); // 'project' | 'event'
+$eventData = is_array($data['event'] ?? null) ? $data['event'] : [];
 
 if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
     http_response_code(400);
@@ -147,13 +187,41 @@ require_once __DIR__ . '/invite-template.php';
 
 $base = rtrim($appUrl, '/');
 $inviteLink = $base . '/login?project=' . rawurlencode($projectId);
+$icsBody = '';
 
-if ($subject === '') {
-    $subject = inviteSubject($language, $projectName);
-}
-$bodyHtml = inviteHtml($language, $inviteLink, $projectName, $inviterName, $base);
-if ($bodyText === '') {
-    $bodyText = inviteText($language, $inviteLink, $projectName, $inviterName);
+if ($type === 'event') {
+    $event = [
+        'title' => trim((string)($eventData['title'] ?? 'Termin')),
+        'description' => (string)($eventData['description'] ?? ''),
+        'start' => (string)($eventData['start'] ?? ''),
+        'end' => (string)($eventData['end'] ?? ''),
+        'all_day' => (bool)($eventData['all_day'] ?? false),
+        'video_url' => (string)($eventData['video_url'] ?? ''),
+        'project_id' => $projectId,
+        'project_name' => $projectName,
+        'organiser' => $inviterName,
+    ];
+    if ($event['start'] === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Termin ohne Startzeit.']);
+        exit;
+    }
+    if ($subject === '') {
+        $subject = eventSubject($language, $event['title']);
+    }
+    $bodyHtml = eventHtml($language, $event, $base);
+    if ($bodyText === '') {
+        $bodyText = eventText($language, $event, $base);
+    }
+    $icsBody = eventIcs($event, (string)($config['from_email'] ?? ''));
+} else {
+    if ($subject === '') {
+        $subject = inviteSubject($language, $projectName);
+    }
+    $bodyHtml = inviteHtml($language, $inviteLink, $projectName, $inviterName, $base);
+    if ($bodyText === '') {
+        $bodyText = inviteText($language, $inviteLink, $projectName, $inviterName);
+    }
 }
 
 $smtpHost = (string)($config['smtp_host'] ?? 'smtp.hostinger.com');
@@ -193,6 +261,9 @@ try {
         $mail->Body = $bodyHtml;
         // Plain-text twin for clients that block HTML — and it keeps spam scores down.
         $mail->AltBody = $bodyText;
+        if ($icsBody !== '') {
+            $mail->addStringAttachment($icsBody, 'termin.ics', 'base64', 'text/calendar; charset=UTF-8; method=REQUEST');
+        }
 
         $mail->send();
     } else {
@@ -208,6 +279,7 @@ try {
             'subject' => $subject,
             'text' => $bodyText,
             'html' => $bodyHtml,
+            'ics' => $icsBody,
         ]);
     }
 

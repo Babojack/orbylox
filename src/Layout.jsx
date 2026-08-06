@@ -25,7 +25,8 @@ import {
   CalendarDays,
   CreditCard,
   Lightbulb,
-  Rocket
+  Rocket,
+  Video
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -442,6 +443,9 @@ function LayoutContent({ children, currentPageName }) {
     { icon: FileText, label: t('docs'), path: "Docs", color: "bg-amber-500" },
     { icon: Shapes, label: t('canvas'), path: "Canvas", color: "bg-purple-500" },
     { icon: FolderOpen, label: t('files'), path: "FileHub", color: "bg-orange-500" },
+    { icon: CalendarDays, label: t('calendar'), path: "Calendar", color: "bg-teal-500" },
+    { icon: MessageSquare, label: t('chat'), path: "Chat", badge: newMessagesCount, color: "bg-blue-500" },
+    { icon: Video, label: language === 'de' ? "Meeting" : "Meeting", path: "Meeting", color: "bg-rose-500" },
     { icon: Rocket, label: "Startup Builder", path: "StartupBuilder", disabled: true, alpha: true, color: "bg-rose-500" },
     { icon: Puzzle, label: language === 'de' ? "Unsere Tools" : "Our Tools", path: "Integrations", color: "bg-cyan-500" },
   ];

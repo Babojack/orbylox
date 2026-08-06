@@ -69,7 +69,11 @@ export default function Chat() {
     enabled: !!projectId
   });
 
-  const projectMembers = project?.members || [];
+  // The creator's address can also sit in members — without this filter you
+  // show up twice: once as "You" and once as a regular member.
+  const projectMembers = (project?.members || []).filter(
+    (email) => (email || '').toLowerCase() !== (currentUser?.email || '').toLowerCase()
+  );
 
   const sendMessageMutation = useMutation({
     mutationFn: (content) => api.entities.Message.create({
@@ -183,11 +187,12 @@ export default function Chat() {
 
   return (
     <>
-    <VideoCall 
-      isOpen={showVideoCall} 
-      onClose={() => setShowVideoCall(false)} 
+    <VideoCall
+      isOpen={showVideoCall}
+      onClose={() => setShowVideoCall(false)}
       currentUser={currentUser}
-      projectMembers={projectMembers}
+      projectId={projectId}
+      projectName={project?.name}
     />
     <div className="h-[calc(100dvh-140px)] min-h-[280px] flex bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm overflow-hidden max-w-full">
        {/* Sidebar - Channels & Users - Hidden on mobile */}

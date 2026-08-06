@@ -60,6 +60,7 @@ import Impressum from './pages/Impressum';
 import Integrations from './pages/Integrations';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import Meeting from './pages/Meeting';
 import ProductValidation from './pages/ProductValidation';
 import Profile from './pages/Profile';
 import ProjectsList from './pages/ProjectsList';
@@ -86,6 +87,7 @@ export const PAGES = {
     "Integrations": Integrations,
     "Landing": Landing,
     "login": Login,
+    "Meeting": Meeting,
     "ProductValidation": ProductValidation,
     "Profile": Profile,
     "ProjectsList": ProjectsList,

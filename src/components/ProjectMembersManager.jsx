@@ -93,6 +93,11 @@ export default function ProjectMembersManager({ projectId }) {
       return;
     }
     
+    if (email.trim().toLowerCase() === (currentUser?.email || '').toLowerCase()) {
+      alert(isGerman ? '⚠️ Du bist bereits im Projekt' : '⚠️ You are already in this project');
+      return;
+    }
+
     if (currentMembers.includes(email.toLowerCase())) {
       alert(isGerman ? '⚠️ Dieser Benutzer ist bereits im Projekt' : '⚠️ This user is already in the project');
       return;
@@ -140,7 +145,10 @@ export default function ProjectMembersManager({ projectId }) {
     await updateMembersMutation.mutateAsync(currentMembers.filter(m => m !== memberEmail));
   };
 
-  const members = project?.members || [];
+  // Never count or list the owner as an invited member — they are the project.
+  const members = (project?.members || []).filter(
+    (email) => (email || '').toLowerCase() !== (currentUser?.email || '').toLowerCase()
+  );
 
   if (isLoading) {
     return <div className="text-sm text-slate-500">{language === 'de' ? 'Laden...' : 'Loading...'}</div>;
