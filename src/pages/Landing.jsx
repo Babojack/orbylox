@@ -1,41 +1,102 @@
 import React from 'react';
 import { api } from "@/api/apiClient";
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { 
-        ArrowRight, Sparkles, Check, 
-        Lightbulb, Clock, Euro, BookOpen, Rocket, MapPin, Languages
-      } from 'lucide-react';
-      import { Input } from "@/components/ui/input";
-import { createPageUrl } from "@/utils";
 import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from "@/utils";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
-import InteractiveFeatureCard from "@/components/landing/InteractiveFeatureCard";
+import {
+  ArrowRight,
+  Check,
+  Zap,
+  Users,
+  Shapes,
+  FolderOpen,
+  Video,
+  CalendarDays,
+  ListTodo,
+  MessageSquare,
+  Languages,
+  LogIn,
+  UserPlus,
+} from 'lucide-react';
+
+/* --------------------------------------------------------------------------
+   TaskNow-Stil: schwarze 2px-Rahmen, eckige Flaechen, ein Orange als Akzent.
+   Alle Knoepfe teilen dieselben drei Varianten.
+   -------------------------------------------------------------------------- */
+
+function TnButton({ variant = 'solid', className = '', children, ...props }) {
+  const base =
+    'inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold uppercase tracking-wide border-2 transition-colors';
+  const variants = {
+    solid: 'bg-black text-white border-black hover:bg-[#ef5a24] hover:border-[#ef5a24]',
+    accent: 'bg-[#ef5a24] text-white border-[#ef5a24] hover:bg-black hover:border-black',
+    outline: 'bg-white text-black border-black hover:bg-black hover:text-white',
+  };
+  return (
+    <button type="button" className={`${base} ${variants[variant]} ${className}`} {...props}>
+      {children}
+    </button>
+  );
+}
+
+function SectionTitle({ children, sub }) {
+  return (
+    <div className="text-center mb-10">
+      <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-black">{children}</h2>
+      {sub && <p className="mt-2 text-slate-600 text-sm sm:text-base">{sub}</p>}
+    </div>
+  );
+}
+
+function FeatureBox({ icon: Icon, title, text }) {
+  return (
+    <div className="border-2 border-black bg-white p-5">
+      <div className="w-10 h-10 bg-[#ef5a24] text-white flex items-center justify-center mb-4">
+        <Icon className="w-5 h-5" />
+      </div>
+      <h3 className="font-bold text-black mb-1">{title}</h3>
+      <p className="text-sm text-slate-600 leading-relaxed">{text}</p>
+    </div>
+  );
+}
+
+function BulletRow({ title, text }) {
+  return (
+    <div className="flex gap-3 mb-4">
+      <span className="w-5 h-5 shrink-0 mt-0.5 bg-[#ef5a24] text-white flex items-center justify-center">
+        <Check className="w-3 h-3" />
+      </span>
+      <div>
+        <p className="font-bold text-black text-sm">{title}</p>
+        <p className="text-sm text-slate-600">{text}</p>
+      </div>
+    </div>
+  );
+}
 
 function LandingContent() {
-  const { t, language, setLanguage } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const navigate = useNavigate();
   const [waitlistEmail, setWaitlistEmail] = React.useState('');
   const [waitlistLoading, setWaitlistLoading] = React.useState(false);
-  const [waitlistSuccess, setWaitlistSuccess] = React.useState(false);
-  
-  const handleGetStarted = () => {
-    navigate(createPageUrl('login'));
-  };
+  const [waitlistDone, setWaitlistDone] = React.useState(false);
 
-  const handleWaitlistSubmit = async () => {
-    if (!waitlistEmail.trim() || !waitlistEmail.includes('@')) {
-      alert('Please enter a valid email');
+  const de = language === 'de';
+  const goLogin = () => navigate(createPageUrl('login'));
+
+  const submitWaitlist = async () => {
+    if (!waitlistEmail.includes('@')) {
+      window.alert(de ? 'Bitte eine gültige E-Mail eingeben.' : 'Please enter a valid email.');
       return;
     }
     setWaitlistLoading(true);
     try {
       await api.entities.Waitlist.create({ email: waitlistEmail.toLowerCase(), source: 'landing' });
-      setWaitlistSuccess(true);
+      setWaitlistDone(true);
       setWaitlistEmail('');
-    } catch (error) {
-      console.error('Waitlist error:', error);
-      alert('Error joining waitlist');
+    } catch (err) {
+      console.error('[Waitlist]', err);
+      window.alert(de ? 'Eintragen fehlgeschlagen.' : 'Could not join the list.');
     } finally {
       setWaitlistLoading(false);
     }
@@ -43,456 +104,346 @@ function LandingContent() {
 
   const features = [
     {
-      icon: Clock,
-      title: t('min10Onboarding'),
-      description: t('min10OnboardingDesc')
+      icon: Zap,
+      title: de ? 'In 10 Minuten startklar' : 'Ready in 10 minutes',
+      text: de ? 'Projekt anlegen, Team einladen, loslegen. Ohne Schulung.' : 'Create a project, invite the team, go. No training needed.',
     },
     {
-      icon: Sparkles,
-      title: t('minimalistInterface'),
-      description: t('minimalistInterfaceDesc')
+      icon: Users,
+      title: de ? 'Echtes Teamwork' : 'Real teamwork',
+      text: de ? 'Aufgaben, Chat und Feed in Echtzeit für alle sichtbar.' : 'Tasks, chat and feed in real time for everyone.',
     },
     {
-      icon: Lightbulb,
-      title: t('fromIdeaToPlan'),
-      description: t('fromIdeaToPlanDesc')
+      icon: Shapes,
+      title: de ? 'Visuelles Canvas' : 'Visual canvas',
+      text: de ? 'Ideen als Mindmap und Post-its, verbunden per Ziehen.' : 'Ideas as a mind map and sticky notes, connected by dragging.',
     },
     {
-      icon: Euro,
-      title: t('studentFriendlyTitle'),
-      description: t('studentFriendlyDescLong')
+      icon: Video,
+      title: de ? 'Meetings inklusive' : 'Meetings included',
+      text: de ? 'Videokonferenz direkt im Projekt, ohne zweites Werkzeug.' : 'Video conference right in the project, no second tool.',
     },
-    {
-      icon: BookOpen,
-      title: t('ideaValidationIntegrated'),
-      description: t('ideaValidationIntegratedDesc')
-    }
   ];
 
-  const roadmapData = [
-    {
-      phase: "Beta",
-      status: "live",
-      features: [
-        { name: t('voiceAssistant'), desc: t('voiceAssistantDesc'), available: true }
-      ]
-    },
-    {
-      phase: "Q2 2026",
-      status: "soon",
-      features: [
-        { name: t('ideaAnalyst'), desc: t('ideaAnalystDesc') },
-        { name: t('businessAssistant'), desc: t('businessAssistantDesc') }
-      ]
-    },
-    {
-      phase: "Q3 2026",
-      status: "planned",
-      features: [
-        { name: t('expertNetwork'), desc: t('expertNetworkDesc') },
-        { name: t('gdprCompliantTitle'), desc: t('gdprCompliantDesc') }
-      ]
-    }
+  const steps = [
+    { n: '01', title: de ? 'Registrieren' : 'Sign up', text: de ? 'Konto in Sekunden erstellen' : 'Create your account in seconds' },
+    { n: '02', title: de ? 'Projekt anlegen' : 'Create a project', text: de ? 'Name, Ziel, fertig' : 'Name it, set the goal, done' },
+    { n: '03', title: de ? 'Team einladen' : 'Invite the team', text: de ? 'Einladung per E-Mail verschicken' : 'Send an invitation by email' },
+    { n: '04', title: de ? 'Loslegen' : 'Get going', text: de ? 'Aufgaben, Dateien, Meetings an einem Ort' : 'Tasks, files and meetings in one place' },
   ];
+
+  const benefits = de
+    ? ['Kostenlos starten', 'Keine Kreditkarte', 'Daten in der EU', 'Dunkelmodus', 'Deutsch und Englisch', 'Voll-Backups']
+    : ['Free to start', 'No credit card', 'Data in the EU', 'Dark mode', 'German and English', 'Full backups'];
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute top-0 -left-40 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-0 -right-40 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-40 left-1/2 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white border-b border-slate-100 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="text-[11px] sm:text-sm lg:text-base font-extrabold tracking-[0.08em] leading-tight text-slate-900">
-              ORBYLOX - FREE PROJECT MANAGEMENT FOR EVERYONE
-            </div>
+    <div className="min-h-screen bg-white text-black">
+      {/* Kopfzeile */}
+      <header className="border-b-2 border-black">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-8 h-8 bg-black text-white flex items-center justify-center font-black">O</span>
+            <span className="font-extrabold tracking-tight text-lg">ORBYLOX</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-slate-600 hover:text-slate-900"
-              onClick={() => setLanguage(language === 'en' ? 'de' : 'en')}
-              title={t('language')}
+            <button
+              type="button"
+              onClick={() => setLanguage(de ? 'en' : 'de')}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border-2 border-black text-xs font-bold uppercase hover:bg-black hover:text-white transition-colors"
             >
-              <Languages className="w-5 h-5" />
-            </Button>
-            <Button 
-              onClick={handleGetStarted}
-              variant="outline" 
-              className="border-slate-200 hover:border-indigo-300"
-            >
-              Login
-            </Button>
+              <Languages className="w-4 h-4" />
+              {de ? 'EN' : 'DE'}
+            </button>
+            <TnButton variant="outline" className="px-4 py-2 text-xs" onClick={goLogin}>
+              <LogIn className="w-4 h-4" />
+              {de ? 'Anmelden' : 'Login'}
+            </TnButton>
+            <TnButton variant="solid" className="px-4 py-2 text-xs" onClick={goLogin}>
+              <UserPlus className="w-4 h-4" />
+              {de ? 'Registrieren' : 'Register'}
+            </TnButton>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
-        <div className="max-w-6xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full mb-8 animate-fade-in">
-            <Sparkles className="w-4 h-4 text-indigo-600" />
-            <span className="text-sm font-medium text-indigo-700">{t('forStudentsAndStartups')}</span>
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight leading-tight animate-fade-in-up">
-            {t('planProjects')}
-            <br />
-            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              {t('implementIdeas')}
-            </span>
-          </h1>
-          
-          <p className="text-lg md:text-xl text-slate-600 mb-8 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200">
-            {t('landingSubtitle')}
+      {/* Hero */}
+      <section className="border-b-2 border-black">
+        <div className="max-w-6xl mx-auto px-4 py-16 sm:py-24 text-center">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 border-2 border-black text-xs font-bold uppercase tracking-wide mb-8">
+            <Zap className="w-3.5 h-3.5 text-[#ef5a24]" />
+            {de ? 'Kostenlos in der Beta' : 'Free during beta'}
+          </span>
+
+          <h1 className="text-5xl sm:text-7xl font-black tracking-tighter mb-4">ORBYLOX</h1>
+          <p className="text-xl sm:text-2xl font-bold mb-4">
+            {de ? 'Projektmanagement für alle' : 'Project management for everyone'}
+          </p>
+          <p className="max-w-xl mx-auto text-slate-600 mb-10">
+            {de
+              ? 'Aufgaben, Dateien, Canvas, Chat und Videokonferenz in einem Werkzeug. Ohne Ballast, ohne Abo-Zwang.'
+              : 'Tasks, files, canvas, chat and video meetings in one tool. No bloat, no forced subscription.'}
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-12 animate-fade-in-up animation-delay-200">
-            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium flex items-center gap-1">
-              <Check className="w-3.5 h-3.5" /> 100% Free
-            </span>
-            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> {t('readyIn10Min')}
-            </span>
-            <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-sm font-medium flex items-center gap-1">
-              <Euro className="w-3.5 h-3.5" /> {t('studentFriendly')}
-            </span>
-          </div>
-          
-          <div className="flex items-center justify-center gap-4 mb-12 animate-fade-in-up animation-delay-400">
-            <Button 
-              onClick={handleGetStarted}
-              size="lg"
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-xl shadow-indigo-200 px-8 py-6 text-lg group"
-            >
-              {t('startFree')}
-              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
+            <TnButton variant="accent" onClick={goLogin}>
+              {de ? 'Kostenlos starten' : 'Start for free'}
+              <ArrowRight className="w-4 h-4" />
+            </TnButton>
+            <TnButton variant="outline" onClick={goLogin}>
+              {de ? 'Anmelden' : 'Login'}
+            </TnButton>
           </div>
 
-          <div className="max-w-4xl mx-auto bg-slate-100 rounded-2xl border border-slate-200 shadow-xl overflow-hidden aspect-video relative">
-            <div className="w-full h-full">
-              <iframe
-                className="w-full h-full"
-                src="https://www.youtube.com/embed/LeRWiWL-Zmk"
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Target Audience */}
-      <section className="py-16 px-6 bg-gradient-to-r from-indigo-50 to-purple-50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">{t('builtForTeamsLikeYou')}</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { icon: "🎓", title: t('students'), desc: t('studentsDesc') },
-              { icon: "🚀", title: t('freshStartups'), desc: t('freshStartupsDesc') },
-              { icon: "👫", title: t('friendGroups'), desc: t('friendGroupsDesc') }
-            ].map((item, i) => (
-              <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 text-center hover:shadow-lg transition-all">
-                <div className="text-4xl mb-4">{item.icon}</div>
-                <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
-                <p className="text-slate-600">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Why OMNIPLACE */}
-      <section className="py-20 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">{t('whatMakesSpecial')}</h2>
-            <p className="text-xl text-slate-600">{t('simpleStartGrowTogether')}</p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, i) => (
-              <div 
-                key={i}
-                className="bg-white p-8 rounded-2xl border border-slate-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
-              >
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <feature.icon className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                <p className="text-slate-600 leading-relaxed">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Module Screenshots - Interactive Cards */}
-      <section className="py-20 px-6 bg-slate-50/50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">{t('everythingYouNeed')}</h2>
-            <p className="text-xl text-slate-600">{t('focusedToolsNoOverload')}</p>
-            <p className="text-sm text-indigo-600 mt-2 font-medium">✨ Click cards to try interactive demos!</p>
-          </div>
-          
-          {/* Interactive Feature Cards */}
-          <div className="grid md:grid-cols-2 gap-8">
-            <InteractiveFeatureCard
-              title={`📋 ${t('kanbanBoard')}`}
-              description={t('kanbanBoardDesc')}
-              features={[t('dragDropInterface'), t('prioritiesDeadlines'), t('teamAssignment')]}
-              image="https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=800&q=80"
-              index={0}
-            />
-            <InteractiveFeatureCard
-              title={`💬 ${t('socialFeed')}`}
-              description={t('socialFeedDesc')}
-              features={[t('postUpdates'), t('likesComments'), t('imageSharing')]}
-              image="https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80"
-              index={1}
-            />
-            <InteractiveFeatureCard
-              title={`📁 ${t('fileHub')}`}
-              description={t('fileHubDesc')}
-              features={[t('dragDropUpload'), t('folderManagement'), t('filePreview')]}
-              image="https://images.unsplash.com/photo-1544396821-4dd40b938ad3?w=800&q=80"
-              index={2}
-            />
-            <InteractiveFeatureCard
-              title={`🎨 ${t('canvasTitle')}`}
-              description={t('canvasDesc')}
-              features={[t('nodesConnections'), t('colorCoding'), t('taskLinking')]}
-              image="https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=800&q=80"
-              index={3}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Roadmap */}
-      <section className="py-20 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-full mb-6">
-              <Rocket className="w-4 h-4 text-indigo-600" />
-              <span className="text-sm font-medium text-indigo-700">{t('roadmap')}</span>
-            </div>
-            <h2 className="text-4xl font-bold mb-4">{t('ourDevelopment')}</h2>
-            <p className="text-xl text-slate-600">{t('whatComesNext')}</p>
-          </div>
-          
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-lg">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">{t('phase')}</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">{t('feature')}</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700 hidden md:table-cell">{t('descriptionCol')}</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-slate-700">{t('status')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {roadmapData.map((phase, phaseIdx) => (
-                  phase.features.map((feature, featureIdx) => (
-                    <tr 
-                      key={`${phaseIdx}-${featureIdx}`} 
-                      className={`border-b border-slate-100 last:border-0 ${phase.status === 'live' ? 'bg-emerald-50/50' : ''}`}
-                    >
-                      {featureIdx === 0 && (
-                        <td 
-                          className="px-6 py-4 font-medium text-slate-900 align-top"
-                          rowSpan={phase.features.length}
-                        >
-                          <div className="flex items-center gap-2">
-                            {phase.status === 'live' && <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>}
-                            {phase.phase}
-                          </div>
-                        </td>
-                      )}
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-slate-800">{feature.name}</div>
-                        <div className="text-sm text-slate-500 md:hidden">{feature.desc}</div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-600 text-sm hidden md:table-cell">{feature.desc}</td>
-                      <td className="px-6 py-4 text-center">
-                        {phase.status === 'live' ? (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                            {t('betaLive')}
-                          </span>
-                        ) : phase.status === 'soon' ? (
-                          <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-                            {t('inDevelopment')}
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
-                            {t('planned')}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      {/* Waiting List Section */}
-      <section className="py-20 px-6 bg-slate-50/50">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Join ORBYLOX</h2>
-            <p className="text-xl text-slate-600">Secure your spot on the waiting list</p>
-          </div>
-
-          <div className="bg-white p-10 rounded-3xl border-2 border-indigo-500 hover:shadow-2xl transition-all relative">
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-              <span className="px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full text-sm font-medium shadow-lg">
-                Beta Access
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
+            {(de
+              ? ['Kostenlose Registrierung', 'Keine Kreditkarte', 'Sofort startklar']
+              : ['Free registration', 'No credit card', 'Ready right away']
+            ).map((item) => (
+              <span key={item} className="inline-flex items-center gap-1.5 text-slate-700">
+                <Check className="w-4 h-4 text-[#ef5a24]" />
+                {item}
               </span>
-            </div>
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-lg">
-                <Rocket className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold mb-2">ORBYLOX</h3>
-              <p className="text-slate-500">For students, startups &amp; teams</p>
-            </div>
-            
-            {waitlistSuccess ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-emerald-600" />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Warum */}
+      <section className="border-b-2 border-black">
+        <div className="max-w-6xl mx-auto px-4 py-16">
+          <SectionTitle sub={de ? 'Alles, was ein kleines Team wirklich braucht.' : 'Everything a small team actually needs.'}>
+            {de ? 'Warum ORBYLOX?' : 'Why ORBYLOX?'}
+          </SectionTitle>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {features.map((f) => (
+              <FeatureBox key={f.title} icon={f.icon} title={f.title} text={f.text} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Für Teams */}
+      <section className="border-b-2 border-black bg-[#f5f5f5]">
+        <div className="max-w-6xl mx-auto px-4 py-16 grid lg:grid-cols-2 gap-10 items-center">
+          <div className="border-2 border-black bg-white p-8">
+            <div className="grid grid-cols-2 gap-3">
+              {[ListTodo, Shapes, FolderOpen, CalendarDays].map((Icon, i) => (
+                <div key={i} className="border-2 border-black aspect-square flex items-center justify-center">
+                  <Icon className="w-10 h-10" strokeWidth={1.5} />
                 </div>
-                <h4 className="text-xl font-bold text-emerald-700 mb-2">
-                  🎉 You're on the list!
-                </h4>
-                <p className="text-slate-600">
-                  We'll be in touch!
-                </p>
+              ))}
+            </div>
+          </div>
+          <div>
+            <span className="inline-block px-3 py-1 bg-black text-white text-xs font-bold uppercase mb-4">
+              {de ? 'Für Teams' : 'For teams'}
+            </span>
+            <h2 className="text-3xl font-extrabold tracking-tight mb-3">
+              {de ? 'Ein Ort statt fünf Werkzeuge' : 'One place instead of five tools'}
+            </h2>
+            <p className="text-slate-600 mb-6">
+              {de
+                ? 'Kanban, Notizen, Dateien und Termine liegen im selben Projekt. Kein Suchen, kein Umschalten.'
+                : 'Kanban, notes, files and appointments live in the same project. No searching, no switching.'}
+            </p>
+            <BulletRow
+              title={de ? 'Aufgaben mit Zeiterfassung' : 'Tasks with time tracking'}
+              text={de ? 'Der Timer läuft automatisch mit, sobald du im Projekt arbeitest.' : 'The timer runs automatically while you work in a project.'}
+            />
+            <BulletRow
+              title={de ? 'Dateien mit Vorschau' : 'Files with preview'}
+              text={de ? 'PDFs und Bilder direkt ansehen, ohne Download.' : 'View PDFs and images directly, no download.'}
+            />
+            <BulletRow
+              title={de ? 'Voll-Backups' : 'Full backups'}
+              text={de ? 'Projektdaten und Dateien als ZIP, jederzeit wiederherstellbar.' : 'Project data and files as a ZIP, restorable at any time.'}
+            />
+            <TnButton variant="solid" className="mt-2" onClick={goLogin}>
+              {de ? 'Projekt anlegen' : 'Create a project'}
+              <ArrowRight className="w-4 h-4" />
+            </TnButton>
+          </div>
+        </div>
+      </section>
+
+      {/* Für Einzelne */}
+      <section className="border-b-2 border-black">
+        <div className="max-w-6xl mx-auto px-4 py-16 grid lg:grid-cols-2 gap-10 items-center">
+          <div className="order-2 lg:order-1">
+            <span className="inline-block px-3 py-1 bg-black text-white text-xs font-bold uppercase mb-4">
+              {de ? 'Für Einzelkämpfer' : 'For solo work'}
+            </span>
+            <h2 className="text-3xl font-extrabold tracking-tight mb-3">
+              {de ? 'Aus einer Idee wird ein Plan' : 'Turn an idea into a plan'}
+            </h2>
+            <p className="text-slate-600 mb-6">
+              {de
+                ? 'Gedanken aufs Canvas werfen, verbinden, in Aufgaben verwandeln — und den Fortschritt sehen.'
+                : 'Throw thoughts on the canvas, connect them, turn them into tasks — and watch the progress.'}
+            </p>
+            <BulletRow
+              title={de ? 'Canvas wie ein Whiteboard' : 'Canvas like a whiteboard'}
+              text={de ? 'Post-its kleben, Knoten per Ziehen verbinden, frei skalieren.' : 'Stick notes, connect nodes by dragging, resize freely.'}
+            />
+            <BulletRow
+              title={de ? 'Kommentare am Knoten' : 'Comments on nodes'}
+              text={de ? 'Diskussion direkt dort, wo die Idee steht.' : 'Discussion right where the idea sits.'}
+            />
+            <BulletRow
+              title={de ? 'Dunkelmodus' : 'Dark mode'}
+              text={de ? 'Für lange Abende am Board.' : 'For long evenings at the board.'}
+            />
+            <TnButton variant="accent" className="mt-2" onClick={goLogin}>
+              {de ? 'Canvas ausprobieren' : 'Try the canvas'}
+              <ArrowRight className="w-4 h-4" />
+            </TnButton>
+          </div>
+          <div className="order-1 lg:order-2 border-2 border-black p-8 bg-white">
+            <div className="border-2 border-black p-4 mb-3 flex items-center justify-between">
+              <span className="font-bold">{de ? 'Aufgabe' : 'Task'}</span>
+              <span className="px-2 py-1 bg-[#ef5a24] text-white text-xs font-bold">{de ? 'OFFEN' : 'OPEN'}</span>
+            </div>
+            <div className="border-2 border-black p-4 mb-3 flex items-center justify-between">
+              <span className="font-bold">{de ? 'Post-it' : 'Sticky note'}</span>
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div className="border-2 border-black p-4 flex items-center justify-between">
+              <span className="font-bold">{de ? 'Meeting' : 'Meeting'}</span>
+              <Video className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Ablauf */}
+      <section className="border-b-2 border-black bg-[#f5f5f5]">
+        <div className="max-w-6xl mx-auto px-4 py-16">
+          <SectionTitle sub={de ? 'Vom Konto zum laufenden Projekt.' : 'From account to running project.'}>
+            {de ? 'In vier Schritten' : 'In four steps'}
+          </SectionTitle>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {steps.map((s) => (
+              <div key={s.n} className="border-2 border-black bg-white p-5 relative">
+                <span className="absolute -top-4 left-5 px-2 py-1 bg-[#ef5a24] text-white text-xs font-black">
+                  {s.n}
+                </span>
+                <h3 className="font-bold mt-3 mb-1">{s.title}</h3>
+                <p className="text-sm text-slate-600">{s.text}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Vorteile */}
+      <section className="border-b-2 border-black">
+        <div className="max-w-6xl mx-auto px-4 py-16">
+          <SectionTitle>{de ? 'Deine Vorteile' : 'Your benefits'}</SectionTitle>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {benefits.map((b) => (
+              <div key={b} className="border-2 border-black px-4 py-3 flex items-center gap-3">
+                <Check className="w-4 h-4 text-[#ef5a24] shrink-0" />
+                <span className="text-sm font-bold">{b}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Abschluss */}
+      <section className="bg-black text-white">
+        <div className="max-w-6xl mx-auto px-4 py-16 text-center">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2">
+            {de ? 'Bereit loszulegen?' : 'Ready to start?'}
+          </h2>
+          <p className="text-slate-300 mb-10">
+            {de ? 'Kostenlos registrieren und das erste Projekt anlegen.' : 'Register for free and create your first project.'}
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto text-black">
+            <div className="bg-white border-2 border-white p-6">
+              <Users className="w-8 h-8 mx-auto mb-3" />
+              <p className="font-bold mb-1">{de ? 'Als Team' : 'As a team'}</p>
+              <p className="text-sm text-slate-600 mb-4">
+                {de ? 'Gemeinsam an Aufgaben arbeiten' : 'Work on tasks together'}
+              </p>
+              <TnButton variant="accent" className="w-full" onClick={goLogin}>
+                {de ? 'Registrieren' : 'Register'}
+              </TnButton>
+            </div>
+            <div className="bg-white border-2 border-white p-6">
+              <Shapes className="w-8 h-8 mx-auto mb-3" />
+              <p className="font-bold mb-1">{de ? 'Für dich allein' : 'On your own'}</p>
+              <p className="text-sm text-slate-600 mb-4">
+                {de ? 'Ideen ordnen und umsetzen' : 'Organise ideas and get them done'}
+              </p>
+              <TnButton variant="solid" className="w-full" onClick={goLogin}>
+                {de ? 'Projekt anlegen' : 'Create a project'}
+              </TnButton>
+            </div>
+          </div>
+
+          {/* Warteliste */}
+          <div className="max-w-md mx-auto mt-12">
+            <p className="text-sm text-slate-300 mb-3">
+              {de ? 'Lieber später informiert werden?' : 'Rather be notified later?'}
+            </p>
+            {waitlistDone ? (
+              <p className="border-2 border-[#ef5a24] text-[#ef5a24] font-bold py-3">
+                {de ? 'Eingetragen. Wir melden uns.' : "You're on the list. We'll be in touch."}
+              </p>
             ) : (
-              <div className="space-y-4">
-                <Input 
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
                   type="email"
                   value={waitlistEmail}
                   onChange={(e) => setWaitlistEmail(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleWaitlistSubmit()}
-                  placeholder="your@email.com"
-                  className="w-full py-6 text-lg text-center"
-                  disabled={waitlistLoading}
+                  placeholder="name@beispiel.de"
+                  className="flex-1 px-4 py-3 border-2 border-white bg-black text-white placeholder:text-slate-500 outline-none focus:border-[#ef5a24]"
                 />
-                <Button 
-                  onClick={handleWaitlistSubmit}
-                  disabled={waitlistLoading || !waitlistEmail.trim()}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 py-6 text-lg shadow-lg"
-                >
-                  {waitlistLoading ? 'Joining...' : 'Join waiting list'}
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
+                <TnButton variant="accent" onClick={submitWaitlist} disabled={waitlistLoading}>
+                  {waitlistLoading ? (de ? 'Moment…' : 'One moment…') : de ? 'Eintragen' : 'Join'}
+                </TnButton>
               </div>
             )}
-            <p className="text-center text-sm text-slate-400 mt-4">
-              No signup required – just enter your email
+          </div>
+        </div>
+      </section>
+
+      {/* Fußzeile */}
+      <footer className="border-t-2 border-black">
+        <div className="max-w-6xl mx-auto px-4 py-10 grid sm:grid-cols-3 gap-8">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-7 h-7 bg-black text-white flex items-center justify-center font-black text-sm">O</span>
+              <span className="font-extrabold tracking-tight">ORBYLOX</span>
+            </div>
+            <p className="text-sm text-slate-600">
+              {de
+                ? 'Projektmanagement für Teams und Einzelkämpfer. Kostenlos in der Beta.'
+                : 'Project management for teams and solo makers. Free during beta.'}
             </p>
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-32 px-6 bg-gradient-to-br from-indigo-600 to-purple-700">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">
-            {t('readyToImplementIdea')}
-          </h2>
-          <p className="text-xl text-indigo-100 mb-12">
-            {t('startFreeNoCreditCard')}
-          </p>
-          <Button 
-            onClick={handleGetStarted}
-            size="lg"
-            className="bg-white text-indigo-700 hover:bg-indigo-50 shadow-2xl px-12 py-8 text-xl group"
-          >
-            {t('startFreeNow')}
-            <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
-          </Button>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-100 py-12 px-6 bg-slate-50">
-        <div className="max-w-6xl mx-auto text-center text-slate-600">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="text-[11px] sm:text-sm font-extrabold tracking-[0.08em] leading-tight text-slate-900">
-              ORBYLOX - FREE PROJECT MANAGEMENT FOR EVERYONE
-            </div>
+          <div>
+            <p className="font-bold uppercase text-xs tracking-wide mb-3">{de ? 'Produkt' : 'Product'}</p>
+            <ul className="space-y-2 text-sm text-slate-600">
+              <li><button type="button" onClick={goLogin} className="hover:text-[#ef5a24]">{de ? 'Anmelden' : 'Login'}</button></li>
+              <li><button type="button" onClick={goLogin} className="hover:text-[#ef5a24]">{de ? 'Registrieren' : 'Register'}</button></li>
+            </ul>
           </div>
-          <p className="text-sm mb-2">© 2024 ORBYLOX. {t('simplestToolForStartups')}</p>
-          <p className="text-xs text-slate-400 flex items-center justify-center gap-1">
-            <MapPin className="w-3 h-3" /> {t('hostedInGermany')}
-          </p>
-          <div className="mt-4">
-            <a href="/Impressum" className="text-xs text-slate-500 hover:text-indigo-600 transition-colors">
-              Legal Notice
-            </a>
+          <div>
+            <p className="font-bold uppercase text-xs tracking-wide mb-3">{de ? 'Rechtliches' : 'Legal'}</p>
+            <ul className="space-y-2 text-sm text-slate-600">
+              <li><a href="/Impressum" className="hover:text-[#ef5a24]">{de ? 'Impressum' : 'Imprint'}</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t-2 border-black">
+          <div className="max-w-6xl mx-auto px-4 py-4 text-xs text-slate-500">
+            © {new Date().getFullYear()} ORBYLOX
           </div>
         </div>
       </footer>
-
-      <style>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.6s ease-out;
-        }
-        @keyframes fade-in-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.8s ease-out;
-        }
-        .animation-delay-200 {
-          animation-delay: 0.2s;
-          opacity: 0;
-          animation-fill-mode: forwards;
-        }
-        .animation-delay-400 {
-          animation-delay: 0.4s;
-          opacity: 0;
-          animation-fill-mode: forwards;
-        }
-      `}</style>
     </div>
   );
 }

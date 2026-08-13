@@ -440,3 +440,50 @@ button:focus-visible {
   /* Badges eckig */
   .rounded-full:where(.badge, [data-badge]) { border-radius: 0; }
 }
+
+/* ---------------------------------------------------------------------------
+   Knöpfe: ALLE, auch die mit fest verdrahteten Farben in den Seiten.
+   Schwarz als Grundton, Orange beim Überfahren, eckig, fett.
+   --------------------------------------------------------------------------- */
+@layer components {
+  .bg-indigo-500, .bg-indigo-600, .bg-indigo-700,
+  .bg-violet-500, .bg-violet-600, .bg-purple-500, .bg-purple-600,
+  .bg-blue-500, .bg-blue-600, .bg-sky-500, .bg-sky-600,
+  .bg-emerald-500, .bg-emerald-600, .bg-green-600, .bg-teal-500, .bg-teal-600 {
+    background-color: #0a0a0a !important;
+    color: #fff;
+  }
+  .hover\:bg-indigo-700:hover, .hover\:bg-indigo-600:hover,
+  .hover\:bg-violet-700:hover, .hover\:bg-purple-700:hover,
+  .hover\:bg-blue-700:hover, .hover\:bg-emerald-700:hover,
+  .hover\:bg-green-700:hover, .hover\:bg-teal-700:hover,
+  .hover\:bg-amber-600:hover {
+    background-color: #ef5a24 !important;
+    color: #fff;
+  }
+  .bg-amber-500, .bg-amber-600, .bg-orange-500, .bg-orange-600 {
+    background-color: #ef5a24 !important;
+    color: #fff;
+  }
+
+  /* Umrandete Knöpfe: schwarze Kante, gefüllt beim Überfahren */
+  .border-indigo-200, .border-indigo-300, .border-violet-300, .border-blue-300,
+  .border-amber-300, .border-green-300, .border-emerald-300 {
+    border-color: #0a0a0a;
+  }
+
+  /* Fokusring in Akzentfarbe statt Indigo */
+  .focus\:ring-indigo-500:focus, .focus-visible\:ring-indigo-500:focus-visible {
+    --tw-ring-color: #ef5a24;
+  }
+
+  /* Dunkelmodus: Knöpfe hell, Akzent bleibt Orange */
+  .dark .bg-indigo-500, .dark .bg-indigo-600, .dark .bg-indigo-700,
+  .dark .bg-violet-600, .dark .bg-purple-600, .dark .bg-blue-600,
+  .dark .bg-emerald-600, .dark .bg-teal-600 {
+    background-color: #ef5a24 !important;
+  }
+  .dark .border-indigo-200, .dark .border-indigo-300, .dark .border-amber-300 {
+    border-color: rgb(255 255 255 / 0.85);
+  }
+}
