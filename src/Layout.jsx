@@ -483,37 +483,33 @@ function LayoutContent({ children, currentPageName }) {
                 const isActive = location.pathname.includes(item.path);
                 const isDisabled = !!item.disabled;
                 const alpha = !!item.alpha;
+                // TaskNow: alle Einträge weiß mit schwarzem Rahmen, aktiv = orange.
                 const navClassName = `
-                      relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ease-out motion-reduce:transition-none group overflow-hidden
-                      ${item.color}
+                      relative flex items-center gap-3 px-4 py-3 border-2 border-black dark:border-white
+                      font-bold uppercase tracking-wide text-sm transition-colors group
                       ${isDisabled
-                        ? 'opacity-55 cursor-not-allowed saturate-0'
+                        ? 'opacity-40 cursor-not-allowed'
                         : isActive
-                          ? 'ring-2 ring-white/50 shadow-lg scale-[1.01]'
-                          : 'hover:scale-[1.02] hover:shadow-xl hover:-translate-y-0.5'}
+                          ? 'bg-[#ef5a24] text-white border-[#ef5a24]'
+                          : 'bg-white text-black dark:bg-transparent dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black'}
                     `;
                 const navBody = (
                   <>
-                    <div className={`absolute inset-0 bg-gradient-to-r from-black/10 to-transparent transition-opacity duration-300 ${
-                      isDisabled ? 'opacity-20' : 'opacity-0 group-hover:opacity-100'
-                    }`} />
-                    <item.icon className={`w-6 h-6 text-white relative z-10 transition-transform duration-300 ${
-                      isDisabled ? '' : 'group-hover:scale-110'
-                    }`} />
-                    <span className="text-sm font-medium text-white relative z-10 flex-1">
+                    <item.icon className="w-5 h-5 relative z-10 shrink-0" />
+                    <span className="text-sm font-bold uppercase tracking-wide relative z-10 flex-1">
                       {item.label}
                     </span>
                     {alpha ? (
-                      <span className="px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-extrabold tracking-wider rounded backdrop-blur-sm relative z-10">
+                      <span className="px-1.5 py-0.5 border border-current text-[8px] font-extrabold tracking-wider relative z-10">
                         ALPHA
                       </span>
                     ) : item.beta ? (
-                      <span className="px-1.5 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded backdrop-blur-sm relative z-10">
+                      <span className="px-1.5 py-0.5 border border-current text-[8px] font-bold relative z-10">
                         Beta
                       </span>
                     ) : null}
                     {item.badge > 0 && (
-                      <span className="min-w-5 h-5 px-1.5 bg-white text-red-500 text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm relative z-10">
+                      <span className="min-w-5 h-5 px-1.5 bg-[#ef5a24] text-white text-[10px] font-bold flex items-center justify-center relative z-10">
                         {item.badge > 9 ? '9+' : item.badge}
                       </span>
                     )}
@@ -541,7 +537,7 @@ function LayoutContent({ children, currentPageName }) {
                <Link 
                  to={createPageUrl('ProjectsList')}
                  onClick={() => window.innerWidth < 1024 && setIsSidebarOpen(false)}
-                 className="flex items-center gap-3 px-4 py-3 bg-slate-700 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:-translate-y-0.5 group"
+                 className="flex items-center gap-3 px-4 py-3 bg-black text-white border-2 border-black font-bold uppercase tracking-wide text-sm hover:bg-white hover:text-black transition-colors group"
                >
                   <FolderOpen className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
                   <span className="text-sm font-medium text-white">{t('allProjects')}</span>

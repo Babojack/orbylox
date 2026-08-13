@@ -75,32 +75,38 @@ button:focus-visible {
 
 
 @layer base {
+  /* TaskNow-Stil: Schwarz, Weiss, ein Orange. Ecken bleiben eckig. */
   :root {
+    --tn-orange: 14 87% 55%;
+    --tn-ink: 0 0% 4%;
+    --tn-paper: 0 0% 100%;
+    --tn-muted-surface: 0 0% 96%;
+
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --primary: 0 0% 4%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 4%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 38%;
+    --accent: 14 87% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 4%;
+    --input: 0 0% 4%;
+    --ring: 14 87% 55%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --radius: 0rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -118,19 +124,19 @@ button:focus-visible {
     --card-foreground: 210 40% 98%;
     --popover: 222 47% 13%;
     --popover-foreground: 210 40% 98%;
-    --primary: 239 84% 67%;
+    --primary: 14 87% 55%;
     --primary-foreground: 0 0% 100%;
     --secondary: 217 33% 20%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 33% 20%;
     --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 24%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 14 87% 55%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 63% 45%;
     --destructive-foreground: 0 0% 98%;
-    --border: 217 33% 24%;
-    --input: 217 33% 24%;
-    --ring: 239 84% 67%;
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
+    --ring: 14 87% 55%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -350,4 +356,87 @@ button:focus-visible {
     --tw-shadow-color: rgb(0 0 0 / 0.5);
     --tw-shadow: var(--tw-shadow-colored);
   }
+}
+
+/* ---------------------------------------------------------------------------
+   TaskNow-Formsprache
+
+   Kanten statt Rundungen, schwarze Rahmen, Orange als einziger Akzent.
+   Auch das läuft zentral: die Seiten nutzen überall rounded-xl/2xl und weiche
+   Schatten, die hier einheitlich umgeschrieben werden.
+   --------------------------------------------------------------------------- */
+@layer components {
+  /* Ecken: nur die großen Rundungen begradigen, Kreise (rounded-full) bleiben */
+  .rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl,
+  .sm\:rounded-xl, .sm\:rounded-2xl, .rounded-sm {
+    border-radius: 0 !important;
+  }
+  .rounded-t-xl, .rounded-t-2xl, .rounded-b-xl, .rounded-b-2xl { border-radius: 0 !important; }
+
+  /* Flächen bekommen sichtbare Kanten statt Schlagschatten */
+  .shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl {
+    box-shadow: none;
+  }
+
+  /* Karten und Panels: kräftiger Rahmen im TaskNow-Look */
+  .border-slate-100, .border-slate-200, .border-slate-200\/80, .border-white\/50 {
+    border-color: hsl(var(--tn-ink));
+  }
+  .border, .border-2 { border-width: 2px; }
+
+  /* Buttons: schwarz gefüllt, Akzent orange, keine Verläufe */
+  .bg-indigo-600, .bg-indigo-700, .hover\:bg-indigo-700:hover,
+  .bg-violet-600, .bg-purple-600, .bg-blue-600, .bg-sky-600 {
+    background-color: hsl(var(--tn-ink));
+  }
+  .text-indigo-600, .text-indigo-700, .text-violet-600, .text-purple-600 {
+    color: hsl(var(--tn-orange));
+  }
+  .bg-gradient-to-r, .bg-gradient-to-br, .bg-gradient-to-b, .bg-gradient-to-tr {
+    background-image: none;
+  }
+
+  /* Der einzige Akzent */
+  .tn-accent { background-color: hsl(var(--tn-orange)); color: #fff; }
+  .tn-accent-text { color: hsl(var(--tn-orange)); }
+
+  /* Kopfzeilen im Vorbild: schwarzer Balken mit weißer Schrift */
+  .tn-bar {
+    background-color: hsl(var(--tn-ink));
+    color: #fff;
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  /* Dunkelmodus: gleiche Formsprache, invertierte Kanten */
+  .dark .border-slate-100, .dark .border-slate-200, .dark .border-slate-200\/80 {
+    border-color: rgb(255 255 255 / 0.85);
+  }
+  .dark .bg-indigo-600, .dark .bg-indigo-700, .dark .hover\:bg-indigo-700:hover {
+    background-color: hsl(var(--tn-orange));
+  }
+  .dark .text-indigo-600, .dark .text-indigo-700 { color: hsl(var(--tn-orange)); }
+}
+
+/* Typografie im Vorbild: fette, leicht gesperrte Überschriften */
+@layer base {
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+    font-weight: 800;
+  }
+}
+
+@layer components {
+  /* Eingabefelder und Auswahlfelder bekommen dieselbe Kante wie Karten */
+  input, textarea, select {
+    border-radius: 0 !important;
+  }
+
+  /* Abschnittsflächen wie bei TaskNow: sehr helles Grau statt Verlauf */
+  .bg-slate-50, .bg-gray-50 { background-color: #f5f5f5; }
+  .dark .bg-slate-50, .dark .bg-gray-50 { background-color: #0f172a; }
+
+  /* Badges eckig */
+  .rounded-full:where(.badge, [data-badge]) { border-radius: 0; }
 }
