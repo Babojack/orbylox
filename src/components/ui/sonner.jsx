@@ -1,15 +1,16 @@
-"use client";
-import { useTheme } from "next-themes"
 import { Toaster as Sonner } from "sonner"
 
-const Toaster = ({
-  ...props
-}) => {
-  const { theme = "system" } = useTheme()
-
+/**
+ * Hinweis-Fenster, fest im hellen Stil.
+ *
+ * Vorher hing das an next-themes mit Vorgabe "system" — auf einem Rechner mit
+ * dunkler Systemeinstellung kamen die Meldungen schwarz, obwohl die App hell
+ * ist. Seit der Dunkelmodus raus ist, gibt es nur noch eine Variante.
+ */
+const Toaster = ({ ...props }) => {
   return (
-    (<Sonner
-      theme={theme}
+    <Sonner
+      theme="light"
       className="toaster group"
       toastOptions={{
         classNames: {
@@ -22,7 +23,8 @@ const Toaster = ({
             "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
         },
       }}
-      {...props} />)
+      {...props}
+    />
   );
 }
 

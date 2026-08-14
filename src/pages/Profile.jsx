@@ -83,7 +83,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('editProfile')}</h1>
+      <h1 className="text-2xl font-bold text-slate-900">{t('editProfile')}</h1>
 
       <Card>
         <CardHeader>

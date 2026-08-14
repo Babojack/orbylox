@@ -277,10 +277,10 @@ export default function Dashboard() {
               {t("dashboardTitle")}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
             {project?.name || t("dashboardTitle")}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm sm:text-base">
+          <p className="text-slate-500 mt-1 text-sm sm:text-base">
             {t("dashboardSubtitle")}
           </p>
         </div>

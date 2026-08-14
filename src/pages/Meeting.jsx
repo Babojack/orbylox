@@ -193,7 +193,7 @@ export default function Meeting() {
             <Video className="w-5 h-5" />
             <span className="text-sm font-semibold uppercase tracking-wide">Meeting</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 truncate">
+          <h1 className="text-2xl font-bold text-slate-900 truncate">
             {roomParam ? 'Termin-Konferenz' : project?.name || 'Projekt-Konferenz'}
           </h1>
           <p className="text-slate-500 text-sm mt-1">

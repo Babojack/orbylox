@@ -13,14 +13,11 @@ import {
   FolderOpen,
   Settings,
   Bell,
-  Search,
   User,
   LogOut,
   Languages,
   Menu,
   X,
-  Moon,
-  Sun,
   Puzzle,
   CalendarDays,
   CreditCard,
@@ -44,7 +41,6 @@ import {
   teamActivityPathForEntity,
 } from "@/hooks/useProjectRealtimeSync";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
-import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
 import { PageTransition } from "@/components/PageTransition";
@@ -108,7 +104,6 @@ function teamActivityLucideIcon(entityName) {
 }
 
 function LayoutContent({ children, currentPageName }) {
-    const { isDark, toggleTheme } = useTheme();
     const location = useLocation();
     const queryClient = useQueryClient();
     const searchParams = new URLSearchParams(location.search);
@@ -451,7 +446,7 @@ function LayoutContent({ children, currentPageName }) {
   ];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-900 flex text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900 transition-colors duration-300 ease-out">
+    <div className="min-h-screen bg-white flex text-slate-900 font-sans selection:bg-indigo-100 transition-colors duration-300 ease-out">
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
@@ -461,17 +456,17 @@ function LayoutContent({ children, currentPageName }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 dark:border-slate-800 flex flex-col fixed lg:fixed h-full bg-white dark:bg-slate-900 z-50 transition-transform duration-300 ease-out motion-reduce:transition-none`}>
-        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50 dark:border-slate-800">
+      <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 flex flex-col fixed lg:fixed h-full bg-white z-50 transition-transform duration-300 ease-out motion-reduce:transition-none`}>
+        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="w-7 h-7 shrink-0 bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-black text-sm leading-none">
+            <span className="w-7 h-7 shrink-0 bg-black text-white flex items-center justify-center font-black text-sm leading-none">
               O
             </span>
             <div className="min-w-0">
-              <div className="text-sm font-extrabold tracking-tight leading-none text-slate-900 dark:text-slate-100">
+              <div className="text-sm font-extrabold tracking-tight leading-none text-slate-900">
                 RBYLOX
               </div>
-              <div className="text-[9px] tracking-[0.08em] text-slate-500 dark:text-slate-400 truncate">
+              <div className="text-[9px] tracking-[0.08em] text-slate-500 truncate">
                 FREE PROJECT MANAGEMENT
               </div>
             </div>
@@ -493,13 +488,13 @@ function LayoutContent({ children, currentPageName }) {
                 const alpha = !!item.alpha;
                 // TaskNow: alle Einträge weiß mit schwarzem Rahmen, aktiv = orange.
                 const navClassName = `
-                      relative flex items-center gap-3 px-4 py-3 border-2 border-black dark:border-white
+                      relative flex items-center gap-3 px-4 py-3 border-2 border-black
                       font-bold uppercase tracking-wide text-sm transition-colors group
                       ${isDisabled
                         ? 'opacity-40 cursor-not-allowed'
                         : isActive
                           ? 'bg-[#ef5a24] text-white border-[#ef5a24]'
-                          : 'bg-white text-black dark:bg-transparent dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black'}
+                          : 'bg-white text-black hover:bg-black hover:text-white'}
                     `;
                 const navBody = (
                   <>
@@ -541,7 +536,7 @@ function LayoutContent({ children, currentPageName }) {
             </div>
           </nav>
 
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+        <div className="p-3 border-t border-slate-100 space-y-2">
                <Link 
                  to={createPageUrl('ProjectsList')}
                  onClick={() => window.innerWidth < 1024 && setIsSidebarOpen(false)}
@@ -572,9 +567,9 @@ function LayoutContent({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white dark:bg-slate-900 min-h-screen flex flex-col transition-[margin] duration-300 ease-out motion-reduce:transition-none`}>
+      <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white min-h-screen flex flex-col transition-[margin] duration-300 ease-out motion-reduce:transition-none`}>
         {/* Header */}
-        <header className="h-16 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-50 transition-colors duration-300 ease-out motion-reduce:transition-none">
+        <header className="h-16 border-b border-slate-50 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white/95 backdrop-blur-sm z-50 transition-colors duration-300 ease-out motion-reduce:transition-none">
           <div className="flex items-center gap-2 md:gap-4">
             <button 
               type="button"
@@ -584,22 +579,14 @@ function LayoutContent({ children, currentPageName }) {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <h1 className="font-semibold text-base md:text-lg text-slate-800 dark:text-slate-100 truncate">{project?.name || t('overview')}</h1>
+            <h1 className="font-semibold text-base md:text-lg text-slate-800 truncate">{project?.name || t('overview')}</h1>
             <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-xs font-medium border border-green-100">{t('online')}</span>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
              <button
                type="button"
-               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent hidden sm:flex transition-colors duration-200 ease-out motion-reduce:transition-none"
-               onClick={toggleTheme}
-               title={isDark ? 'Light Mode' : 'Dark Mode'}
-             >
-               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-             </button>
-             <button
-               type="button"
-               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent hidden sm:flex transition-colors duration-200 ease-out motion-reduce:transition-none"
+               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-accent hidden sm:flex transition-colors duration-200 ease-out motion-reduce:transition-none"
                onClick={() => setLanguage(language === 'en' ? 'de' : 'en')}
                title={language === 'en' ? 'Switch to German' : 'Switch to English'}
              >
@@ -607,16 +594,16 @@ function LayoutContent({ children, currentPageName }) {
              </button>
              <DropdownMenu open={showNotifications} onOpenChange={handleNotificationsOpenChange}>
                <DropdownMenuTrigger asChild>
-                 <button type="button" className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-accent relative transition-colors duration-200 ease-out motion-reduce:transition-none" aria-label={t('notifications')}>
+                 <button type="button" className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-accent relative transition-colors duration-200 ease-out motion-reduce:transition-none" aria-label={t('notifications')}>
                    <Bell className="w-5 h-5" />
                    {(newPostsCount + newMessagesCount + teamActivityUnread) > 0 && (
-                     <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
+                     <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
                    )}
                  </button>
                </DropdownMenuTrigger>
-               <DropdownMenuContent align="end" className="w-80 sm:w-96 max-w-[calc(100vw-2rem)] max-h-[min(24rem,calc(100vh-6rem))] overflow-y-auto p-0 dark:border-slate-700 dark:bg-slate-900">
-                 <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10">
-                   <p className="font-medium text-sm text-slate-900 dark:text-slate-100">{t('notifications')}</p>
+               <DropdownMenuContent align="end" className="w-80 sm:w-96 max-w-[calc(100vw-2rem)] max-h-[min(24rem,calc(100vh-6rem))] overflow-y-auto p-0">
+                 <div className="px-3 py-2 border-b border-slate-100 sticky top-0 bg-white z-10">
+                   <p className="font-medium text-sm text-slate-900">{t('notifications')}</p>
                  </div>
                  <div className="py-1">
                    {newPostsCount > 0 && (
@@ -637,7 +624,7 @@ function LayoutContent({ children, currentPageName }) {
                    )}
                    {teamActivityItems.length > 0 && (
                      <>
-                       <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                       <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                          {t('notificationTeamHeading')}
                        </div>
                        {teamActivityItems.map((item) => {
@@ -652,16 +639,16 @@ function LayoutContent({ children, currentPageName }) {
                                onClick={() => setShowNotifications(false)}
                              >
                                <Icon className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                               <span className="flex-1 min-w-0 text-sm leading-snug text-slate-800 dark:text-slate-100">
+                               <span className="flex-1 min-w-0 text-sm leading-snug text-slate-800">
                                  {t(item.messageKey)}
-                                 <span className="block text-xs text-slate-400 dark:text-slate-500 mt-1">{rel}</span>
+                                 <span className="block text-xs text-slate-400 mt-1">{rel}</span>
                                </span>
                              </Link>
                            </DropdownMenuItem>
                          );
                        })}
                        <DropdownMenuItem
-                         className="text-xs text-slate-500 focus:text-slate-700 dark:text-slate-400 cursor-pointer justify-center"
+                         className="text-xs text-slate-500 focus:text-slate-700 cursor-pointer justify-center"
                          onSelect={() => setTeamActivityItems([])}
                        >
                          {t('notificationClearTeam')}
@@ -754,10 +741,8 @@ function LayoutContent({ children, currentPageName }) {
 
 export default function Layout(props) {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <LayoutContent {...props} />
-      </LanguageProvider>
-    </ThemeProvider>
+    <LanguageProvider>
+      <LayoutContent {...props} />
+    </LanguageProvider>
   );
 }

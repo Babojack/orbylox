@@ -265,25 +265,25 @@ export default function StartupBuilder() {
               <Rocket className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                 {t('startupBuilderTitle')}
                 <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">Beta</span>
               </h1>
-              <p className="text-slate-500 dark:text-slate-400">{t('documentYourJourney')}</p>
+              <p className="text-slate-500">{t('documentYourJourney')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* View Toggle */}
-            <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-1 flex">
+            <div className="bg-slate-100 rounded-lg p-1 flex">
               <button
                 onClick={() => setViewMode('builder')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'builder' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'builder' ? 'bg-white shadow text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 {t('builder')}
               </button>
               <button
                 onClick={() => setViewMode('journeys')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${viewMode === 'journeys' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${viewMode === 'journeys' ? 'bg-white shadow text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 <FolderOpen className="w-4 h-4" />
                 {t('saved')} {journeys.length > 0 && `(${journeys.length})`}
@@ -325,12 +325,12 @@ export default function StartupBuilder() {
 
         {/* Progress Bar */}
         {viewMode === 'builder' && steps.length > 0 && (
-          <div className="mt-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+          <div className="mt-4 bg-white rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{t('progress')}</span>
+              <span className="text-sm font-medium text-slate-600">{t('progress')}</span>
               <span className="text-sm font-bold text-indigo-600">{progress}%</span>
             </div>
-            <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
               <motion.div 
                 className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full"
                 initial={{ width: 0 }}
@@ -338,7 +338,7 @@ export default function StartupBuilder() {
                 transition={{ duration: 0.5 }}
               />
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            <p className="text-xs text-slate-500 mt-2">
               {completedCount} {t('stepsCompleted')} {steps.length}
             </p>
           </div>
@@ -349,10 +349,10 @@ export default function StartupBuilder() {
       {viewMode === 'journeys' && (
         <div className="space-y-6">
           {journeys.length === 0 ? (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
-              <FolderOpen className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">{t('noSavedRoadmaps')}</h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-4">{t('createFirstRoadmap')}</p>
+            <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
+              <FolderOpen className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">{t('noSavedRoadmaps')}</h3>
+              <p className="text-slate-500 mb-4">{t('createFirstRoadmap')}</p>
               <Button onClick={() => { setViewMode('builder'); setShowStartDecision(true); }} variant="outline">
                 {t('createRoadmap')}
               </Button>
@@ -385,12 +385,12 @@ export default function StartupBuilder() {
           {/* Timeline */}
           <div className="lg:col-span-2">
             {steps.length === 0 ? (
-              <div className="bg-white dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
-                <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
+                <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <Sparkles className="w-8 h-8 text-indigo-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">{t('startYourRoadmap')}</h3>
-                <p className="text-slate-500 dark:text-slate-400 mb-4">{t('chooseBlockFromPalette')}</p>
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">{t('startYourRoadmap')}</h3>
+                <p className="text-slate-500 mb-4">{t('chooseBlockFromPalette')}</p>
                 <Button onClick={() => setShowStartDecision(true)} variant="outline">
                   <Plus className="w-4 h-4 mr-2" />
                   {t('startNow')}
@@ -444,7 +444,7 @@ export default function StartupBuilder() {
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div>
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">{t('name')} *</label>
+              <label className="text-sm font-medium text-slate-700 mb-1 block">{t('name')} *</label>
               <Input
                 value={journeyName}
                 onChange={(e) => setJourneyName(e.target.value)}
@@ -452,7 +452,7 @@ export default function StartupBuilder() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">{t('description')}</label>
+              <label className="text-sm font-medium text-slate-700 mb-1 block">{t('description')}</label>
               <Textarea
                 value={journeyDesc}
                 onChange={(e) => setJourneyDesc(e.target.value)}
@@ -460,7 +460,7 @@ export default function StartupBuilder() {
                 rows={3}
               />
             </div>
-            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 text-sm text-slate-600 dark:text-slate-400">
+            <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600">
               <p><strong>{steps.length}</strong> {t('stepsWillBeSaved')}</p>
               <p><strong>{progress}%</strong> {t('progress')}</p>
             </div>

@@ -179,6 +179,8 @@ export default function MindMap() {
   const draggingRef = useRef(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const [connectingFrom, setConnectingFrom] = useState(null);
+  /** Knoten unter dem Zeiger waehrend einer Verbindungsfahrt (nur zur Anzeige). */
+  const connectTargetRef = useRef(null);
   const [connectLabel, setConnectLabel] = useState(null); // 'yes' | 'no' | null
   const [selectedConnectionId, setSelectedConnectionId] = useState(null);
   const connectDragRef = useRef(false);
@@ -818,9 +820,15 @@ export default function MindMap() {
         );
       }
 
-      if (connectingFrom) forceRender((n) => n + 1);
+      if (connectingFrom) {
+        // Ziel unter dem Zeiger merken, damit der Knoten sichtbar aufleuchtet —
+        // sonst weiss niemand, ob das Loslassen eine Verbindung ergibt.
+        const hit = nodeAtCanvasPos(pos, connectingFrom.id);
+        connectTargetRef.current = hit ? hit.id : null;
+        forceRender((n) => n + 1);
+      }
     },
-    [isPanning, getCanvasPos, connectingFrom, getClientXY, setView],
+    [isPanning, getCanvasPos, connectingFrom, getClientXY, setView, nodeAtCanvasPos],
   );
 
   const handlePointerUp = useCallback(
@@ -877,12 +885,14 @@ export default function MindMap() {
         } else {
           addNodeRef.current?.('node', connectingFrom.id, connectLabel, pos);
         }
+        connectTargetRef.current = null;
         setConnectingFrom(null);
         setConnectLabel(null);
         return;
       }
 
       if (connectingFrom) {
+        connectTargetRef.current = null;
         setConnectingFrom(null);
         setConnectLabel(null);
       }
@@ -1827,31 +1837,39 @@ export default function MindMap() {
               <button
                 key={key}
                 type="button"
+                data-no-lift
                 onPointerDown={(e) => startConnectionDrag(e, node, label)}
-                className={`absolute ${positionClass} w-3.5 h-3.5 rounded-full border-2 border-white shadow-md transition-opacity touch-none ${
-                  label === 'yes'
-                    ? 'bg-green-500'
-                    : label === 'no'
-                      ? 'bg-red-500'
-                      : 'bg-indigo-500'
-                } ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} cursor-crosshair`}
-                title={label === 'yes' ? 'Ja-Zweig ziehen' : label === 'no' ? 'Nein-Zweig ziehen' : 'Zum Verbinden ziehen'}
-              />
+                // Grosse, unsichtbare Trefferflaeche um einen kleinen Punkt: gut
+                // zu greifen, ohne den Knoten optisch zuzupflastern.
+                className={`absolute ${positionClass} w-7 h-7 flex items-center justify-center bg-transparent border-0 p-0 shadow-none transition-opacity touch-none ${
+                  isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                } cursor-crosshair`}
+                title={label === 'yes' ? 'Ja-Zweig ziehen' : label === 'no' ? 'Nein-Zweig ziehen' : 'Ziehen und auf dem Nachbarn loslassen'}
+              >
+                {/* Farbe inline, damit die globale Knopf-Regel sie nicht schwarz faerbt */}
+                <span
+                  className="block w-3.5 h-3.5 rounded-full border-2 border-white shadow-md pointer-events-none"
+                  style={{
+                    backgroundColor:
+                      label === 'yes' ? '#16a34a' : label === 'no' ? '#dc2626' : '#ef5a24',
+                  }}
+                />
+              </button>
             );
 
             const connectHandles = isDecision
               ? (
                 <>
-                  {handleDot('yes', '-right-2 top-1/2 -translate-y-1/2', 'yes')}
-                  {handleDot('no', 'left-1/2 -bottom-2 -translate-x-1/2', 'no')}
+                  {handleDot('yes', '-right-3.5 top-1/2 -translate-y-1/2', 'yes')}
+                  {handleDot('no', 'left-1/2 -bottom-3.5 -translate-x-1/2', 'no')}
                 </>
               )
               : (
                 <>
-                  {handleDot('right', '-right-2 top-1/2 -translate-y-1/2')}
-                  {handleDot('left', '-left-2 top-1/2 -translate-y-1/2')}
-                  {handleDot('top', 'left-1/2 -top-2 -translate-x-1/2')}
-                  {handleDot('bottom', 'left-1/2 -bottom-2 -translate-x-1/2')}
+                  {handleDot('right', '-right-3.5 top-1/2 -translate-y-1/2')}
+                  {handleDot('left', '-left-3.5 top-1/2 -translate-y-1/2')}
+                  {handleDot('top', 'left-1/2 -top-3.5 -translate-x-1/2')}
+                  {handleDot('bottom', 'left-1/2 -bottom-3.5 -translate-x-1/2')}
                 </>
               );
 
@@ -1918,11 +1936,18 @@ export default function MindMap() {
               </>
             );
 
+            // Waehrend einer Verbindungsfahrt zeigt der Knoten unter dem Zeiger,
+            // dass Loslassen hier eine Verbindung erzeugt.
+            const isConnectTarget =
+              !!connectingFrom && connectTargetRef.current === node.id && connectingFrom.id !== node.id;
+
             return (
               <div
                 key={node.id}
                 data-mindmap-node
-                className={`group pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"}`}
+                className={`group pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"} ${
+                  isConnectTarget ? 'ring-4 ring-[#ef5a24] ring-offset-2 rounded-sm' : ''
+                }`}
                 style={{ left: node.x, top: node.y, width: nodeW }}
                 onPointerDown={(e) => handleNodePointerDown(e, node)}
                 onDoubleClick={() => {
@@ -2109,20 +2134,6 @@ export default function MindMap() {
                   </div>
                 )}
 
-                {/* Quick add button — mind-map only; sticky notes stay standalone */}
-                {isSelected && !isEditing && !isSticky && (
-                  <button
-                    type="button"
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-indigo-600 hover:scale-110 pointer-events-auto"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addNode("node", node.id);
-                    }}
-                  >
-                    <Plus className="w-3 h-3" />
-                  </button>
-                )}
               </div>
             );
           })}

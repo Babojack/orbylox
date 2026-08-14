@@ -969,7 +969,7 @@ export default function ScrumBoard() {
                       ref={provided.innerRef}
                       className={`min-h-[72px] space-y-2 transition-colors ${
                         snapshot.isDraggingOver
-                          ? "bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl px-1 py-1"
+                          ? "bg-indigo-50/50 rounded-xl px-1 py-1"
                           : ""
                       }`}
                     >
@@ -995,10 +995,10 @@ export default function ScrumBoard() {
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              className={`relative bg-white dark:bg-slate-800 p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-all group cursor-grab active:cursor-grabbing ${
+                              className={`relative bg-white p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-all group cursor-grab active:cursor-grabbing ${
                                     snapshot.isDragging ? "shadow-2xl scale-105 ring-2 ring-indigo-500/50 z-50" : ""
                                   } ${
-                                    draggableTask.priority === "high" && !snapshot.isDragging ? "border-red-200 animate-pulse-border" : "border-slate-100 dark:border-slate-600"
+                                    draggableTask.priority === "high" && !snapshot.isDragging ? "border-red-200 animate-pulse-border" : "border-slate-100"
                                   }`}
                               style={{
                                 ...provided.draggableProps.style,
@@ -1021,7 +1021,7 @@ export default function ScrumBoard() {
                                       <MoreVertical className="w-3 h-3" />
                                   </Button>
                               </div>
-                              <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-snug mb-3">
+                              <p className="text-sm font-medium text-slate-800 leading-snug mb-3">
                                   {draggableTask.title}
                               </p>
                               {(draggableTask.tags?.length > 0) && (
@@ -1029,7 +1029,7 @@ export default function ScrumBoard() {
                                   {draggableTask.tags.slice(0, 4).map((tg) => (
                                     <span
                                       key={tg}
-                                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200 max-w-[120px] truncate"
+                                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 max-w-[120px] truncate"
                                       title={tg}
                                     >
                                       {tg}
@@ -1062,7 +1062,7 @@ export default function ScrumBoard() {
                                 )}
                               </div>
 
-                              <div className="flex items-center justify-between pt-2 border-t border-slate-50 dark:border-slate-700">
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-50">
                                   <div className="flex items-center gap-1">
                                       {(draggableTask.assignees?.length > 0 || draggableTask.assignee_email) ? (
                                           <div className="flex -space-x-2">
