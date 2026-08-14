@@ -3,6 +3,7 @@ import { api } from "@/api/apiClient";
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from "@/utils";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
+import ModuleShowcase from "@/components/landing/ModuleShowcase";
 import {
   ArrowRight,
   Check,
@@ -16,7 +17,6 @@ import {
   MessageSquare,
   Languages,
   Play,
-  Image as ImageIcon,
   LogIn,
   UserPlus,
 } from 'lucide-react';
@@ -209,16 +209,15 @@ function LandingContent() {
           </div>
           </div>
 
-          {/* Bildplatzhalter — hier das eigene Bild einsetzen:
-              <img src="/hero.jpg" alt="" className="w-full h-full object-cover" /> */}
-          <div className="border-2 border-black bg-[#f5f5f5] aspect-[4/3] flex flex-col items-center justify-center gap-3 text-slate-500">
-            <ImageIcon className="w-14 h-14" strokeWidth={1.25} />
-            <p className="text-xs font-bold uppercase tracking-wide">
-              {de ? 'Bild folgt' : 'Image coming'}
-            </p>
-            <p className="text-[11px] text-slate-400 px-6 text-center">
-              1200 × 900 px · public/hero.jpg
-            </p>
+          {/* Produktbild */}
+          <div className="border-2 border-black bg-[#f5f5f5] overflow-hidden">
+            <img
+              src="/screens/hero-laptop.webp"
+              alt={de ? 'ORBYLOX Kanban-Board auf einem Laptop' : 'ORBYLOX kanban board on a laptop'}
+              className="w-full"
+              width="1235"
+              height="745"
+            />
           </div>
         </div>
       </section>
@@ -262,6 +261,8 @@ function LandingContent() {
           </div>
         </div>
       </section>
+
+      <ModuleShowcase de={de} />
 
       {/* Warum */}
       <section className="border-b-2 border-black">
