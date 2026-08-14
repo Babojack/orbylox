@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Languages,
   Play,
+  Image as ImageIcon,
   LogIn,
   UserPlus,
 } from 'lucide-react';
@@ -168,28 +169,24 @@ function LandingContent() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* Hero: Text links, Bildplatzhalter rechts */}
       <section className="border-b-2 border-black">
-        <div className="max-w-6xl mx-auto px-4 py-16 sm:py-24 text-center">
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 border-2 border-black text-xs font-bold uppercase tracking-wide mb-8">
-            <Zap className="w-3.5 h-3.5 text-[#ef5a24]" />
-            {de ? 'Kostenlos in der Beta' : 'Free during beta'}
-          </span>
-
-          <h1 className="text-5xl sm:text-7xl font-black tracking-tighter mb-4 flex items-center justify-center gap-2 sm:gap-3">
-            <span className="bg-black text-white w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center leading-none">O</span>
+        <div className="max-w-6xl mx-auto px-4 py-16 sm:py-20 grid lg:grid-cols-2 gap-10 items-center">
+          <div className="text-center lg:text-left">
+          <h1 className="text-5xl sm:text-6xl font-black tracking-tighter mb-4 flex items-center justify-center lg:justify-start gap-2 sm:gap-3">
+            <span className="bg-black text-white w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center leading-none">O</span>
             <span>RBYLOX</span>
           </h1>
           <p className="text-xl sm:text-2xl font-bold mb-4">
             {de ? 'Projektmanagement für alle' : 'Project management for everyone'}
           </p>
-          <p className="max-w-xl mx-auto text-slate-600 mb-10">
+          <p className="max-w-xl mx-auto lg:mx-0 text-slate-600 mb-8">
             {de
               ? 'Aufgaben, Dateien, Canvas, Chat und Videokonferenz in einem Werkzeug. Ohne Ballast, ohne Abo-Zwang.'
               : 'Tasks, files, canvas, chat and video meetings in one tool. No bloat, no forced subscription.'}
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8">
             <TnButton variant="accent" onClick={goLogin}>
               {de ? 'Kostenlos starten' : 'Start for free'}
               <ArrowRight className="w-4 h-4" />
@@ -199,7 +196,7 @@ function LandingContent() {
             </TnButton>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
+          <div className="flex flex-wrap justify-center lg:justify-start gap-x-6 gap-y-2 text-sm">
             {(de
               ? ['Kostenlose Registrierung', 'Keine Kreditkarte', 'Sofort startklar']
               : ['Free registration', 'No credit card', 'Ready right away']
@@ -209,6 +206,19 @@ function LandingContent() {
                 {item}
               </span>
             ))}
+          </div>
+          </div>
+
+          {/* Bildplatzhalter — hier das eigene Bild einsetzen:
+              <img src="/hero.jpg" alt="" className="w-full h-full object-cover" /> */}
+          <div className="border-2 border-black bg-[#f5f5f5] aspect-[4/3] flex flex-col items-center justify-center gap-3 text-slate-500">
+            <ImageIcon className="w-14 h-14" strokeWidth={1.25} />
+            <p className="text-xs font-bold uppercase tracking-wide">
+              {de ? 'Bild folgt' : 'Image coming'}
+            </p>
+            <p className="text-[11px] text-slate-400 px-6 text-center">
+              1200 × 900 px · public/hero.jpg
+            </p>
           </div>
         </div>
       </section>
