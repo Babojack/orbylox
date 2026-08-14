@@ -15,6 +15,7 @@ import {
   ListTodo,
   MessageSquare,
   Languages,
+  Play,
   LogIn,
   UserPlus,
 } from 'lucide-react';
@@ -80,6 +81,7 @@ function LandingContent() {
   const [waitlistEmail, setWaitlistEmail] = React.useState('');
   const [waitlistLoading, setWaitlistLoading] = React.useState(false);
   const [waitlistDone, setWaitlistDone] = React.useState(false);
+  const [videoPlaying, setVideoPlaying] = React.useState(false);
 
   const de = language === 'de';
   const goLogin = () => navigate(createPageUrl('login'));
@@ -204,6 +206,46 @@ function LandingContent() {
                 {item}
               </span>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Video: laedt erst nach dem Klick, damit YouTube nicht ungefragt mitliest */}
+      <section className="border-b-2 border-black bg-[#f5f5f5]">
+        <div className="max-w-4xl mx-auto px-4 py-16">
+          <SectionTitle sub={de ? 'Zwei Minuten, dann weißt du, wie es läuft.' : 'Two minutes and you know how it works.'}>
+            {de ? 'ORBYLOX im Überblick' : 'ORBYLOX at a glance'}
+          </SectionTitle>
+
+          <div className="border-2 border-black bg-black aspect-video relative">
+            {videoPlaying ? (
+              <iframe
+                className="w-full h-full"
+                src="https://www.youtube.com/embed/LeRWiWL-Zmk?autoplay=1"
+                title="ORBYLOX"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setVideoPlaying(true)}
+                className="group w-full h-full flex flex-col items-center justify-center gap-4"
+                aria-label={de ? 'Video abspielen' : 'Play video'}
+              >
+                <img
+                  src="https://img.youtube.com/vi/LeRWiWL-Zmk/maxresdefault.jpg"
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity"
+                />
+                <span className="relative w-16 h-16 bg-[#ef5a24] text-white flex items-center justify-center">
+                  <Play className="w-7 h-7 ml-0.5" fill="currentColor" />
+                </span>
+                <span className="relative text-white font-bold uppercase tracking-wide text-sm">
+                  {de ? 'Video ansehen' : 'Watch the video'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </section>
