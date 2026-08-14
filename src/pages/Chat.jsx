@@ -169,7 +169,7 @@ export default function Chat() {
         parts.push(content.slice(lastIndex, match.index));
       }
       parts.push(
-        <span key={match.index} className="bg-indigo-200 text-indigo-800 px-1 rounded font-medium">
+        <span key={match.index} className="bg-[#ef5a24]/20 text-[#ef5a24] px-1 rounded font-medium">
           @{match[1]}
         </span>
       );
@@ -203,7 +203,7 @@ export default function Chat() {
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="h-7 w-7 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 relative"
+                className="h-7 w-7 text-[#ef5a24] hover:text-[#ef5a24] hover:bg-[#f5f5f5] relative"
                 onClick={() => setShowVideoCall(true)}
                 title="Video Call starten (Beta)"
               >
@@ -243,7 +243,7 @@ export default function Chat() {
                     <div className="flex items-center gap-2">
                         <div className="relative">
                             <Avatar className="h-8 w-8 border border-white shadow-sm">
-                                <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs">
+                                <AvatarFallback className="bg-[#ef5a24]/10 text-[#ef5a24] text-xs">
                                   {currentUser.email?.[0]?.toUpperCase() || 'Y'}
                                 </AvatarFallback>
                             </Avatar>
@@ -258,7 +258,7 @@ export default function Chat() {
                         <div key={memberEmail} className="flex items-center gap-2">
                             <div className="relative">
                                 <Avatar className="h-8 w-8 border border-white shadow-sm">
-                                    <AvatarFallback className="bg-purple-100 text-purple-600 text-xs">
+                                    <AvatarFallback className="bg-[#ef5a24]/10 text-[#ef5a24] text-xs">
                                       {memberEmail[0]?.toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
@@ -287,7 +287,7 @@ export default function Chat() {
                             <div className={`flex max-w-[min(100%,28rem)] min-w-0 ${isMe ? 'flex-row-reverse' : 'flex-row'} gap-3`}>
                                 {!isSequence && !isMe && (
                                     <Avatar className="h-8 w-8 mt-1">
-                                        <AvatarFallback className="bg-purple-100 text-purple-600">
+                                        <AvatarFallback className="bg-[#ef5a24]/10 text-[#ef5a24]">
                                           {msg.sender_email?.[0]?.toUpperCase() || 'U'}
                                         </AvatarFallback>
                                     </Avatar>
@@ -301,7 +301,7 @@ export default function Chat() {
                                     <div className={`
                                         p-3 rounded-2xl text-sm shadow-sm break-words [overflow-wrap:anywhere]
                                         ${isMe 
-                                            ? 'bg-indigo-600 text-white rounded-tr-none' 
+                                            ? 'bg-[#ef5a24] text-white rounded-tr-none' 
                                             : 'bg-slate-100 text-slate-800 rounded-tl-none'}
                                     `}>
                                         {renderMessageContent(msg.content)}
@@ -324,10 +324,10 @@ export default function Chat() {
                      key={user.email}
                      type="button"
                      onClick={() => insertMention(user)}
-                     className="w-full px-4 py-2 flex items-center gap-2 hover:bg-indigo-50 text-left"
+                     className="w-full px-4 py-2 flex items-center gap-2 hover:bg-[#f5f5f5] text-left"
                    >
                      <Avatar className="h-6 w-6">
-                       <AvatarFallback className={`text-xs ${user.email === 'alle' ? 'bg-orange-100 text-orange-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                       <AvatarFallback className={`text-xs ${user.email === 'alle' ? 'bg-orange-100 text-orange-600' : 'bg-[#ef5a24]/10 text-[#ef5a24]'}`}>
                          {user.email === 'alle' ? '👥' : user.name[0]?.toUpperCase()}
                        </AvatarFallback>
                      </Avatar>
@@ -358,13 +358,13 @@ export default function Chat() {
                       if (e.key === 'Escape') setShowMentions(false);
                     }}
                     placeholder="Nachricht... (@ für Erwähnung)" 
-                    className="flex-1 min-w-0 rounded-full bg-slate-50 border-slate-200 focus-visible:ring-indigo-500 text-sm"
+                    className="flex-1 min-w-0 rounded-full bg-slate-50 border-slate-200 focus-visible:ring-[#ef5a24] text-sm"
                 />
                 <Button 
                     type="submit" 
                     size="icon" 
                     disabled={!message.trim()}
-                    className="rounded-full bg-indigo-600 hover:bg-indigo-700 w-9 h-9 sm:w-10 sm:h-10 shrink-0"
+                    className="rounded-full bg-[#ef5a24] hover:bg-black w-9 h-9 sm:w-10 sm:h-10 shrink-0"
                 >
                     <Send className="w-4 h-4 text-white" />
                 </Button>

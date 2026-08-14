@@ -77,7 +77,7 @@ export default function JourneyCard({ journey, index, onView, onDelete }) {
               initial={{ width: 0 }}
               animate={{ width: `${journey.progress || 0}%` }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full"
+              className="h-full bg-[#ef5a24] rounded-full"
             />
           </div>
         </div>
@@ -113,10 +113,10 @@ export default function JourneyCard({ journey, index, onView, onDelete }) {
           <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={() => onView(journey)}
-              className="p-2 hover:bg-indigo-50 rounded-lg transition-colors"
+              className="p-2 hover:bg-[#f5f5f5] rounded-lg transition-colors"
               title="Anzeigen"
             >
-              <Eye className="w-4 h-4 text-indigo-600" />
+              <Eye className="w-4 h-4 text-[#ef5a24]" />
             </button>
             <button
               onClick={() => onDelete(journey.id)}

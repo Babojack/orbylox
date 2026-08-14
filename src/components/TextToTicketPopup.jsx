@@ -176,7 +176,7 @@ Antworte NUR im JSON Format.`,
               text-sm font-medium transition-all
               ${showSuccess 
                 ? 'bg-emerald-500 text-white' 
-                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                : 'bg-[#ef5a24] hover:bg-black text-white'
               }
               ${isCreating ? 'cursor-wait' : 'cursor-pointer'}
             `}
@@ -204,7 +204,7 @@ Antworte NUR im JSON Format.`,
             border-l-[6px] border-l-transparent
             border-r-[6px] border-r-transparent
             border-t-[6px] 
-            ${showSuccess ? 'border-t-emerald-500' : 'border-t-indigo-600'}
+            ${showSuccess ? 'border-t-emerald-500' : 'border-t-[#ef5a24]'}
           `} />
         </motion.div>
       )}

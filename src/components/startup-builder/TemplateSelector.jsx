@@ -22,7 +22,7 @@ export default function TemplateSelector({ isOpen, onClose, onSelectTemplate }) 
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-indigo-600" />
+            <BookOpen className="w-5 h-5 text-[#ef5a24]" />
             Vorlage aus Startup-Büchern wählen
           </DialogTitle>
         </DialogHeader>
@@ -40,7 +40,7 @@ export default function TemplateSelector({ isOpen, onClose, onSelectTemplate }) 
                 onClick={() => setSelectedTemplate(template.id)}
                 className={`w-full text-left p-5 rounded-2xl border-2 transition-all ${
                   isSelected 
-                    ? 'border-indigo-500 bg-indigo-50 shadow-lg' 
+                    ? 'border-[#ef5a24] bg-[#f5f5f5] shadow-lg' 
                     : 'border-slate-200 hover:border-slate-300 bg-white'
                 }`}
               >
@@ -56,7 +56,7 @@ export default function TemplateSelector({ isOpen, onClose, onSelectTemplate }) 
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-bold text-slate-900">{template.name}</h3>
                       {isSelected && (
-                        <span className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
+                        <span className="w-5 h-5 bg-[#ef5a24] rounded-full flex items-center justify-center">
                           <Check className="w-3 h-3 text-white" />
                         </span>
                       )}
@@ -93,7 +93,7 @@ export default function TemplateSelector({ isOpen, onClose, onSelectTemplate }) 
           <Button 
             onClick={handleApply} 
             disabled={!selectedTemplate}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+            className="flex-1 bg-[#ef5a24] hover:bg-black"
           >
             Vorlage anwenden
             <ArrowRight className="w-4 h-4 ml-2" />

@@ -1200,7 +1200,7 @@ export default function TaskExplanationDialog({ task, methodology, isOpen, onClo
       <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
-            <HelpCircle className="w-5 h-5 text-indigo-600" />
+            <HelpCircle className="w-5 h-5 text-[#ef5a24]" />
             {task}
           </DialogTitle>
         </DialogHeader>
@@ -1208,8 +1208,8 @@ export default function TaskExplanationDialog({ task, methodology, isOpen, onClo
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-4 mt-4">
             {/* Description */}
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-              <h3 className="font-semibold text-indigo-900 mb-2 flex items-center gap-2">
+            <div className="bg-[#f5f5f5] border border-[#ef5a24]/30 rounded-lg p-4">
+              <h3 className="font-semibold text-[#ef5a24] mb-2 flex items-center gap-2">
                 <BookOpen className="w-4 h-4" />
                 {labels.whatIsThis}
               </h3>
@@ -1235,8 +1235,8 @@ export default function TaskExplanationDialog({ task, methodology, isOpen, onClo
             </div>
 
             {/* Example */}
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-              <h3 className="font-semibold text-purple-900 mb-2 flex items-center gap-2">
+            <div className="bg-[#f5f5f5] border border-[#ef5a24]/30 rounded-lg p-4">
+              <h3 className="font-semibold text-[#ef5a24] mb-2 flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
                 {labels.example}
               </h3>

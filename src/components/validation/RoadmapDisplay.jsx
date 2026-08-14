@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 
 const METHODOLOGY_COLORS = {
   lean_startup: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", gradient: "from-emerald-500 to-teal-600" },
-  design_thinking: { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", gradient: "from-purple-500 to-violet-600" },
-  jobs_to_be_done: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", gradient: "from-blue-500 to-indigo-600" },
+  design_thinking: { bg: "bg-[#f5f5f5]", border: "border-[#ef5a24]/30", text: "text-[#ef5a24]", gradient: "from-[#ef5a24] to-[#ef5a24]" },
+  jobs_to_be_done: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", gradient: "from-blue-500 to-blue-600" },
   blue_ocean: { bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700", gradient: "from-cyan-500 to-blue-600" },
   business_model_canvas: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", gradient: "from-amber-500 to-orange-600" }
 };

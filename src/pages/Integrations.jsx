@@ -31,7 +31,7 @@ const AVAILABLE_INTEGRATIONS = [
     icon: MessageSquare,
     url: "https://slack.com/apps",
     category: "Communication",
-    color: "bg-purple-100 text-purple-600"
+    color: "bg-[#ef5a24]/10 text-[#ef5a24]"
   },
   {
     name: "Google Calendar",
@@ -71,7 +71,7 @@ const AVAILABLE_INTEGRATIONS = [
     icon: Webhook,
     url: "https://www.make.com/en/integrations",
     category: "Automation",
-    color: "bg-violet-100 text-violet-600"
+    color: "bg-[#ef5a24]/10 text-[#ef5a24]"
   },
   {
     name: "Gmail",
@@ -119,7 +119,7 @@ const AVAILABLE_INTEGRATIONS = [
     icon: Puzzle,
     url: "https://www.atlassian.com/software/jira/marketplace",
     category: "Development",
-    color: "bg-indigo-100 text-indigo-600"
+    color: "bg-[#ef5a24]/10 text-[#ef5a24]"
   }
 ];
 
@@ -216,7 +216,7 @@ export default function Integrations() {
         </div>
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-indigo-600 hover:bg-indigo-700">
+            <Button className="bg-[#ef5a24] hover:bg-black">
               <Plus className="w-4 h-4 mr-2" /> Add Tool
             </Button>
           </DialogTrigger>
@@ -272,11 +272,11 @@ export default function Integrations() {
             {customIntegrations.map((integration) => (
               <Card 
                 key={integration.id} 
-                className="hover:shadow-lg transition-all group border-indigo-100 bg-indigo-50/30"
+                className="hover:shadow-lg transition-all group border-[#ef5a24]/30 bg-[#f5f5f5]"
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-indigo-100 text-indigo-600">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#ef5a24]/10 text-[#ef5a24]">
                       <Link className="w-5 h-5" />
                     </div>
                     <div className="flex gap-1">
@@ -294,7 +294,7 @@ export default function Integrations() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-indigo-600"
+                        className="h-8 w-8 text-slate-400 hover:text-[#ef5a24]"
                         onClick={() => window.open(integration.url, '_blank')}
                       >
                         <ExternalLink className="w-4 h-4" />

@@ -55,7 +55,7 @@ function StepDetail({ step, index, isExpanded, onToggle }) {
           initial={{ opacity: 0, x: isEven ? -20 : 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: index * 0.05 }}
-          className="w-[calc(50%-24px)] bg-white rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all"
+          className="w-[calc(50%-24px)] bg-white rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-[#ef5a24] hover:shadow-md transition-all"
           style={{ borderTopColor: step.color, borderTopWidth: '3px' }}
           onClick={onToggle}
         >
@@ -112,7 +112,7 @@ function StepDetail({ step, index, isExpanded, onToggle }) {
                   {step.methodology && (
                     <div>
                       <p className="text-xs font-medium text-slate-500 mb-1">Methodik</p>
-                      <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
+                      <Badge variant="outline" className="bg-[#f5f5f5] text-[#ef5a24] border-[#ef5a24]/30 text-xs">
                         {step.methodology}
                       </Badge>
                     </div>
@@ -176,7 +176,7 @@ export default function JourneyDetailDialog({ journey, isOpen, onClose, onDelete
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Rocket className="w-5 h-5 text-indigo-600" />
+            <Rocket className="w-5 h-5 text-[#ef5a24]" />
             {journey.name}
           </DialogTitle>
         </DialogHeader>
@@ -191,11 +191,11 @@ export default function JourneyDetailDialog({ journey, isOpen, onClose, onDelete
           <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-slate-600">Fortschritt</span>
-              <span className="text-sm font-bold text-indigo-600">{journey.progress || 0}%</span>
+              <span className="text-sm font-bold text-[#ef5a24]">{journey.progress || 0}%</span>
             </div>
             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full transition-all"
+                className="h-full bg-[#ef5a24] rounded-full transition-all"
                 style={{ width: `${journey.progress || 0}%` }}
               />
             </div>

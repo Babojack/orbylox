@@ -31,7 +31,7 @@ import { Progress } from "@/components/ui/progress";
 const TASK_STATUS = {
   todo: { labelKey: "dashboardStatusTodo", color: "bg-slate-100 text-slate-700" },
   in_progress: { labelKey: "dashboardStatusProgress", color: "bg-blue-100 text-blue-700" },
-  review: { labelKey: "dashboardStatusReview", color: "bg-purple-100 text-purple-700" },
+  review: { labelKey: "dashboardStatusReview", color: "bg-[#ef5a24]/10 text-[#ef5a24]" },
   done: { labelKey: "dashboardStatusDone", color: "bg-green-100 text-green-700" },
 };
 
@@ -226,7 +226,7 @@ export default function Dashboard() {
   if (userLoading || tasksLoading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#ef5a24]" />
       </div>
     );
   }
@@ -248,13 +248,13 @@ export default function Dashboard() {
       label: t("dashboardTasksInProgress"),
       value: stats.byStatus.in_progress,
       icon: PlayCircle,
-      accent: "from-blue-500 to-indigo-600",
+      accent: "from-blue-500 to-blue-600",
     },
     {
       label: t("dashboardAssignedToMe"),
       value: stats.assignedToMe,
       icon: Users,
-      accent: "from-violet-500 to-purple-600",
+      accent: "from-[#ef5a24] to-[#ef5a24]",
     },
   ];
 
@@ -271,7 +271,7 @@ export default function Dashboard() {
     <div className="space-y-6 w-full min-w-0 max-w-6xl mx-auto pb-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-indigo-600 mb-1">
+          <div className="flex items-center gap-2 text-[#ef5a24] mb-1">
             <LayoutDashboard className="w-6 h-6" />
             <span className="text-sm font-semibold uppercase tracking-wide">
               {t("dashboardTitle")}
@@ -284,7 +284,7 @@ export default function Dashboard() {
             {t("dashboardSubtitle")}
           </p>
         </div>
-        <Button asChild className="bg-indigo-600 hover:bg-indigo-700 shrink-0">
+        <Button asChild className="bg-[#ef5a24] hover:bg-black shrink-0">
           <Link to={createPageUrl("ScrumBoard") + projectQuery}>
             {t("dashboardGoToBoard")}
             <ArrowRight className="w-4 h-4 ml-2" />
@@ -375,7 +375,7 @@ export default function Dashboard() {
                 className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-50 transition-colors group"
               >
                 <span className="flex items-center gap-2 text-sm text-slate-700">
-                  <mod.icon className="w-4 h-4 text-slate-400 group-hover:text-indigo-600" />
+                  <mod.icon className="w-4 h-4 text-slate-400 group-hover:text-[#ef5a24]" />
                   {mod.label}
                 </span>
                 <Badge variant="secondary">{mod.count}</Badge>
@@ -465,7 +465,7 @@ export default function Dashboard() {
         <Card className="border-slate-100 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-indigo-600" />
+              <CalendarDays className="w-4 h-4 text-[#ef5a24]" />
               {t("dashboardUpcomingEvents")}
             </CardTitle>
           </CardHeader>

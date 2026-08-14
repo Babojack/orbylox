@@ -204,7 +204,7 @@ export default function BackupManager({ projectId, project, currentUser }) {
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-indigo-600" />
+              <Database className="w-5 h-5 text-[#ef5a24]" />
               Backup & Wiederherstellung
             </DialogTitle>
           </DialogHeader>
@@ -227,15 +227,15 @@ export default function BackupManager({ projectId, project, currentUser }) {
           )}
 
           {restoreStatus && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 text-indigo-600 animate-spin" />
-              <p className="text-sm text-indigo-700">{restoreStatus}</p>
+            <div className="bg-[#f5f5f5] border border-[#ef5a24]/30 rounded-lg p-3 flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-[#ef5a24] animate-spin" />
+              <p className="text-sm text-[#ef5a24]">{restoreStatus}</p>
             </div>
           )}
 
           {restoreRequests.length > 0 && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-3">
-              <h3 className="font-medium text-indigo-900 flex items-center gap-2">
+            <div className="bg-[#f5f5f5] border border-[#ef5a24]/30 rounded-lg p-4 space-y-3">
+              <h3 className="font-medium text-[#ef5a24] flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4" />
                 Offene Wiederherstellungsanfragen
               </h3>
@@ -243,7 +243,7 @@ export default function BackupManager({ projectId, project, currentUser }) {
                 const backup = backups.find(b => b.id === request.backup_id);
                 const hasConfirmed = request.confirmed_by?.includes(currentUser?.email);
                 return (
-                  <div key={request.id} className="bg-white rounded-lg p-3 border border-indigo-100">
+                  <div key={request.id} className="bg-white rounded-lg p-3 border border-[#ef5a24]/30">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium text-slate-900">{backup?.name || 'Backup'}</p>
@@ -285,7 +285,7 @@ export default function BackupManager({ projectId, project, currentUser }) {
               placeholder="Backup-Name (optional)"
               className="flex-1"
             />
-            <Button onClick={handleCreate} disabled={isCreating} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button onClick={handleCreate} disabled={isCreating} className="bg-[#ef5a24] hover:bg-black">
               {isCreating ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Database className="w-4 h-4 mr-2" />}
               {isCreating ? 'Wird gepackt…' : 'Backup erstellen'}
             </Button>
@@ -317,7 +317,7 @@ export default function BackupManager({ projectId, project, currentUser }) {
                     key={backup.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:border-indigo-300 transition-colors"
+                    className="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:border-[#ef5a24] transition-colors"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -326,7 +326,7 @@ export default function BackupManager({ projectId, project, currentUser }) {
                           <Badge variant="outline" className={
                             backup.backup_type === 'auto'
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
-                              : 'bg-purple-50 text-purple-700 border-purple-200'
+                              : 'bg-[#f5f5f5] text-[#ef5a24] border-[#ef5a24]/30'
                           }>
                             {backup.backup_type === 'auto' ? 'Auto' : 'Manuell'}
                           </Badge>
@@ -358,7 +358,7 @@ export default function BackupManager({ projectId, project, currentUser }) {
                           variant="outline"
                           onClick={() => requestRestore(backup)}
                           disabled={!!restoreStatus}
-                          className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                          className="text-[#ef5a24] border-[#ef5a24]/30 hover:bg-[#f5f5f5]"
                         >
                           <Upload className="w-4 h-4 mr-1" />
                           Wiederherstellen

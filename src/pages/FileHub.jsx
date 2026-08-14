@@ -246,7 +246,7 @@ export default function FileHub() {
   };
 
   const getIcon = (type) => {
-    if (type?.includes('image')) return <FileImage className="w-8 h-8 text-purple-500" />;
+    if (type?.includes('image')) return <FileImage className="w-8 h-8 text-[#ef5a24]" />;
     if (type?.includes('pdf')) return <FileText className="w-8 h-8 text-red-500" />;
     return <File className="w-8 h-8 text-blue-500" />;
   };
@@ -305,7 +305,7 @@ export default function FileHub() {
               href={pdfViewUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-indigo-600 font-medium hover:underline"
+              className="text-[#ef5a24] font-medium hover:underline"
             >
               PDF in neuem Tab öffnen
             </a>
@@ -343,7 +343,7 @@ export default function FileHub() {
       <div className="flex flex-col items-center justify-center h-full text-slate-500">
         <File className="w-24 h-24 mb-4" />
         <p>{t('previewUnavailable')}</p>
-        <a href={previewablePdfUrl(file.url) || file.url} download={file.name || true} className="mt-4 text-indigo-600 hover:underline">
+        <a href={previewablePdfUrl(file.url) || file.url} download={file.name || true} className="mt-4 text-[#ef5a24] hover:underline">
           {t('downloadFile')}
         </a>
       </div>
@@ -408,7 +408,7 @@ export default function FileHub() {
               </DialogContent>
             </Dialog>
             <Button 
-                className="bg-indigo-600 hover:bg-indigo-700 flex-1 sm:flex-none text-xs sm:text-sm"
+                className="bg-[#ef5a24] hover:bg-black flex-1 sm:flex-none text-xs sm:text-sm"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingCount > 25}
@@ -452,11 +452,11 @@ export default function FileHub() {
         onClick={() => fileInputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-6 sm:p-12 text-center transition-all cursor-pointer ${
           isDragging 
-            ? 'border-indigo-500 bg-indigo-50' 
-            : 'border-slate-300 bg-slate-50 hover:border-indigo-400'
+            ? 'border-[#ef5a24] bg-[#f5f5f5]' 
+            : 'border-slate-300 bg-slate-50 hover:border-[#ef5a24]'
         }`}
       >
-        <CloudUpload className={`w-10 h-10 sm:w-16 sm:h-16 mx-auto mb-2 sm:mb-4 ${isDragging ? 'text-indigo-600' : 'text-slate-400'}`} />
+        <CloudUpload className={`w-10 h-10 sm:w-16 sm:h-16 mx-auto mb-2 sm:mb-4 ${isDragging ? 'text-[#ef5a24]' : 'text-slate-400'}`} />
         <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1 sm:mb-2">
           {isDragging ? t('dropFilesHere') : t('tapToUpload')}
         </h3>
@@ -486,8 +486,8 @@ export default function FileHub() {
           <Card 
             className={`p-4 flex flex-col items-center justify-center aspect-square border-2 border-dashed transition-all cursor-pointer ${
               dropTargetFolderId === 'root' 
-                ? 'border-indigo-500 bg-indigo-50 scale-105' 
-                : 'border-slate-300 bg-slate-50 hover:border-indigo-400'
+                ? 'border-[#ef5a24] bg-[#f5f5f5] scale-105' 
+                : 'border-slate-300 bg-slate-50 hover:border-[#ef5a24]'
             }`}
             onDragOver={(e) => {
               e.preventDefault();
@@ -513,8 +513,8 @@ export default function FileHub() {
         {!currentFolderId && folders?.map((folder) => (
           <Card 
             key={folder.id} 
-            className={`p-4 flex flex-col items-center justify-center aspect-square bg-indigo-50 border-indigo-100 hover:bg-indigo-100 transition-colors cursor-pointer group text-center relative ${
-              dropTargetFolderId === folder.id ? 'ring-2 ring-indigo-500 bg-indigo-100 scale-105' : ''
+            className={`p-4 flex flex-col items-center justify-center aspect-square bg-[#f5f5f5] border-[#ef5a24]/30 hover:bg-[#ef5a24]/10 transition-colors cursor-pointer group text-center relative ${
+              dropTargetFolderId === folder.id ? 'ring-2 ring-[#ef5a24] bg-[#ef5a24]/10 scale-105' : ''
             }`}
             onClick={() => setCurrentFolderId(folder.id)}
             onDragOver={(e) => {
@@ -552,8 +552,8 @@ export default function FileHub() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <Folder className={`w-12 h-12 text-indigo-400 mb-2 group-hover:scale-110 transition-transform ${dropTargetFolderId === folder.id ? 'text-indigo-600' : ''}`} />
-            <span className="font-medium text-indigo-900">{folder.name}</span>
+            <Folder className={`w-12 h-12 text-[#ef5a24] mb-2 group-hover:scale-110 transition-transform ${dropTargetFolderId === folder.id ? 'text-[#ef5a24]' : ''}`} />
+            <span className="font-medium text-[#ef5a24]">{folder.name}</span>
           </Card>
         ))}
         

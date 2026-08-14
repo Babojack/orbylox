@@ -36,7 +36,7 @@ export default function StartDecisionDialog({ isOpen, onChooseTemplate, onChoose
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring" }}
-              className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg"
+              className="w-16 h-16 bg-[#ef5a24] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg"
             >
               <Rocket className="w-8 h-8 text-white" />
             </motion.div>
@@ -51,12 +51,12 @@ export default function StartDecisionDialog({ isOpen, onChooseTemplate, onChoose
               whileHover={{ scale: 1.03, y: -4 }}
               whileTap={{ scale: 0.98 }}
               onClick={onChooseTemplate}
-              className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-6 text-left transition-all group relative overflow-hidden"
+              className="bg-[#f5f5f5] border-2 border-[#ef5a24]/30 hover:border-[#ef5a24] rounded-2xl p-6 text-left transition-all group relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-100 rounded-full -mr-10 -mt-10 opacity-50" />
+              <div className="absolute top-0 right-0 w-20 h-20 bg-[#ef5a24]/10 rounded-full -mr-10 -mt-10 opacity-50" />
               
               <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                <div className="w-14 h-14 bg-[#ef5a24] rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
                   <BookOpen className="w-7 h-7 text-white" />
                 </div>
                 
@@ -70,12 +70,12 @@ export default function StartDecisionDialog({ isOpen, onChooseTemplate, onChoose
                 </p>
 
                 <div className="flex flex-wrap gap-2 mb-4">
-                  <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full">Lean Startup</span>
-                  <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">The Mom Test</span>
+                  <span className="text-xs px-2 py-1 bg-[#ef5a24]/10 text-[#ef5a24] rounded-full">Lean Startup</span>
+                  <span className="text-xs px-2 py-1 bg-[#ef5a24]/10 text-[#ef5a24] rounded-full">The Mom Test</span>
                   <span className="text-xs px-2 py-1 bg-pink-100 text-pink-700 rounded-full">Zero to One</span>
                 </div>
 
-                <div className="flex items-center text-indigo-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
+                <div className="flex items-center text-[#ef5a24] font-medium text-sm group-hover:translate-x-1 transition-transform">
                   Vorlage wählen
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </div>

@@ -159,7 +159,7 @@ export default function ProjectMembersManager({ projectId }) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white">
+        <Button className="gap-2 bg-[#ef5a24] hover:bg-black text-white">
           <UserPlus className="w-4 h-4" />
           {t('inviteToProject')} ({members.length}/{MAX_MEMBERS_PER_PROJECT})
         </Button>
@@ -169,8 +169,8 @@ export default function ProjectMembersManager({ projectId }) {
           <DialogTitle>{language === 'de' ? 'Projektteam' : 'Project Team'}</DialogTitle>
         </DialogHeader>
 
-        <div className={`border rounded-lg p-3 mb-2 ${canAddMore ? 'bg-indigo-50 border-indigo-200' : 'bg-amber-50 border-amber-200'}`}>
-          <p className={`text-sm ${canAddMore ? 'text-indigo-900' : 'text-amber-900'}`}>
+        <div className={`border rounded-lg p-3 mb-2 ${canAddMore ? 'bg-[#f5f5f5] border-[#ef5a24]/30' : 'bg-amber-50 border-amber-200'}`}>
+          <p className={`text-sm ${canAddMore ? 'text-[#ef5a24]' : 'text-amber-900'}`}>
             {canAddMore 
               ? (language === 'de' 
                   ? `💡 Gib die E-Mail deines Freundes ein (${members.length}/${MAX_MEMBERS_PER_PROJECT} Plätze belegt)`
@@ -198,7 +198,7 @@ export default function ProjectMembersManager({ projectId }) {
             <Button 
               onClick={addMember} 
               disabled={!email.trim() || inviting || !canAddMore}
-              className={canAddMore ? "bg-indigo-600 hover:bg-indigo-700" : "bg-slate-400"}
+              className={canAddMore ? "bg-[#ef5a24] hover:bg-black" : "bg-slate-400"}
             >
               {inviting 
                 ? (language === 'de' ? 'Senden...' : 'Sending...') 
@@ -214,7 +214,7 @@ export default function ProjectMembersManager({ projectId }) {
               >
                 <div className="flex items-center gap-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs bg-indigo-100 text-indigo-600">
+                    <AvatarFallback className="text-xs bg-[#ef5a24]/10 text-[#ef5a24]">
                       {memberEmail[0]?.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>

@@ -142,7 +142,7 @@ export default function TimelineView({ tasks, onTaskClick, allAssignees }) {
                 ) : (
                   <>
                     <Avatar className="w-7 h-7">
-                      <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs">
+                      <AvatarFallback className="bg-[#ef5a24]/10 text-[#ef5a24] text-xs">
                         {assignee[0]?.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>

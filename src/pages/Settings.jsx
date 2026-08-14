@@ -117,9 +117,9 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card className="border-indigo-200 bg-indigo-50/30">
+      <Card className="border-[#ef5a24]/30 bg-[#f5f5f5]">
         <CardHeader>
-            <CardTitle className="text-indigo-900">🎯 {t('howToInvite')}</CardTitle>
+            <CardTitle className="text-[#ef5a24]">🎯 {t('howToInvite')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-slate-700">
             <p>{t('inviteStep1')}</p>

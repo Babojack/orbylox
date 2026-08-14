@@ -184,7 +184,7 @@ Show a timeline or flowchart visualization with icons. Modern tech startup aesth
         </div>
         <Button 
           onClick={() => setShowCreate(true)}
-          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
+          className="bg-[#ef5a24] hover:bg-black shadow-lg"
         >
           <Plus className="w-4 h-4 mr-2" />
           Validate new idea
@@ -194,7 +194,7 @@ Show a timeline or flowchart visualization with icons. Modern tech startup aesth
       {/* Ideas Grid */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#ef5a24]" />
         </div>
       ) : ideas.length === 0 ? (
         <motion.div 
@@ -231,7 +231,7 @@ Show a timeline or flowchart visualization with icons. Modern tech startup aesth
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600" />
+              <Sparkles className="w-5 h-5 text-[#ef5a24]" />
               Validate product idea
             </DialogTitle>
           </DialogHeader>
@@ -334,7 +334,7 @@ Show a timeline or flowchart visualization with icons. Modern tech startup aesth
                         animate={{ rotate: 360 }}
                         transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
                       >
-                        <Sparkles className="w-12 h-12 text-indigo-600" />
+                        <Sparkles className="w-12 h-12 text-[#ef5a24]" />
                       </motion.div>
                       <p className="text-slate-600 mt-4">Generating your roadmap...</p>
                     </div>
@@ -352,7 +352,7 @@ Show a timeline or flowchart visualization with icons. Modern tech startup aesth
                               animate={{ scale: [1, 1.1, 1] }}
                               transition={{ repeat: Infinity, duration: 1.5 }}
                             >
-                              <Image className="w-10 h-10 text-indigo-400" />
+                              <Image className="w-10 h-10 text-[#ef5a24]" />
                             </motion.div>
                             <p className="text-sm text-slate-500 mt-3">Generating image...</p>
                           </div>
@@ -397,7 +397,7 @@ Show a timeline or flowchart visualization with icons. Modern tech startup aesth
                   (step === 1 && (!title || !description)) ||
                   (step === 2 && !selectedMethod)
                 }
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className="bg-[#ef5a24] hover:bg-black"
               >
                 Next
                 <ArrowRight className="w-4 h-4 ml-2" />

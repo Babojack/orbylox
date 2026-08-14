@@ -1102,7 +1102,7 @@ export default function MindMap() {
 
   return (
     <div
-      className={`relative overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50 ${
+      className={`relative overflow-hidden bg-[#f5f5f5] ${
         isFullscreen
           ? "fixed inset-0 z-[9999] rounded-none w-screen h-screen"
           : "h-[calc(100dvh-80px)] min-h-[320px] sm:h-[calc(100vh-100px)] rounded-xl sm:rounded-2xl"
@@ -1136,7 +1136,7 @@ export default function MindMap() {
               variant="ghost"
               size="icon"
               onClick={() => setToolbarCollapsed(false)}
-              className="h-8 w-8 rounded-full text-indigo-600 hover:bg-indigo-50"
+              className="h-8 w-8 rounded-full text-[#ef5a24] hover:bg-[#f5f5f5]"
               title="Werkzeuge einblenden"
             >
               <ChevronDown className="w-4 h-4" />
@@ -1172,7 +1172,7 @@ export default function MindMap() {
 
           {/* Add Buttons */}
           <div className="flex sm:flex-row flex-col items-center gap-1">
-            <Button onClick={() => addNode('node')} size="sm" className="bg-indigo-600 hover:bg-indigo-700 h-9 w-9 sm:w-auto sm:px-3 rounded-xl shadow-lg shadow-indigo-200">
+            <Button onClick={() => addNode('node')} size="sm" className="bg-[#ef5a24] hover:bg-black h-9 w-9 sm:w-auto sm:px-3 rounded-xl shadow-lg ">
               <Plus className="w-4 h-4" />
               <span className="text-xs font-medium hidden md:inline ml-1.5">Knoten</span>
             </Button>
@@ -1207,7 +1207,7 @@ export default function MindMap() {
               type="button"
               onClick={resetZoomKeepingCenter}
               title="Auf 100 % zuruecksetzen (Cmd/Strg + 0)"
-              className="text-xs font-semibold text-slate-600 w-10 text-center tabular-nums hover:text-indigo-600"
+              className="text-xs font-semibold text-slate-600 w-10 text-center tabular-nums hover:text-[#ef5a24]"
             >
               {Math.round(zoom * 100)}%
             </button>
@@ -1220,14 +1220,14 @@ export default function MindMap() {
 
           {/* View Controls */}
           <div className="flex sm:flex-row flex-col items-center gap-0.5">
-            <Button variant="ghost" size="icon" onClick={fitToView} className="h-8 w-8 rounded-lg text-indigo-600 hover:bg-indigo-50" title="Alle Knoten anzeigen">
+            <Button variant="ghost" size="icon" onClick={fitToView} className="h-8 w-8 rounded-lg text-[#ef5a24] hover:bg-[#f5f5f5]" title="Alle Knoten anzeigen">
               <Move className="w-4 h-4" />
             </Button>
             <Button 
               variant={isFullscreen ? "default" : "ghost"}
               size="icon" 
               onClick={() => setIsFullscreen(!isFullscreen)} 
-              className={`h-8 w-8 rounded-lg ${isFullscreen ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'hover:bg-slate-100'}`}
+              className={`h-8 w-8 rounded-lg ${isFullscreen ? 'bg-[#ef5a24] text-white hover:bg-black' : 'hover:bg-slate-100'}`}
               title={isFullscreen ? "Vollbild beenden (ESC)" : "Vollbild"}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -1302,7 +1302,7 @@ export default function MindMap() {
                 size="sm"
                 variant="ghost"
                 onClick={() => setFileHubPanel({ nodeId: selectedNodeId })}
-                className="h-7 px-2 text-violet-600 hover:bg-violet-50"
+                className="h-7 px-2 text-[#ef5a24] hover:bg-[#f5f5f5]"
                 title="Datei anhaengen"
               >
                 <Paperclip className="w-3.5 h-3.5" />
@@ -1354,7 +1354,7 @@ export default function MindMap() {
       {connectingFrom && (
         <div className="absolute top-14 sm:top-16 left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-30">
           <div className={`px-3 py-1.5 rounded-full shadow-lg flex items-center justify-center gap-2 text-white text-xs ${
-            connectLabel === 'yes' ? 'bg-green-500' : connectLabel === 'no' ? 'bg-red-500' : 'bg-indigo-500'
+            connectLabel === 'yes' ? 'bg-green-500' : connectLabel === 'no' ? 'bg-red-500' : 'bg-[#ef5a24]'
           }`}>
             <GitBranch className="w-3 h-3" />
             <span>Ziel wählen</span>
@@ -1550,7 +1550,7 @@ export default function MindMap() {
                       href={ref.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 text-xs text-indigo-600 hover:underline truncate"
+                      className="flex-1 text-xs text-[#ef5a24] hover:underline truncate"
                       onPointerDown={(e) => e.stopPropagation()}
                     >
                       {ref.name}
@@ -1825,7 +1825,7 @@ export default function MindMap() {
                   isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                 }`}
               >
-                <span className="block w-3 h-3 bg-white border-b-2 border-r-2 border-indigo-500 rounded-sm absolute bottom-0.5 right-0.5 shadow-sm" />
+                <span className="block w-3 h-3 bg-white border-b-2 border-r-2 border-[#ef5a24] rounded-sm absolute bottom-0.5 right-0.5 shadow-sm" />
               </button>
             );
 
@@ -1895,7 +1895,7 @@ export default function MindMap() {
                     onClick={openFiles}
                     onPointerDown={stopPointer}
                     onMouseDown={stopPointer}
-                    className="absolute -bottom-2 -left-2 min-w-[22px] h-[22px] px-1 bg-violet-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center gap-0.5 shadow-md hover:bg-violet-500 hover:scale-110 transition-transform"
+                    className="absolute -bottom-2 -left-2 min-w-[22px] h-[22px] px-1 bg-[#ef5a24] text-white rounded-full text-[10px] font-bold flex items-center justify-center gap-0.5 shadow-md hover:bg-black hover:scale-110 transition-transform"
                     title={`${fileHubCount} Datei(en) öffnen`}
                   >
                     <Paperclip className="w-3 h-3" />
@@ -1912,7 +1912,7 @@ export default function MindMap() {
                     }}
                     onPointerDown={stopPointer}
                     onMouseDown={stopPointer}
-                    className="absolute -bottom-2 -right-2 w-[22px] h-[22px] bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                    className="absolute -bottom-2 -right-2 w-[22px] h-[22px] bg-white text-[#ef5a24] rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
                     title="Notiz öffnen"
                   >
                     <StickyNote className="w-3 h-3" />
@@ -1959,7 +1959,7 @@ export default function MindMap() {
                 {isSticky ? (
                   <div
                     className={`relative cursor-grab active:cursor-grabbing rounded-sm ${
-                      isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''
+                      isSelected ? 'ring-2 ring-[#ef5a24] ring-offset-2' : ''
                     }`}
                     style={{
                       width: nodeW,
@@ -2009,7 +2009,7 @@ export default function MindMap() {
                   </div>
                 ) : isDecision ? (
                   <div
-                    className={`relative cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}
+                    className={`relative cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-[#ef5a24] ring-offset-2' : ''}`}
                     style={{ width: nodeW, height: nodeH }}
                   >
                     <svg viewBox="0 0 100 70" className="w-full h-full" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>
@@ -2065,7 +2065,7 @@ export default function MindMap() {
                   /* Regular node */
                   <div
                     className={`rounded-2xl px-4 py-3 shadow-lg cursor-grab active:cursor-grabbing relative flex items-center justify-center ${
-                      isSelected ? 'ring-2 ring-indigo-400 ring-offset-2' : ''
+                      isSelected ? 'ring-2 ring-[#ef5a24] ring-offset-2' : ''
                     }`}
                     style={{
                       width: nodeW,
@@ -2144,11 +2144,11 @@ export default function MindMap() {
       {nodes.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
           <div className="text-center">
-            <Lightbulb className="w-12 h-12 sm:w-16 sm:h-16 text-indigo-300 mx-auto mb-3 sm:mb-4" />
+            <Lightbulb className="w-12 h-12 sm:w-16 sm:h-16 text-[#ef5a24] mx-auto mb-3 sm:mb-4" />
             <h3 className="text-lg sm:text-xl font-semibold text-slate-600 mb-1 sm:mb-2">Mind Map erstellen</h3>
             <p className="text-slate-400 mb-3 sm:mb-4 text-sm">Fügen Sie Knoten hinzu</p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center pointer-events-auto">
-              <Button onClick={() => addNode('node')} className="bg-indigo-600 hover:bg-indigo-700" size="sm">
+              <Button onClick={() => addNode('node')} className="bg-[#ef5a24] hover:bg-black" size="sm">
                 <Plus className="w-4 h-4 mr-2" /> Knoten
               </Button>
               <Button onClick={() => addNode('decision')} variant="outline" className="border-orange-300 text-orange-600" size="sm">

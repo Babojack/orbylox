@@ -55,8 +55,8 @@ export default function BlockPalette({ onAddBlock }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-lg">
       <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-        <div className="w-6 h-6 bg-indigo-100 rounded-lg flex items-center justify-center">
-          <Plus className="w-4 h-4 text-indigo-600" />
+        <div className="w-6 h-6 bg-[#ef5a24]/10 rounded-lg flex items-center justify-center">
+          <Plus className="w-4 h-4 text-[#ef5a24]" />
         </div>
         {labels.addBlock}
       </h3>
@@ -71,7 +71,7 @@ export default function BlockPalette({ onAddBlock }) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onAddBlock(block.type, block.color)}
-              className="p-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all text-left group"
+              className="p-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-[#ef5a24] hover:bg-[#f5f5f5] transition-all text-left group"
             >
               <div className="flex items-center gap-2 mb-1">
                 <div 

@@ -339,7 +339,7 @@ export default function SocialBoard() {
           <p className="text-slate-500">{t('feedSubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <div className="w-8 h-8 border-4 border-[#ef5a24] border-t-transparent rounded-full animate-spin mb-4" />
           <span>{t('feedLoading')}</span>
         </div>
       </div>
@@ -376,7 +376,7 @@ export default function SocialBoard() {
                 </div>
               ))}
               {selectedImages.length < 4 && (
-                <label className="h-20 w-20 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-indigo-400 transition-colors">
+                <label className="h-20 w-20 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-[#ef5a24] transition-colors">
                   <input 
                     type="file" 
                     accept="image/*" 
@@ -402,7 +402,7 @@ export default function SocialBoard() {
                   onChange={handleImageSelect}
                   disabled={uploadingImage || selectedImages.length >= 4}
                 />
-                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-indigo-600" asChild disabled={selectedImages.length >= 4}>
+                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-[#ef5a24]" asChild disabled={selectedImages.length >= 4}>
                   <span>
                     <Image className="w-4 h-4 mr-2" />
                     {uploadingImage ? t('uploading') : t('photosCount', { used: selectedImages.length, max: 4 })}
@@ -416,7 +416,7 @@ export default function SocialBoard() {
                 createPostMutation.isPending ||
                 (!newPostContent.trim() && selectedImages.length === 0)
               }
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-6"
+              className="bg-[#ef5a24] hover:bg-black text-white rounded-full px-6"
             >
               {createPostMutation.isPending ? t('posting') : t('postSubmit')}
            </Button>
@@ -452,7 +452,7 @@ export default function SocialBoard() {
           <Card
             key={post.id}
             className={`shadow-sm hover:shadow-md transition-shadow min-w-0 max-w-full overflow-hidden ${
-              post.pinned ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-100'
+              post.pinned ? 'border-[#ef5a24]/30 bg-[#f5f5f5]' : 'border-slate-100'
             }`}
           >
             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -465,8 +465,8 @@ export default function SocialBoard() {
                    <div className="flex items-center gap-2">
                      <p className="text-sm font-medium text-slate-900">{t('teamMember')}</p>
                      {post.pinned && (
-                       <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 font-normal gap-1 hover:bg-indigo-100">
-                         <Pin className="w-3 h-3 fill-indigo-700" />
+                       <Badge variant="secondary" className="bg-[#ef5a24]/10 text-[#ef5a24] font-normal gap-1 hover:bg-[#ef5a24]/10">
+                         <Pin className="w-3 h-3 fill-[#ef5a24]" />
                          {t('pinnedPost')}
                        </Badge>
                      )}
@@ -529,7 +529,7 @@ export default function SocialBoard() {
                          onClick={() => toggleReactionMutation.mutate({ postId: post.id, emoji })}
                          className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm transition-all ${
                            users.includes(user?.email) 
-                             ? 'bg-indigo-100 border-2 border-indigo-300' 
+                             ? 'bg-[#ef5a24]/10 border-2 border-[#ef5a24]' 
                              : 'bg-slate-100 hover:bg-slate-200 border-2 border-transparent'
                          }`}
                        >
@@ -545,7 +545,7 @@ export default function SocialBoard() {
                  {/* Add Reaction Button */}
                  <Popover>
                    <PopoverTrigger asChild>
-                     <button className="flex items-center gap-2 hover:text-indigo-600 transition-colors text-sm">
+                     <button className="flex items-center gap-2 hover:text-[#ef5a24] transition-colors text-sm">
                        <Smile className="w-4 h-4" /> {t('react')}
                      </button>
                    </PopoverTrigger>
@@ -565,7 +565,7 @@ export default function SocialBoard() {
                  </Popover>
                  
                  <button 
-                   className="flex items-center gap-2 hover:text-indigo-600 transition-colors text-sm"
+                   className="flex items-center gap-2 hover:text-[#ef5a24] transition-colors text-sm"
                    onClick={() => setExpandedComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
                  >
                     <MessageCircle className="w-4 h-4" /> 
@@ -598,7 +598,7 @@ export default function SocialBoard() {
                          }
                        }}
                        disabled={!newComments[post.id]?.trim()}
-                       className="bg-indigo-600 hover:bg-indigo-700"
+                       className="bg-[#ef5a24] hover:bg-black"
                      >
                        <Send className="w-4 h-4" />
                      </Button>

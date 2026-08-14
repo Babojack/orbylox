@@ -18,7 +18,7 @@ import DustEffect from "@/components/kanban/DustEffect";
 const COLUMNS = {
   todo: { label: "To Do", color: "bg-slate-100" },
   in_progress: { label: "In Progress", color: "bg-blue-50" },
-  review: { label: "Review", color: "bg-purple-50" },
+  review: { label: "Review", color: "bg-[#f5f5f5]" },
   done: { label: "Done", color: "bg-green-50" }
 };
 
@@ -550,7 +550,7 @@ export default function ScrumBoard() {
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
             <button
               onClick={() => setFilterAssignee(null)}
-              className={`p-1.5 rounded text-xs ${!filterAssignee ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`p-1.5 rounded text-xs ${!filterAssignee ? 'bg-white shadow-sm text-[#ef5a24]' : 'text-slate-500 hover:text-slate-700'}`}
               title="Alle anzeigen"
             >
               <Filter className="w-4 h-4" />
@@ -561,7 +561,7 @@ export default function ScrumBoard() {
                 onClick={() => setFilterAssignee(filterAssignee === email ? null : email)}
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                   filterAssignee === email 
-                    ? 'ring-2 ring-indigo-500 ring-offset-1 bg-indigo-100 text-indigo-700' 
+                    ? 'ring-2 ring-[#ef5a24] ring-offset-1 bg-[#ef5a24]/10 text-[#ef5a24]' 
                     : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                 }`}
                 title={email}
@@ -574,7 +574,7 @@ export default function ScrumBoard() {
         <div className="flex gap-2 sm:gap-3 order-2 sm:order-1 w-full sm:w-auto">
           <Dialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen}>
             <DialogTrigger asChild>
-                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1 sm:flex-none text-sm sm:text-base">
+                <Button className="bg-[#ef5a24] hover:bg-black text-white flex-1 sm:flex-none text-sm sm:text-base">
                     <Plus className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden xs:inline">Add</span> Task
                 </Button>
             </DialogTrigger>
@@ -634,7 +634,7 @@ export default function ScrumBoard() {
                         />
                     </div>
                     <Button 
-                        className="w-full bg-indigo-600"
+                        className="w-full bg-[#ef5a24]"
                         onClick={() => createTaskMutation.mutate(newTask)}
                         disabled={!newTask.title.trim()}
                     >
@@ -671,8 +671,8 @@ export default function ScrumBoard() {
             onClick={() => setSelectedKanbanBoardId(DEFAULT_KANBAN_BOARD_KEY)}
             className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
               selectedKanbanBoardId === DEFAULT_KANBAN_BOARD_KEY
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                ? "bg-[#ef5a24] text-white border-[#ef5a24]"
+                : "bg-white text-slate-600 border-slate-200 hover:border-[#ef5a24]"
             }`}
           >
             Hauptboard
@@ -684,8 +684,8 @@ export default function ScrumBoard() {
                 onClick={() => setSelectedKanbanBoardId(String(b.id))}
                 className={`text-xs px-2.5 py-1 rounded-lg border transition-colors max-w-[160px] truncate ${
                   selectedKanbanBoardId === String(b.id)
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                    ? "bg-[#ef5a24] text-white border-[#ef5a24]"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-[#ef5a24]"
                 }`}
                 title={b.title}
               >
@@ -749,7 +749,7 @@ export default function ScrumBoard() {
               }}
             />
             <Button
-              className="w-full bg-indigo-600"
+              className="w-full bg-[#ef5a24]"
               onClick={() => createKanbanBoardMutation.mutate(newBoardTitle)}
               disabled={createKanbanBoardMutation.isPending}
             >
@@ -786,7 +786,7 @@ export default function ScrumBoard() {
               }}
             />
             <Button
-              className="w-full bg-indigo-600"
+              className="w-full bg-[#ef5a24]"
               onClick={() => {
                 if (!renameBoardTarget) return;
                 renameKanbanBoardMutation.mutate({
@@ -828,7 +828,7 @@ export default function ScrumBoard() {
               <div key={email} className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-lg transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <Avatar className="w-12 h-12">
-                    <AvatarFallback className="text-lg bg-indigo-100 text-indigo-600">
+                    <AvatarFallback className="text-lg bg-[#ef5a24]/10 text-[#ef5a24]">
                       {email[0]?.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -852,9 +852,9 @@ export default function ScrumBoard() {
                     </div>
                   )}
                   {reviewCount > 0 && (
-                    <div className="flex items-center justify-between bg-purple-50 p-2 rounded">
-                      <span className="text-xs text-purple-700">Review</span>
-                      <Badge className="bg-purple-100 text-purple-700">{reviewCount}</Badge>
+                    <div className="flex items-center justify-between bg-[#f5f5f5] p-2 rounded">
+                      <span className="text-xs text-[#ef5a24]">Review</span>
+                      <Badge className="bg-[#ef5a24]/10 text-[#ef5a24]">{reviewCount}</Badge>
                     </div>
                   )}
                   {doneCount > 0 && (
@@ -885,7 +885,7 @@ export default function ScrumBoard() {
                         <span className={`text-[9px] px-1.5 py-0.5 rounded ${
                           task.status === 'done' ? 'bg-green-100 text-green-700' :
                           task.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                          task.status === 'review' ? 'bg-purple-100 text-purple-700' :
+                          task.status === 'review' ? 'bg-[#ef5a24]/10 text-[#ef5a24]' :
                           'bg-slate-100 text-slate-600'
                         }`}>
                           {COLUMNS[task.status]?.label || task.status}
@@ -969,7 +969,7 @@ export default function ScrumBoard() {
                       ref={provided.innerRef}
                       className={`min-h-[72px] space-y-2 transition-colors ${
                         snapshot.isDraggingOver
-                          ? "bg-indigo-50/50 rounded-xl px-1 py-1"
+                          ? "bg-[#f5f5f5] rounded-xl px-1 py-1"
                           : ""
                       }`}
                     >
@@ -996,7 +996,7 @@ export default function ScrumBoard() {
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                               className={`relative bg-white p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-all group cursor-grab active:cursor-grabbing ${
-                                    snapshot.isDragging ? "shadow-2xl scale-105 ring-2 ring-indigo-500/50 z-50" : ""
+                                    snapshot.isDragging ? "shadow-2xl scale-105 ring-2 ring-[#ef5a24]/50 z-50" : ""
                                   } ${
                                     draggableTask.priority === "high" && !snapshot.isDragging ? "border-red-200 animate-pulse-border" : "border-slate-100"
                                   }`}
@@ -1029,7 +1029,7 @@ export default function ScrumBoard() {
                                   {draggableTask.tags.slice(0, 4).map((tg) => (
                                     <span
                                       key={tg}
-                                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 max-w-[120px] truncate"
+                                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#f5f5f5] text-[#ef5a24] max-w-[120px] truncate"
                                       title={tg}
                                     >
                                       {tg}
@@ -1068,7 +1068,7 @@ export default function ScrumBoard() {
                                           <div className="flex -space-x-2">
                                               {(draggableTask.assignees?.length > 0 ? draggableTask.assignees : [draggableTask.assignee_email]).slice(0, 3).map((email) => (
                                                   <Avatar key={email} className="w-6 h-6 border-2 border-white">
-                                                      <AvatarFallback className="text-[10px] bg-indigo-100 text-indigo-600">
+                                                      <AvatarFallback className="text-[10px] bg-[#ef5a24]/10 text-[#ef5a24]">
                                                           {email?.[0]?.toUpperCase()}
                                                       </AvatarFallback>
                                                   </Avatar>

@@ -434,10 +434,10 @@ function LayoutContent({ children, currentPageName }) {
 
   const navItems = [
     { icon: LayoutDashboard, label: t('dashboard'), path: "Dashboard", color: "bg-sky-500" },
-    { icon: LayoutGrid, label: t('overview'), path: "SocialBoard", badge: newPostsCount, color: "bg-indigo-500" },
+    { icon: LayoutGrid, label: t('overview'), path: "SocialBoard", badge: newPostsCount, color: "bg-[#ef5a24]" },
     { icon: ListTodo, label: t('tasks'), path: "ScrumBoard", color: "bg-emerald-500" },
     { icon: FileText, label: t('docs'), path: "Docs", color: "bg-amber-500" },
-    { icon: Shapes, label: t('canvas'), path: "Canvas", color: "bg-purple-500" },
+    { icon: Shapes, label: t('canvas'), path: "Canvas", color: "bg-[#ef5a24]" },
     { icon: FolderOpen, label: t('files'), path: "FileHub", color: "bg-orange-500" },
     { icon: CalendarDays, label: t('calendar'), path: "Calendar", color: "bg-teal-500" },
     { icon: MessageSquare, label: t('chat'), path: "Chat", badge: newMessagesCount, color: "bg-blue-500" },
@@ -447,7 +447,7 @@ function LayoutContent({ children, currentPageName }) {
   ];
 
   return (
-    <div className="min-h-screen bg-white flex text-slate-900 font-sans selection:bg-indigo-100 transition-colors duration-300 ease-out">
+    <div className="min-h-screen bg-white flex text-slate-900 font-sans selection:bg-[#ef5a24]/10 transition-colors duration-300 ease-out">
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
@@ -610,7 +610,7 @@ function LayoutContent({ children, currentPageName }) {
                    {newPostsCount > 0 && (
                      <DropdownMenuItem asChild>
                        <Link to={createPageUrl('SocialBoard') + location.search} className="cursor-pointer flex items-center gap-2">
-                         <LayoutGrid className="w-4 h-4 text-indigo-500 shrink-0" />
+                         <LayoutGrid className="w-4 h-4 text-[#ef5a24] shrink-0" />
                          <span className="text-sm">{t('notificationFeedUnread', { count: newPostsCount })}</span>
                        </Link>
                      </DropdownMenuItem>
@@ -618,7 +618,7 @@ function LayoutContent({ children, currentPageName }) {
                    {newMessagesCount > 0 && (
                      <DropdownMenuItem asChild>
                        <Link to={createPageUrl('Chat') + location.search} className="cursor-pointer flex items-center gap-2">
-                         <MessageSquare className="w-4 h-4 text-indigo-500 shrink-0" />
+                         <MessageSquare className="w-4 h-4 text-[#ef5a24] shrink-0" />
                          <span className="text-sm">{t('notificationChatUnread', { count: newMessagesCount })}</span>
                        </Link>
                      </DropdownMenuItem>
@@ -639,7 +639,7 @@ function LayoutContent({ children, currentPageName }) {
                                className={`cursor-pointer flex gap-3 items-start py-2.5 ${item.read ? 'opacity-70' : ''}`}
                                onClick={() => setShowNotifications(false)}
                              >
-                               <Icon className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                               <Icon className="w-4 h-4 text-[#ef5a24] shrink-0 mt-0.5" />
                                <span className="flex-1 min-w-0 text-sm leading-snug text-slate-800">
                                  {t(item.messageKey)}
                                  <span className="block text-xs text-slate-400 mt-1">{rel}</span>
@@ -668,9 +668,9 @@ function LayoutContent({ children, currentPageName }) {
              <DropdownMenu open={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
                <DropdownMenuTrigger asChild>
                  <button className="focus:outline-none">
-                   <Avatar className="w-8 h-8 border border-slate-100 cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all">
+                   <Avatar className="w-8 h-8 border border-slate-100 cursor-pointer hover:ring-2 hover:ring-[#ef5a24] transition-all">
                      <AvatarImage src={currentUser?.avatar_url} />
-                     <AvatarFallback className="bg-indigo-100 text-indigo-600">
+                     <AvatarFallback className="bg-[#ef5a24]/10 text-[#ef5a24]">
                        {currentUser?.full_name?.[0]?.toUpperCase() || currentUser?.email?.[0]?.toUpperCase() || 'U'}
                      </AvatarFallback>
                    </Avatar>

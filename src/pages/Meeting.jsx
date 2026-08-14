@@ -189,7 +189,7 @@ export default function Meeting() {
     <div className="space-y-4 w-full min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-indigo-600 mb-1">
+          <div className="flex items-center gap-2 text-[#ef5a24] mb-1">
             <Video className="w-5 h-5" />
             <span className="text-sm font-semibold uppercase tracking-wide">Meeting</span>
           </div>
@@ -298,7 +298,7 @@ export default function Meeting() {
 
         {isLoading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
-            <div className="w-8 h-8 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-slate-700 border-t-[#ef5a24] rounded-full animate-spin" />
             <span className="text-sm">Konferenz wird geladen…</span>
           </div>
         )}

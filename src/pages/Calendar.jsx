@@ -258,7 +258,7 @@ export default function Calendar() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-900">Kalender</h2>
-        <Button onClick={() => openNewEventDialog(new Date())} className="bg-indigo-600 hover:bg-indigo-700">
+        <Button onClick={() => openNewEventDialog(new Date())} className="bg-[#ef5a24] hover:bg-black">
           <Plus className="w-4 h-4 mr-2" /> Termin
         </Button>
       </div>
@@ -305,7 +305,7 @@ export default function Calendar() {
               >
                 <div className={`
                   w-7 h-7 flex items-center justify-center rounded-full text-sm mb-1
-                  ${isToday ? 'bg-indigo-600 text-white font-bold' : ''}
+                  ${isToday ? 'bg-[#ef5a24] text-white font-bold' : ''}
                   ${!isCurrentMonth ? 'text-slate-300' : 'text-slate-700'}
                 `}>
                   {format(day, 'd')}
@@ -440,11 +440,11 @@ export default function Calendar() {
                   type="checkbox"
                   checked={!!newEvent.video_enabled}
                   onChange={(e) => setNewEvent({ ...newEvent, video_enabled: e.target.checked })}
-                  className="mt-1 w-4 h-4 accent-indigo-600"
+                  className="mt-1 w-4 h-4 accent-[#ef5a24]"
                 />
                 <span>
                   <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <Video className="w-4 h-4 text-indigo-600" />
+                    <Video className="w-4 h-4 text-[#ef5a24]" />
                     Videokonferenz hinzufügen
                   </span>
                   <span className="block text-xs text-slate-500 mt-0.5">
@@ -480,7 +480,7 @@ export default function Calendar() {
                   {deleteEventMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Löschen'}
                 </Button>
                 <Button
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                  className="flex-1 bg-[#ef5a24] hover:bg-black"
                   onClick={() => updateEventMutation.mutate(withMeeting({ ...editingEvent, ...newEvent }))}
                   disabled={!newEvent.title.trim() || updateEventMutation.isPending}
                 >
@@ -493,7 +493,7 @@ export default function Calendar() {
               </div>
             ) : (
               <Button
-                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                className="w-full bg-[#ef5a24] hover:bg-black"
                 onClick={() => createEventMutation.mutate(withMeeting(newEvent))}
                 disabled={!newEvent.title.trim() || createEventMutation.isPending}
               >

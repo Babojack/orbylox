@@ -8,7 +8,7 @@ import { Mail, Lock, User, Camera, X, Check } from "lucide-react";
 import OrbyloxMark from "@/components/OrbyloxMark";
 
 const gradientBtn =
-  "w-full py-3.5 rounded-xl font-semibold text-white uppercase tracking-wide bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 hover:opacity-95 transition-opacity shadow-lg disabled:opacity-60";
+  "w-full py-3.5 rounded-xl font-semibold text-white uppercase tracking-wide bg-[#ef5a24] hover:opacity-95 transition-opacity shadow-lg disabled:opacity-60";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -185,8 +185,8 @@ export default function Login() {
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-cyan-200 via-blue-100 to-fuchsia-200">
-        <div className="w-8 h-8 border-4 border-white/50 border-t-fuchsia-500 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
+        <div className="w-8 h-8 border-4 border-white/50 border-t-[#ef5a24] rounded-full animate-spin" />
       </div>
     );
   }
@@ -194,10 +194,10 @@ export default function Login() {
   const isRegister = mode === "register";
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-8 bg-gradient-to-r from-cyan-200 via-blue-100 to-fuchsia-300">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-8 bg-[#f5f5f5]">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-20 left-[10%] w-40 h-40 rounded-full bg-white/20 blur-2xl" />
-        <div className="absolute bottom-32 right-[15%] w-56 h-56 rounded-full bg-fuchsia-200/30 blur-3xl" />
+        <div className="absolute bottom-32 right-[15%] w-56 h-56 rounded-full bg-[#ef5a24]/20 blur-3xl" />
         <div className="absolute top-1/3 right-[20%] w-24 h-24 bg-white/10 rounded-2xl rotate-12" />
         <div className="absolute bottom-1/4 left-[15%] w-16 h-16 bg-cyan-200/30 rounded-lg -rotate-12" />
       </div>
@@ -428,7 +428,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => switchMode(isRegister ? "login" : "register")}
-              className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-fuchsia-500 hover:opacity-90"
+              className="font-semibold text-transparent bg-clip-text bg-[#ef5a24] hover:opacity-90"
             >
               {isRegister ? "Anmelden" : "Jetzt registrieren"}
             </button>

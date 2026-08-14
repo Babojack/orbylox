@@ -67,7 +67,7 @@ function TimelineStep({ step, index, isLast, onEdit, onDelete, onAddAfter, onUpd
           transition={{ delay: index * 0.1 }}
           className={`
             w-[calc(50%-40px)] bg-white rounded-2xl border-2 shadow-sm transition-all duration-300 cursor-pointer
-            ${isDragging ? 'shadow-2xl border-indigo-400 scale-105' : 'border-slate-200 hover:border-indigo-300 hover:shadow-lg'}
+            ${isDragging ? 'shadow-2xl border-[#ef5a24] scale-105' : 'border-slate-200 hover:border-[#ef5a24] hover:shadow-lg'}
           `}
           style={{ borderTopColor: step.color, borderTopWidth: '4px' }}
           onClick={() => setShowDetails(!showDetails)}
@@ -118,7 +118,7 @@ function TimelineStep({ step, index, isLast, onEdit, onDelete, onAddAfter, onUpd
                     {statusConfig.label}
                   </Badge>
                   {totalTodos > 0 && (
-                    <Badge variant="outline" className="text-indigo-600 border-indigo-200 flex items-center gap-1">
+                    <Badge variant="outline" className="text-[#ef5a24] border-[#ef5a24]/30 flex items-center gap-1">
                       <CheckSquare className="w-3 h-3" />
                       {completedTodos}/{totalTodos}
                     </Badge>
@@ -170,7 +170,7 @@ function TimelineStep({ step, index, isLast, onEdit, onDelete, onAddAfter, onUpd
                   {step.methodology && (
                     <div>
                       <p className="text-xs font-medium text-slate-500 mb-1">Methodik</p>
-                      <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                      <Badge variant="outline" className="bg-[#f5f5f5] text-[#ef5a24] border-[#ef5a24]/30">
                         {step.methodology}
                       </Badge>
                     </div>
@@ -178,8 +178,8 @@ function TimelineStep({ step, index, isLast, onEdit, onDelete, onAddAfter, onUpd
 
                   {/* Todos Checklist */}
                   {step.todos && step.todos.length > 0 && (
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
-                      <p className="text-xs font-medium text-indigo-700 mb-2 flex items-center gap-1">
+                    <div className="bg-[#f5f5f5] border border-[#ef5a24]/30 rounded-xl p-3">
+                      <p className="text-xs font-medium text-[#ef5a24] mb-2 flex items-center gap-1">
                         <CheckSquare className="w-3 h-3" />
                         Aufgaben ({completedTodos}/{totalTodos})
                       </p>
@@ -187,13 +187,13 @@ function TimelineStep({ step, index, isLast, onEdit, onDelete, onAddAfter, onUpd
                         {step.todos.map((todo) => (
                           <div 
                             key={todo.id} 
-                            className="flex items-center gap-2 bg-white rounded-lg p-2 border border-indigo-100"
+                            className="flex items-center gap-2 bg-white rounded-lg p-2 border border-[#ef5a24]/30"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <Checkbox
                               checked={todo.completed}
                               onCheckedChange={() => onUpdateTodo && onUpdateTodo(step.id, todo.id)}
-                              className="border-indigo-300"
+                              className="border-[#ef5a24]"
                             />
                             <span className={`text-sm ${todo.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>
                               {todo.text}
@@ -228,7 +228,7 @@ function TimelineStep({ step, index, isLast, onEdit, onDelete, onAddAfter, onUpd
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); onEdit(step); }}
-                      className="flex-1 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center justify-center gap-1"
+                      className="flex-1 py-2 text-sm text-[#ef5a24] hover:bg-[#f5f5f5] rounded-lg transition-colors flex items-center justify-center gap-1"
                     >
                       <Edit className="w-4 h-4" />
                       Bearbeiten
@@ -287,7 +287,7 @@ function TimelineStep({ step, index, isLast, onEdit, onDelete, onAddAfter, onUpd
         >
           <button
             onClick={() => onAddAfter(index)}
-            className="w-8 h-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all"
+            className="w-8 h-8 bg-[#ef5a24] hover:bg-black text-white rounded-full shadow-lg flex items-center justify-center transition-all"
           >
             <Plus className="w-4 h-4" />
           </button>

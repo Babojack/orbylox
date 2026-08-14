@@ -242,7 +242,7 @@ export default function StartupBuilder() {
   if (isLoading || userLoading || !currentUser) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ef5a24]"></div>
       </div>
     );
   }
@@ -261,7 +261,7 @@ export default function StartupBuilder() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2 flex-wrap gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-[#ef5a24] rounded-2xl flex items-center justify-center">
               <Rocket className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -314,7 +314,7 @@ export default function StartupBuilder() {
             {viewMode === 'journeys' && (
               <Button 
                 onClick={() => { setViewMode('builder'); setShowStartDecision(true); }}
-                className="bg-indigo-600 hover:bg-indigo-700 gap-2"
+                className="bg-[#ef5a24] hover:bg-black gap-2"
               >
                 <Plus className="w-4 h-4" />
                 {t('newRoadmap')}
@@ -328,11 +328,11 @@ export default function StartupBuilder() {
           <div className="mt-4 bg-white rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-slate-600">{t('progress')}</span>
-              <span className="text-sm font-bold text-indigo-600">{progress}%</span>
+              <span className="text-sm font-bold text-[#ef5a24]">{progress}%</span>
             </div>
             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
               <motion.div 
-                className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full"
+                className="h-full bg-[#ef5a24] rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.5 }}
@@ -386,8 +386,8 @@ export default function StartupBuilder() {
           <div className="lg:col-span-2">
             {steps.length === 0 ? (
               <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
-                <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="w-8 h-8 text-indigo-600" />
+                <div className="w-16 h-16 bg-[#ef5a24]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-8 h-8 text-[#ef5a24]" />
                 </div>
                 <h3 className="text-xl font-semibold text-slate-900 mb-2">{t('startYourRoadmap')}</h3>
                 <p className="text-slate-500 mb-4">{t('chooseBlockFromPalette')}</p>

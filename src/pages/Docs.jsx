@@ -27,7 +27,7 @@ const NOTE_COLORS = [
   { name: 'Yellow', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-900' },
   { name: 'Green', bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-900' },
   { name: 'Blue', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-900' },
-  { name: 'Purple', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-900' },
+  { name: 'Purple', bg: 'bg-[#f5f5f5]', border: 'border-[#ef5a24]/30', text: 'text-[#ef5a24]' },
   { name: 'Pink', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-900' },
   { name: 'Orange', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-900' },
   { name: 'Red', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-900' },

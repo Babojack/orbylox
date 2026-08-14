@@ -145,7 +145,7 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
           {/* Title bar */}
           <div className="flex items-center justify-between px-3 py-2 bg-slate-900 border-b border-slate-800 shrink-0">
             <div className="flex items-center gap-2 min-w-0">
-              <Video className="w-4 h-4 text-indigo-400 shrink-0" />
+              <Video className="w-4 h-4 text-[#ef5a24] shrink-0" />
               <span className="text-sm text-slate-200 font-medium truncate">
                 {projectName ? `Videokonferenz · ${projectName}` : 'Videokonferenz'}
               </span>
@@ -218,7 +218,7 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
 
             {isLoading && !error && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-400 pointer-events-none">
-                <div className="w-8 h-8 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+                <div className="w-8 h-8 border-4 border-slate-700 border-t-[#ef5a24] rounded-full animate-spin" />
                 <span className="text-sm">Konferenz wird geladen…</span>
               </div>
             )}
@@ -235,7 +235,7 @@ export default function VideoCall({ isOpen, onClose, currentUser, projectId, pro
                   href={directLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-500"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#ef5a24] text-white text-sm hover:bg-black"
                 >
                   <ExternalLink className="w-4 h-4" />
                   Konferenz im neuen Tab starten

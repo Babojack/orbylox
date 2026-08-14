@@ -108,7 +108,7 @@ export default function AdminUsers() {
             <Card key={u.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-medium text-slate-900 truncate">{u.email}</p>
-                <Badge className={u.plan === "premium" ? "bg-purple-600" : "bg-slate-500"}>
+                <Badge className={u.plan === "premium" ? "bg-[#ef5a24]" : "bg-slate-500"}>
                   {u.plan === "premium" ? "Premium" : "Basic"}
                 </Badge>
               </div>
@@ -123,7 +123,7 @@ export default function AdminUsers() {
                 </Button>
                 <Button
                   size="sm"
-                  className="bg-purple-600 hover:bg-purple-700"
+                  className="bg-[#ef5a24] hover:bg-black"
                   disabled={setPlanMutation.isPending}
                   onClick={() => setPlanMutation.mutate({ email: u.email, plan: "premium" })}
                 >

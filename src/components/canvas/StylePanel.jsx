@@ -28,8 +28,8 @@ export default function StylePanel({ selectedItem, onUpdate, onClose }) {
     <div className="absolute top-20 left-4 bg-white/95 backdrop-blur-sm shadow-2xl border border-slate-200/80 rounded-2xl p-4 z-50 w-64 max-w-[calc(100vw-2rem)]">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-            <Palette className="w-4 h-4 text-indigo-600" />
+          <div className="w-8 h-8 bg-[#ef5a24]/10 rounded-lg flex items-center justify-center">
+            <Palette className="w-4 h-4 text-[#ef5a24]" />
           </div>
           <h3 className="font-semibold text-slate-900">Stil</h3>
         </div>
@@ -50,7 +50,7 @@ export default function StylePanel({ selectedItem, onUpdate, onClose }) {
                 <button
                   key={color.value}
                   className={`w-7 h-7 rounded-lg border-2 transition-all hover:scale-110 ${
-                    selectedItem.borderColor === color.value ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110' : 'border-transparent'
+                    selectedItem.borderColor === color.value ? 'ring-2 ring-offset-2 ring-[#ef5a24] scale-110' : 'border-transparent'
                   }`}
                   style={{ backgroundColor: color.value }}
                   onClick={() => onUpdate({ borderColor: color.value })}
@@ -67,7 +67,7 @@ export default function StylePanel({ selectedItem, onUpdate, onClose }) {
                 <button
                   key={color.value}
                   className={`w-7 h-7 rounded-lg border-2 border-slate-200 transition-all hover:scale-110 ${
-                    selectedItem.color === color.value ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110' : ''
+                    selectedItem.color === color.value ? 'ring-2 ring-offset-2 ring-[#ef5a24] scale-110' : ''
                   }`}
                   style={{ backgroundColor: color.value }}
                   onClick={() => onUpdate({ color: color.value })}
@@ -83,11 +83,11 @@ export default function StylePanel({ selectedItem, onUpdate, onClose }) {
         <div>
           <label className="text-xs font-medium text-slate-500 mb-2 block uppercase tracking-wider">Notizfarbe</label>
           <div className="grid grid-cols-4 gap-2">
-            {['bg-yellow-200', 'bg-orange-200', 'bg-pink-200', 'bg-purple-200', 'bg-blue-200', 'bg-teal-200', 'bg-green-200', 'bg-slate-200'].map((colorClass) => (
+            {['bg-yellow-200', 'bg-orange-200', 'bg-pink-200', 'bg-[#ef5a24]/20', 'bg-blue-200', 'bg-teal-200', 'bg-green-200', 'bg-slate-200'].map((colorClass) => (
               <button
                 key={colorClass}
                 className={`w-12 h-10 rounded-lg border-2 transition-all hover:scale-105 ${colorClass} ${
-                  selectedItem.color === colorClass ? 'ring-2 ring-offset-2 ring-indigo-500 scale-105' : 'border-white/50'
+                  selectedItem.color === colorClass ? 'ring-2 ring-offset-2 ring-[#ef5a24] scale-105' : 'border-white/50'
                 }`}
                 onClick={() => onUpdate({ color: colorClass })}
               />

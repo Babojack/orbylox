@@ -43,7 +43,7 @@ export default function IdeaCard({ idea, onView, onDelete, index }) {
 
       {/* Roadmap indicator */}
       {idea.roadmap && (
-        <div className="flex items-center gap-1.5 text-xs text-indigo-600 mb-4">
+        <div className="flex items-center gap-1.5 text-xs text-[#ef5a24] mb-4">
           <Sparkles className="w-3.5 h-3.5" />
           <span>{idea.roadmap.phases?.length || 0} Phasen generiert</span>
         </div>
@@ -61,7 +61,7 @@ export default function IdeaCard({ idea, onView, onDelete, index }) {
             variant="ghost"
             size="sm"
             onClick={() => onView(idea)}
-            className="h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+            className="h-8 text-[#ef5a24] hover:text-[#ef5a24] hover:bg-[#f5f5f5]"
           >
             <Eye className="w-4 h-4 mr-1" />
             Ansehen

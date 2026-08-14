@@ -106,8 +106,8 @@ function MiniKanban() {
 // Mini Canvas Demo
 function MiniCanvas() {
   const [nodes, setNodes] = useState([
-    { id: 1, x: 20, y: 20, text: 'Idea', color: 'bg-indigo-400' },
-    { id: 2, x: 100, y: 60, text: 'Plan', color: 'bg-purple-400' },
+    { id: 1, x: 20, y: 20, text: 'Idea', color: 'bg-[#ef5a24]' },
+    { id: 2, x: 100, y: 60, text: 'Plan', color: 'bg-[#ef5a24]' },
     { id: 3, x: 60, y: 110, text: 'Launch', color: 'bg-pink-400' }
   ]);
   const [dragging, setDragging] = useState(null);
@@ -182,18 +182,18 @@ function MiniCanvas() {
 function MiniFileHub() {
   const [files, setFiles] = useState([
     { id: 1, name: 'Proposal.pdf', type: 'pdf', size: '2.4 MB', color: 'bg-red-100', icon: '📄' },
-    { id: 2, name: 'Design.png', type: 'image', size: '1.1 MB', color: 'bg-purple-100', icon: '🖼️' },
+    { id: 2, name: 'Design.png', type: 'image', size: '1.1 MB', color: 'bg-[#ef5a24]/10', icon: '🖼️' },
     { id: 3, name: 'Notes.txt', type: 'text', size: '45 KB', color: 'bg-blue-100', icon: '📝' }
   ]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [folders, setFolders] = useState([
-    { id: 1, name: 'Documents', count: 3, color: 'bg-indigo-100' }
+    { id: 1, name: 'Documents', count: 3, color: 'bg-[#ef5a24]/10' }
   ]);
 
   const fileTypes = [
     { type: 'pdf', icon: '📄', color: 'bg-red-100', name: 'Report.pdf' },
-    { type: 'image', icon: '🖼️', color: 'bg-purple-100', name: 'Screenshot.png' },
+    { type: 'image', icon: '🖼️', color: 'bg-[#ef5a24]/10', name: 'Screenshot.png' },
     { type: 'doc', icon: '📎', color: 'bg-green-100', name: 'Notes.doc' },
     { type: 'sheet', icon: '📊', color: 'bg-emerald-100', name: 'Data.xlsx' }
   ];
@@ -221,7 +221,7 @@ function MiniFileHub() {
       {/* Upload area with animation */}
       <motion.div 
         className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer relative overflow-hidden transition-all ${
-          isDragging ? 'border-indigo-500 bg-indigo-50 scale-105' : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
+          isDragging ? 'border-[#ef5a24] bg-[#f5f5f5] scale-105' : 'border-slate-200 hover:border-[#ef5a24] hover:bg-slate-50'
         }`}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
@@ -232,7 +232,7 @@ function MiniFileHub() {
       >
         {uploading && (
           <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500"
+            className="absolute inset-0 bg-[#ef5a24]"
             initial={{ x: '-100%' }}
             animate={{ x: '100%' }}
             transition={{ duration: 0.8 }}
@@ -364,7 +364,7 @@ function MiniChatVideo() {
           >
             {/* Video grid */}
             <div className="grid grid-cols-2 gap-1 h-[calc(100%-28px)]">
-              <div className="bg-indigo-600 rounded-lg flex items-center justify-center relative overflow-hidden">
+              <div className="bg-[#ef5a24] rounded-lg flex items-center justify-center relative overflow-hidden">
                 <motion.div 
                   animate={{ y: [0, -2, 0] }}
                   transition={{ duration: 2, repeat: Infinity }}
@@ -374,7 +374,7 @@ function MiniChatVideo() {
                 </motion.div>
                 <span className="absolute bottom-1 left-1 text-[8px] text-white bg-black/30 px-1 rounded">You</span>
               </div>
-              <div className="bg-purple-600 rounded-lg flex items-center justify-center relative overflow-hidden">
+              <div className="bg-[#ef5a24] rounded-lg flex items-center justify-center relative overflow-hidden">
                 <motion.div 
                   animate={{ y: [0, -2, 0] }}
                   transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
@@ -423,7 +423,7 @@ function MiniChatVideo() {
         <span className="text-[9px] font-semibold text-slate-600">Team Chat</span>
         <button 
           onClick={startCall}
-          className="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-full transition-colors"
+          className="text-[#ef5a24] hover:text-[#ef5a24] hover:bg-[#f5f5f5] p-1.5 rounded-full transition-colors"
         >
           <Video className="w-4 h-4" />
         </button>
@@ -435,10 +435,10 @@ function MiniChatVideo() {
           <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] px-2 py-1 rounded-lg text-[9px] ${
               msg.sender === 'me' 
-                ? 'bg-indigo-500 text-white' 
+                ? 'bg-[#ef5a24] text-white' 
                 : 'bg-slate-100 text-slate-700'
             }`}>
-              {msg.sender === 'other' && <p className="font-semibold text-[8px] text-indigo-600">{msg.name}</p>}
+              {msg.sender === 'other' && <p className="font-semibold text-[8px] text-[#ef5a24]">{msg.name}</p>}
               {msg.text}
             </div>
           </div>
@@ -452,9 +452,9 @@ function MiniChatVideo() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
           placeholder="Type..."
-          className="flex-1 text-[9px] px-2 py-1 border border-slate-200 rounded-full focus:outline-none focus:border-indigo-400"
+          className="flex-1 text-[9px] px-2 py-1 border border-slate-200 rounded-full focus:outline-none focus:border-[#ef5a24]"
         />
-        <button onClick={send} className="bg-indigo-500 text-white text-[9px] px-2 rounded-full hover:bg-indigo-600">
+        <button onClick={send} className="bg-[#ef5a24] text-white text-[9px] px-2 rounded-full hover:bg-black">
           Send
         </button>
       </div>
@@ -528,7 +528,7 @@ function MiniSocialFeed() {
           onChange={(e) => setNewPost(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !attachedImage && addPost()}
           placeholder="Share something... 💭"
-          className="w-full text-[9px] px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+          className="w-full text-[9px] px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#ef5a24] focus:ring-1 focus:ring-[#ef5a24]"
         />
         
         {/* Attached image preview */}
@@ -573,7 +573,7 @@ function MiniSocialFeed() {
           </div>
           <motion.button
             onClick={addPost}
-            className="text-[8px] bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded-full"
+            className="text-[8px] bg-[#ef5a24] text-white px-3 py-1 rounded-full"
             whileHover={{ scale: 1.05, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)' }}
             whileTap={{ scale: 0.95 }}
           >
@@ -733,7 +733,7 @@ function MiniSocialFeed() {
 function MiniStartupBuilder() {
   const [steps, setSteps] = useState([
     { id: 1, title: 'Idea', status: 'done', color: 'bg-green-400' },
-    { id: 2, title: 'Validate', status: 'active', color: 'bg-indigo-400' },
+    { id: 2, title: 'Validate', status: 'active', color: 'bg-[#ef5a24]' },
     { id: 3, title: 'MVP', status: 'pending', color: 'bg-slate-300' },
     { id: 4, title: 'Launch', status: 'pending', color: 'bg-slate-300' }
   ]);
@@ -741,7 +741,7 @@ function MiniStartupBuilder() {
   const toggleStep = (id) => {
     setSteps(prev => prev.map(s => {
       if (s.id === id) {
-        if (s.status === 'pending') return { ...s, status: 'active', color: 'bg-indigo-400' };
+        if (s.status === 'pending') return { ...s, status: 'active', color: 'bg-[#ef5a24]' };
         if (s.status === 'active') return { ...s, status: 'done', color: 'bg-green-400' };
         return { ...s, status: 'pending', color: 'bg-slate-300' };
       }
@@ -758,11 +758,11 @@ function MiniStartupBuilder() {
       <div className="mb-3">
         <div className="flex justify-between items-center mb-1">
           <span className="text-[9px] font-semibold text-slate-600">Progress</span>
-          <span className="text-[9px] font-bold text-indigo-600">{completedCount}/{steps.length}</span>
+          <span className="text-[9px] font-bold text-[#ef5a24]">{completedCount}/{steps.length}</span>
         </div>
         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
           <motion.div 
-            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+            className="h-full bg-[#ef5a24]"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.5 }}
@@ -780,7 +780,7 @@ function MiniStartupBuilder() {
             whileTap={{ scale: 0.98 }}
             className={`w-full flex items-center gap-2 p-1.5 rounded-lg text-left transition-all ${
               step.status === 'done' ? 'bg-green-50 border border-green-200' :
-              step.status === 'active' ? 'bg-indigo-50 border border-indigo-200' :
+              step.status === 'active' ? 'bg-[#f5f5f5] border border-[#ef5a24]/30' :
               'bg-slate-50 border border-slate-200'
             }`}
           >
@@ -789,13 +789,13 @@ function MiniStartupBuilder() {
             </div>
             <span className={`text-[9px] font-medium ${
               step.status === 'done' ? 'text-green-700' :
-              step.status === 'active' ? 'text-indigo-700' :
+              step.status === 'active' ? 'text-[#ef5a24]' :
               'text-slate-500'
             }`}>
               {step.title}
             </span>
             {step.status === 'active' && (
-              <span className="ml-auto text-[7px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full">Active</span>
+              <span className="ml-auto text-[7px] bg-[#ef5a24] text-white px-1.5 py-0.5 rounded-full">Active</span>
             )}
           </motion.button>
         ))}
@@ -826,7 +826,7 @@ export default function InteractiveFeatureCard({ title, description, features, i
       
       {/* Interactive Demo */}
       {demo && (
-        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100 p-3 mb-4 h-64 overflow-hidden">
+        <div className="bg-[#f5f5f5] rounded-xl border border-[#ef5a24]/30 p-3 mb-4 h-64 overflow-hidden">
           <div className="bg-white rounded-lg shadow-inner h-full overflow-hidden">
             {demo}
           </div>

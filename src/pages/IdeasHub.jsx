@@ -219,14 +219,14 @@ function IdeasHubContent() {
 
   if (userLoading || !user) {
     return (
-      <motion.div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+      <motion.div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#ef5a24]" />
       </motion.div>
     );
   }
 
   return (
-    <motion.div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50" initial={false}>
+    <motion.div className="min-h-screen bg-[#f5f5f5]" initial={false}>
       <div className="border-b border-slate-200 bg-white sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -261,7 +261,7 @@ function IdeasHubContent() {
             <Button
               type="button"
               onClick={openCreate}
-              className="bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:opacity-95"
+              className="bg-[#ef5a24] text-white hover:opacity-95"
               aria-label={t("ideaHubAdd")}
               title={t("ideaHubAdd")}
             >
@@ -283,7 +283,7 @@ function IdeasHubContent() {
           <p className="text-slate-500 text-center py-16">{t("ideaHubLoading")}</p>
         ) : openIdeas.length === 0 && convertedIdeas.length === 0 ? (
           <motion.div className="text-center py-20">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-[#ef5a24] flex items-center justify-center mx-auto mb-4">
               <Lightbulb className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-xl font-semibold text-slate-800 mb-2">
@@ -295,7 +295,7 @@ function IdeasHubContent() {
             <Button
               type="button"
               onClick={openCreate}
-              className="bg-gradient-to-r from-amber-500 to-orange-500 text-white"
+              className="bg-[#ef5a24] text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
               {t("ideaHubAddFirst")}
@@ -410,7 +410,7 @@ function IdeasHubContent() {
                 type="button"
                 onClick={() => saveMutation.mutate()}
                 disabled={saveMutation.isPending}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="bg-[#ef5a24] hover:bg-black text-white"
               >
                 {saveMutation.isPending ? t("saving") : t("save")}
               </Button>
@@ -525,7 +525,7 @@ function IdeaHubCard({
             size="sm"
             disabled={!canCreateProject || isConverting}
             onClick={onConvert}
-            className="flex-1 min-w-[140px] bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:opacity-95"
+            className="flex-1 min-w-[140px] bg-[#ef5a24] text-white hover:opacity-95"
             title={
               !canCreateProject
                 ? language === "de"

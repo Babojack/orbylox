@@ -42,7 +42,7 @@ const PLANS = [
       'Studentenrabatt',
       'Edu-Verifizierung',
     ],
-    color: 'bg-indigo-600 text-white',
+    color: 'bg-[#ef5a24] text-white',
     buttonVariant: 'default',
   },
   {
@@ -82,7 +82,7 @@ export default function Subscription() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ef5a24]"></div>
       </div>
     );
   }
@@ -119,11 +119,11 @@ export default function Subscription() {
           return (
             <Card 
               key={plan.id} 
-              className={`relative ${plan.popular ? 'border-indigo-500 border-2 shadow-lg' : ''}`}
+              className={`relative ${plan.popular ? 'border-[#ef5a24] border-2 shadow-lg' : ''}`}
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-indigo-600">Empfohlen</Badge>
+                  <Badge className="bg-[#ef5a24]">Empfohlen</Badge>
                 </div>
               )}
               {plan.comingSoon && (
@@ -155,7 +155,7 @@ export default function Subscription() {
                 </ul>
 
                 <Button 
-                  className={`w-full ${plan.popular ? 'bg-indigo-600 hover:bg-indigo-700' : ''}`}
+                  className={`w-full ${plan.popular ? 'bg-[#ef5a24] hover:bg-black' : ''}`}
                   variant={plan.buttonVariant}
                   disabled={plan.comingSoon || isCurrentPlan}
                 >

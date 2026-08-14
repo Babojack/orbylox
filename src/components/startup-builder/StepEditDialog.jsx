@@ -619,7 +619,7 @@ export default function StepEditDialog({ isOpen, onClose, step, onSave, onDelete
                     <button
                       key={c}
                       onClick={() => setFormData({ ...formData, color: c })}
-                      className={`w-7 h-7 rounded-lg transition-transform ${formData.color === c ? 'ring-2 ring-offset-1 ring-indigo-500 scale-110' : ''}`}
+                      className={`w-7 h-7 rounded-lg transition-transform ${formData.color === c ? 'ring-2 ring-offset-1 ring-[#ef5a24] scale-110' : ''}`}
                       style={{ backgroundColor: c }}
                     />
                   ))}
@@ -630,8 +630,8 @@ export default function StepEditDialog({ isOpen, onClose, step, onSave, onDelete
             {/* TAB 2: Tasks / Methodology */}
             <TabsContent value="tasks" className="space-y-4 mt-0">
               {/* Methodology Selector */}
-              <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
-                <label className="text-sm font-medium text-purple-700 mb-1 block flex items-center gap-2">
+              <div className="bg-[#f5f5f5] rounded-lg p-3 border border-[#ef5a24]/30">
+                <label className="text-sm font-medium text-[#ef5a24] mb-1 block flex items-center gap-2">
                   <BookOpen className="w-4 h-4" />
                   {dialogLabels.bookMethod}
                 </label>
@@ -658,7 +658,7 @@ export default function StepEditDialog({ isOpen, onClose, step, onSave, onDelete
                         const newTodos = getTodosByMethodology(formData.step_type, formData.methodology);
                         setFormData({ ...formData, todos: newTodos });
                       }}
-                      className="bg-purple-600 hover:bg-purple-700"
+                      className="bg-[#ef5a24] hover:bg-black"
                     >
                       <RefreshCw className="w-4 h-4" />
                     </Button>
@@ -684,7 +684,7 @@ export default function StepEditDialog({ isOpen, onClose, step, onSave, onDelete
                       </span>
                       <button 
                         onClick={() => setExplanationTask(todo.text)} 
-                        className="p-1 text-indigo-400 hover:text-indigo-600 transition-colors"
+                        className="p-1 text-[#ef5a24] hover:text-[#ef5a24] transition-colors"
                         title={dialogLabels.showExplanation}
                       >
                         <HelpCircle className="w-4 h-4" />
@@ -772,7 +772,7 @@ export default function StepEditDialog({ isOpen, onClose, step, onSave, onDelete
                   className="cursor-pointer flex flex-col items-center gap-2"
                 >
                   {isUploading ? (
-                    <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
+                    <RefreshCw className="w-8 h-8 text-[#ef5a24] animate-spin" />
                   ) : (
                     <Upload className="w-8 h-8 text-slate-400" />
                   )}
@@ -793,7 +793,7 @@ export default function StepEditDialog({ isOpen, onClose, step, onSave, onDelete
                         href={file.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="flex-1 text-sm text-indigo-600 hover:underline truncate"
+                        className="flex-1 text-sm text-[#ef5a24] hover:underline truncate"
                       >
                         {file.name}
                       </a>
@@ -833,7 +833,7 @@ export default function StepEditDialog({ isOpen, onClose, step, onSave, onDelete
           )}
           <div className="flex-1" />
           <Button variant="outline" size="sm" onClick={onClose}>{dialogLabels.cancel}</Button>
-          <Button size="sm" onClick={handleSave} disabled={!formData.title} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button size="sm" onClick={handleSave} disabled={!formData.title} className="bg-[#ef5a24] hover:bg-black">
             {dialogLabels.save}
           </Button>
         </div>

@@ -16,9 +16,9 @@ const METHODOLOGIES = {
   design_thinking: {
     name: "Design Thinking",
     author: "IDEO / Tim Brown",
-    color: "from-purple-500 to-violet-600",
-    bgColor: "bg-purple-50",
-    borderColor: "border-purple-200",
+    color: "from-[#ef5a24] to-[#ef5a24]",
+    bgColor: "bg-[#f5f5f5]",
+    borderColor: "border-[#ef5a24]/30",
     icon: "🎨",
     description: "Nutzerzentrierte Innovation durch Empathie",
     keyPoints: ["Empathize", "Define", "Ideate", "Prototype", "Test"]
@@ -26,7 +26,7 @@ const METHODOLOGIES = {
   jobs_to_be_done: {
     name: "Jobs to be Done",
     author: "Clayton Christensen",
-    color: "from-blue-500 to-indigo-600",
+    color: "from-blue-500 to-blue-600",
     bgColor: "bg-blue-50",
     borderColor: "border-blue-200",
     icon: "🎯",

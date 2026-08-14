@@ -37,7 +37,7 @@ function CommentBody({ text }) {
             href={part}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-700 break-all align-baseline"
+            className="inline text-[#ef5a24] underline decoration-[#ef5a24] underline-offset-2 hover:text-[#ef5a24] break-all align-baseline"
           >
             {part}
           </a>
@@ -368,7 +368,7 @@ export default function TaskDetailDialog({
                   {(editedTask.assignees || []).map((email) => (
                     <Badge key={email} variant="secondary" className="flex items-center gap-1 pr-1 max-w-full min-w-0">
                       <Avatar className="w-4 h-4">
-                        <AvatarFallback className="text-[8px] bg-indigo-100 text-indigo-600">
+                        <AvatarFallback className="text-[8px] bg-[#ef5a24]/10 text-[#ef5a24]">
                           {email[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -514,7 +514,7 @@ export default function TaskDetailDialog({
                       href={att.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex-1 text-sm text-indigo-600 hover:underline truncate"
+                      className="flex-1 text-sm text-[#ef5a24] hover:underline truncate"
                     >
                       {att.name}
                     </a>
@@ -535,7 +535,7 @@ export default function TaskDetailDialog({
                   onChange={handleFileUpload}
                   disabled={uploading}
                 />
-                <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 hover:border-indigo-500 transition-colors flex items-center justify-center gap-2 text-slate-500">
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 hover:border-[#ef5a24] transition-colors flex items-center justify-center gap-2 text-slate-500">
                   <Upload className="w-4 h-4" />
                   {uploading ? 'Uploading...' : 'Click to upload file'}
                 </div>
@@ -582,7 +582,7 @@ export default function TaskDetailDialog({
                   >
                     <div className="flex items-start gap-2 mb-3 min-w-0">
                       <Avatar className="w-7 h-7 shrink-0">
-                        <AvatarFallback className="text-xs bg-indigo-100 text-indigo-600">
+                        <AvatarFallback className="text-xs bg-[#ef5a24]/10 text-[#ef5a24]">
                           {comment.author_email?.[0]?.toUpperCase() || '?'}
                         </AvatarFallback>
                       </Avatar>

@@ -77,7 +77,7 @@ export default function Profile() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-[#ef5a24] border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -102,11 +102,11 @@ export default function Profile() {
             <div className="relative">
               <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
                 <AvatarImage src={user?.avatar_url} />
-                <AvatarFallback className="text-2xl bg-indigo-100 text-indigo-600">
+                <AvatarFallback className="text-2xl bg-[#ef5a24]/10 text-[#ef5a24]">
                   {user?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <label className="absolute bottom-0 right-0 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-indigo-700 transition-colors shadow-lg">
+              <label className="absolute bottom-0 right-0 w-8 h-8 bg-[#ef5a24] rounded-full flex items-center justify-center cursor-pointer hover:bg-black transition-colors shadow-lg">
                 <Camera className="w-4 h-4 text-white" />
                 <input
                   type="file"
@@ -157,7 +157,7 @@ export default function Profile() {
 
           {/* Save Button */}
           <Button
-            className="w-full bg-indigo-600 hover:bg-indigo-700"
+            className="w-full bg-[#ef5a24] hover:bg-black"
             onClick={() => updateProfileMutation.mutate({ full_name: fullName })}
             disabled={updateProfileMutation.isPending}
           >
