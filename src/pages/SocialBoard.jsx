@@ -107,10 +107,10 @@ export default function SocialBoard() {
     },
     onError: (err, vars, context) => {
       queryClient.setQueryData(['posts', projectId], context?.previous ?? []);
-      const msg = err?.message || "Post konnte nicht gespeichert werden.";
+      const msg = err?.message || t('postFailed');
       console.error("[Feed] Post create failed:", err);
       toast({
-        title: "Feed-Post fehlgeschlagen",
+        title: t('postFailed'),
         description: msg,
         variant: "destructive",
       });
@@ -336,11 +336,11 @@ export default function SocialBoard() {
       <div className="max-w-3xl mx-auto space-y-8 w-full min-w-0">
         <div className="flex flex-col gap-2">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">{t('projectFeed')}</h2>
-          <p className="text-slate-500">Updates, announcements and team discussions.</p>
+          <p className="text-slate-500">{t('feedSubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
-          <span>Loading feed...</span>
+          <span>{t('feedLoading')}</span>
         </div>
       </div>
     );
@@ -350,14 +350,14 @@ export default function SocialBoard() {
     <div className="max-w-3xl mx-auto space-y-8 w-full min-w-0">
       <div className="flex flex-col gap-2">
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">{t('projectFeed')}</h2>
-        <p className="text-slate-500">Updates, announcements and team discussions.</p>
+        <p className="text-slate-500">{t('feedSubtitle')}</p>
       </div>
 
       {/* Create Post Input */}
       <Card className="border-slate-100 shadow-sm overflow-hidden">
         <div className="p-4 pb-0">
            <Textarea 
-            placeholder="What's new?" 
+            placeholder={t('whatsNew')} 
             className="border-none resize-none focus-visible:ring-0 text-lg min-h-[100px] placeholder:text-slate-300 w-full max-w-full min-w-0 [overflow-wrap:anywhere]"
             value={newPostContent}
             onChange={(e) => setNewPostContent(e.target.value)}
@@ -405,7 +405,7 @@ export default function SocialBoard() {
                 <Button variant="ghost" size="sm" className="text-slate-500 hover:text-indigo-600" asChild disabled={selectedImages.length >= 4}>
                   <span>
                     <Image className="w-4 h-4 mr-2" />
-                    {uploadingImage ? 'Uploading...' : `Fotos (${selectedImages.length}/4)`}
+                    {uploadingImage ? t('uploading') : t('photosCount', { used: selectedImages.length, max: 4 })}
                   </span>
                 </Button>
               </label>
@@ -418,7 +418,7 @@ export default function SocialBoard() {
               }
               className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-6"
             >
-              {createPostMutation.isPending ? "Posten..." : "Beitrag posten"}
+              {createPostMutation.isPending ? t('posting') : t('postSubmit')}
            </Button>
         </div>
       </Card>
@@ -427,16 +427,16 @@ export default function SocialBoard() {
       <div className="space-y-6">
         {postsLoadError ? (
           <div className="text-center py-10 p-6 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700 font-medium">Feed konnte nicht geladen werden</p>
+            <p className="text-red-700 font-medium">{t('feedLoadFailed')}</p>
             <p className="text-red-600 text-sm mt-1">{postsLoadErrorObj?.message || "Unbekannter Fehler"}</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => refetchPosts()}>Erneut laden</Button>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => refetchPosts()}>{t('retry')}</Button>
           </div>
         ) : isLoading ? (
-           <div className="text-center py-10 text-slate-400">Feed wird geladen...</div>
+           <div className="text-center py-10 text-slate-400">{t('feedLoading')}</div>
         ) : posts.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-slate-400 text-lg">Noch keine Beiträge</p>
-            <p className="text-slate-300 text-sm mt-2">Erstelle den ersten Post!</p>
+            <p className="text-slate-400 text-lg">{t('noPostsYet')}</p>
+            <p className="text-slate-300 text-sm mt-2">{t('createFirstPost')}</p>
           </div>
         ) : sortedPosts.map((post) => (
           (() => {
@@ -463,7 +463,7 @@ export default function SocialBoard() {
                 </Avatar>
                 <div>
                    <div className="flex items-center gap-2">
-                     <p className="text-sm font-medium text-slate-900">Teammitglied</p>
+                     <p className="text-sm font-medium text-slate-900">{t('teamMember')}</p>
                      {post.pinned && (
                        <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 font-normal gap-1 hover:bg-indigo-100">
                          <Pin className="w-3 h-3 fill-indigo-700" />
@@ -496,7 +496,7 @@ export default function SocialBoard() {
                     className="text-red-600 focus:text-red-600"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Löschen
+                    {t('delete')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -546,7 +546,7 @@ export default function SocialBoard() {
                  <Popover>
                    <PopoverTrigger asChild>
                      <button className="flex items-center gap-2 hover:text-indigo-600 transition-colors text-sm">
-                       <Smile className="w-4 h-4" /> Reagieren
+                       <Smile className="w-4 h-4" /> {t('react')}
                      </button>
                    </PopoverTrigger>
                    <PopoverContent className="w-auto p-2">
@@ -569,7 +569,7 @@ export default function SocialBoard() {
                    onClick={() => setExpandedComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
                  >
                     <MessageCircle className="w-4 h-4" /> 
-                    {getPostComments(post.id).length} Kommentare
+                    {t('commentsCount', { count: getPostComments(post.id).length })}
                     {expandedComments[post.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                  </button>
                </div>
@@ -580,7 +580,7 @@ export default function SocialBoard() {
                    {/* Add Comment */}
                    <div className="flex gap-2">
                      <Input
-                      placeholder="Kommentar schreiben..."
+                      placeholder={t('writeComment')}
                        value={newComments[post.id] || ''}
                        onChange={(e) => setNewComments(prev => ({ ...prev, [post.id]: e.target.value }))}
                        onKeyDown={(e) => {
@@ -622,7 +622,7 @@ export default function SocialBoard() {
                        </div>
                      ))}
                      {getPostComments(post.id).length === 0 && (
-                     <p className="text-sm text-slate-400 text-center py-2">Noch keine Kommentare</p>
+                     <p className="text-sm text-slate-400 text-center py-2">{t('noCommentsYet')}</p>
                      )}
                    </div>
                  </div>

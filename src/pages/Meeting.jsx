@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/apiClient';
 import { Video, AlertTriangle, Copy, Check, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/components/LanguageProvider';
 import {
   JITSI_DOMAIN,
   projectRoomName,
@@ -15,6 +16,7 @@ import {
 } from '@/lib/meetingRoom';
 
 export default function Meeting() {
+  const { t } = useLanguage();
   const params = new URLSearchParams(window.location.search);
   const projectId = params.get('project');
   const roomParam = params.get('room');
@@ -204,11 +206,11 @@ export default function Meeting() {
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={copyLink} className="gap-2">
             {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-            {copied ? 'Kopiert' : 'Link teilen'}
+            {copied ? t('copied') : t('shareLink')}
           </Button>
           <Button variant="outline" size="sm" onClick={toggleFullscreen} className="gap-2">
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            Vollbild
+            {t('fullscreen')}
           </Button>
         </div>
       </div>

@@ -15,8 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export default function FileHub() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -340,9 +342,9 @@ export default function FileHub() {
     return (
       <div className="flex flex-col items-center justify-center h-full text-slate-500">
         <File className="w-24 h-24 mb-4" />
-        <p>Vorschau nicht verfügbar</p>
+        <p>{t('previewUnavailable')}</p>
         <a href={previewablePdfUrl(file.url) || file.url} download={file.name || true} className="mt-4 text-indigo-600 hover:underline">
-          Datei herunterladen
+          {t('downloadFile')}
         </a>
       </div>
     );
@@ -387,11 +389,11 @@ export default function FileHub() {
               </DialogTrigger>
               <DialogContent className="w-[95vw] sm:w-auto">
                 <DialogHeader>
-                  <DialogTitle>Neuer Ordner</DialogTitle>
+                  <DialogTitle>{t('newFolder')}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 mt-4">
                   <Input 
-                    placeholder="Ordnername" 
+                    placeholder={t('folderName')} 
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                   />
@@ -413,7 +415,7 @@ export default function FileHub() {
             >
                 <UploadCloud className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">
-                  {uploadingCount > 0 ? `Hochladen… (${uploadingCount})` : 'Dateien hochladen'}
+                  {uploadingCount > 0 ? t('uploadingCount', { count: uploadingCount }) : t('uploadFiles')}
                 </span>
                 <span className="sm:hidden">{uploadingCount > 0 ? `…(${uploadingCount})` : 'Upload'}</span>
             </Button>
@@ -429,7 +431,7 @@ export default function FileHub() {
               size="sm"
               className="text-xs sm:text-sm"
               onClick={async () => {
-                if (window.confirm('Alle Dateien löschen?')) {
+                if (window.confirm(t('deleteAllFiles'))) {
                   const currentFiles = files || [];
                   await Promise.all(currentFiles.map(f => api.entities.FileRecord.delete(f.id)));
                   queryClient.invalidateQueries(['files', projectId, currentFolderId]);
@@ -456,7 +458,7 @@ export default function FileHub() {
       >
         <CloudUpload className={`w-10 h-10 sm:w-16 sm:h-16 mx-auto mb-2 sm:mb-4 ${isDragging ? 'text-indigo-600' : 'text-slate-400'}`} />
         <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1 sm:mb-2">
-          {isDragging ? 'Dateien hier ablegen' : 'Tippen zum Hochladen'}
+          {isDragging ? t('dropFilesHere') : t('tapToUpload')}
         </h3>
         <p className="text-slate-500 text-sm hidden sm:block">oder Dateien per Drag & Drop</p>
       </div>
@@ -470,7 +472,7 @@ export default function FileHub() {
             className="gap-2"
           >
             <ChevronLeft className="w-4 h-4" />
-            Zurück zur Übersicht
+            {t('backToOverview')}
           </Button>
           <span className="text-slate-500">
             / {folders?.find(f => f.id === currentFolderId)?.name || 'Ordner'}
@@ -556,7 +558,7 @@ export default function FileHub() {
         ))}
         
         {/* File List */}
-        {isLoading ? <div>Laden...</div> : files?.map((file) => (
+        {isLoading ? <div>{t('loadingShort')}</div> : files?.map((file) => (
              <Card 
                key={file.id} 
                draggable
@@ -616,7 +618,7 @@ export default function FileHub() {
                       <p className="text-xs text-slate-400">{formatSize(file.size)}</p>
                     ) : (
                       <p className="text-xs text-amber-600 flex items-center justify-center gap-1" title={describeFileUrl(file.url).hint}>
-                        <AlertTriangle className="w-3 h-3" /> Datei fehlt
+                        <AlertTriangle className="w-3 h-3" /> {t('fileMissing')}
                       </p>
                     )}
                 </div>
