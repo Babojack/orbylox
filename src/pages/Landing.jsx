@@ -51,7 +51,7 @@ function SectionTitle({ children, sub }) {
 
 function FeatureBox({ icon: Icon, title, text }) {
   return (
-    <div className="border-2 border-black bg-white p-5">
+    <div className="tn-card border-2 border-black bg-white p-5">
       <div className="w-10 h-10 bg-[#ef5a24] text-white flex items-center justify-center mb-4">
         <Icon className="w-5 h-5" />
       </div>
@@ -368,7 +368,7 @@ function LandingContent() {
           </SectionTitle>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {steps.map((s) => (
-              <div key={s.n} className="border-2 border-black bg-white p-5 relative">
+              <div key={s.n} className="tn-card border-2 border-black bg-white p-5 relative">
                 <span className="absolute -top-4 left-5 px-2 py-1 bg-[#ef5a24] text-white text-xs font-black">
                   {s.n}
                 </span>
@@ -386,7 +386,7 @@ function LandingContent() {
           <SectionTitle>{de ? 'Deine Vorteile' : 'Your benefits'}</SectionTitle>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {benefits.map((b) => (
-              <div key={b} className="border-2 border-black px-4 py-3 flex items-center gap-3">
+              <div key={b} className="tn-card border-2 border-black bg-white px-4 py-3 flex items-center gap-3">
                 <Check className="w-4 h-4 text-[#ef5a24] shrink-0" />
                 <span className="text-sm font-bold">{b}</span>
               </div>

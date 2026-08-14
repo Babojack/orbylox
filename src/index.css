@@ -487,3 +487,60 @@ button:focus-visible {
     border-color: rgb(255 255 255 / 0.85);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Hebe-Effekt: Element rückt nach oben links, harter schwarzer Schatten bleibt
+   liegen — genau der Effekt der Karten aus dem Vorbild, jetzt auch auf Knöpfen.
+   --------------------------------------------------------------------------- */
+@layer components {
+  button,
+  [role="button"],
+  a.tn-lift,
+  .tn-lift {
+    transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, background-color 0.15s ease-out,
+      color 0.15s ease-out, border-color 0.15s ease-out;
+  }
+
+  /* Runde Bedienelemente (Avatare, Canvas-Griffe) bleiben ruhig */
+  button:not(.rounded-full):not([data-no-lift]):not(:disabled):hover,
+  [role="button"]:not(.rounded-full):not([data-no-lift]):hover,
+  a.tn-lift:hover,
+  .tn-lift:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 5px 5px 0 0 #0a0a0a;
+  }
+
+  button:not(.rounded-full):not([data-no-lift]):not(:disabled):active,
+  [role="button"]:not(.rounded-full):not([data-no-lift]):active,
+  a.tn-lift:active,
+  .tn-lift:active {
+    transform: translate(0, 0);
+    box-shadow: none;
+  }
+
+  /* Karten heben sich ebenfalls, aber dezenter */
+  .tn-card {
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  }
+  .tn-card:hover {
+    transform: translate(-4px, -4px);
+    box-shadow: 6px 6px 0 0 #0a0a0a;
+  }
+
+  /* Im Dunkelmodus wirft ein schwarzer Schatten nichts — also weiß */
+  .dark button:not(.rounded-full):not([data-no-lift]):not(:disabled):hover,
+  .dark [role="button"]:not(.rounded-full):not([data-no-lift]):hover,
+  .dark a.tn-lift:hover,
+  .dark .tn-lift:hover,
+  .dark .tn-card:hover {
+    box-shadow: 5px 5px 0 0 rgb(255 255 255 / 0.9);
+  }
+
+  /* Wer weniger Bewegung möchte, bekommt nur die Farbänderung */
+  @media (prefers-reduced-motion: reduce) {
+    button:hover, [role="button"]:hover, .tn-lift:hover, .tn-card:hover {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+}
