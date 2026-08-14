@@ -489,15 +489,18 @@ button:focus-visible {
 }
 
 /* ---------------------------------------------------------------------------
-   Hebe-Effekt: Element rückt nach oben links, harter schwarzer Schatten bleibt
-   liegen — genau der Effekt der Karten aus dem Vorbild, jetzt auch auf Knöpfen.
+   Hebe-Effekt — Werte aus der Bildschirmaufnahme des Vorbilds gemessen:
+   Element rückt 4px nach oben links, darunter bleibt ein harter Schatten mit
+   8px Versatz liegen. Beim Klick fällt es zurück auf seinen Platz.
    --------------------------------------------------------------------------- */
 @layer components {
   button,
   [role="button"],
   a.tn-lift,
-  .tn-lift {
-    transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, background-color 0.15s ease-out,
+  .tn-lift,
+  .tn-card {
+    transition: transform 0.13s cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 0.13s cubic-bezier(0.2, 0, 0, 1), background-color 0.15s ease-out,
       color 0.15s ease-out, border-color 0.15s ease-out;
   }
 
@@ -505,26 +508,25 @@ button:focus-visible {
   button:not(.rounded-full):not([data-no-lift]):not(:disabled):hover,
   [role="button"]:not(.rounded-full):not([data-no-lift]):hover,
   a.tn-lift:hover,
-  .tn-lift:hover {
-    transform: translate(-3px, -3px);
-    box-shadow: 5px 5px 0 0 #0a0a0a;
+  .tn-lift:hover,
+  .tn-card:hover {
+    transform: translate(-4px, -4px);
+    box-shadow: 8px 8px 0 0 #0a0a0a;
   }
 
   button:not(.rounded-full):not([data-no-lift]):not(:disabled):active,
   [role="button"]:not(.rounded-full):not([data-no-lift]):active,
   a.tn-lift:active,
-  .tn-lift:active {
+  .tn-lift:active,
+  .tn-card:active {
     transform: translate(0, 0);
     box-shadow: none;
   }
 
-  /* Karten heben sich ebenfalls, aber dezenter */
-  .tn-card {
-    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
-  }
-  .tn-card:hover {
-    transform: translate(-4px, -4px);
-    box-shadow: 6px 6px 0 0 #0a0a0a;
+  /* Kleine Knöpfe heben dezenter, sonst wirkt der Schatten größer als der Knopf */
+  button.h-7:hover, button.h-8:hover, .h-7[role="button"]:hover, .h-8[role="button"]:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 0 #0a0a0a;
   }
 
   /* Im Dunkelmodus wirft ein schwarzer Schatten nichts — also weiß */
@@ -533,7 +535,10 @@ button:focus-visible {
   .dark a.tn-lift:hover,
   .dark .tn-lift:hover,
   .dark .tn-card:hover {
-    box-shadow: 5px 5px 0 0 rgb(255 255 255 / 0.9);
+    box-shadow: 8px 8px 0 0 rgb(255 255 255 / 0.9);
+  }
+  .dark button.h-7:hover, .dark button.h-8:hover {
+    box-shadow: 4px 4px 0 0 rgb(255 255 255 / 0.9);
   }
 
   /* Wer weniger Bewegung möchte, bekommt nur die Farbänderung */
