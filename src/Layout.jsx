@@ -48,7 +48,6 @@ import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
 import { PageTransition } from "@/components/PageTransition";
-import DemoDataButton from "@/components/DemoDataButton"; // TEMPORÄR
 import { startTimer, getActiveTimer, setTrackedTimeSyncHandler } from "@/lib/projectTimer";
 
 const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
@@ -745,9 +744,6 @@ function LayoutContent({ children, currentPageName }) {
       </main>
 
       {/* Voice Agent Widget */}
-      {/* TEMPORÄR: Demo-Daten nur im Cache, nichts wird gespeichert */}
-      <DemoDataButton projectId={projectId} />
-
       <VoiceAgent />
 
       {/* Text to Ticket Popup */}
