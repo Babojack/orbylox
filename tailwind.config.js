@@ -4,6 +4,10 @@ module.exports = {
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+  		/* Zusaetzliche Stufe fuer schmale Handys (iPhone SE ist 375px breit) */
+  		screens: {
+  			xs: '400px'
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

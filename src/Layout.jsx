@@ -459,7 +459,7 @@ function LayoutContent({ children, currentPageName }) {
       <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 flex flex-col fixed lg:fixed h-full bg-white z-50 transition-transform duration-300 ease-out motion-reduce:transition-none`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="w-7 h-7 shrink-0 bg-black text-white flex items-center justify-center font-black text-sm leading-none">
+            <span className="w-7 h-7 shrink-0 bg-black text-white rounded-full flex items-center justify-center font-black text-sm leading-none">
               O
             </span>
             <div className="min-w-0">
@@ -570,8 +570,8 @@ function LayoutContent({ children, currentPageName }) {
       <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white min-h-screen flex flex-col transition-[margin] duration-300 ease-out motion-reduce:transition-none`}>
         {/* Header */}
         <header className="h-16 border-b border-slate-50 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white/95 backdrop-blur-sm z-50 transition-colors duration-300 ease-out motion-reduce:transition-none">
-          <div className="flex items-center gap-2 md:gap-4">
-            <button 
+          <div className="flex items-center gap-2 md:gap-4 min-w-0">
+            <button
               type="button"
               onPointerDown={toggleSidebar}
               className="h-10 w-10 inline-flex items-center justify-center rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95"
@@ -579,11 +579,11 @@ function LayoutContent({ children, currentPageName }) {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <h1 className="font-semibold text-base md:text-lg text-slate-800 truncate">{project?.name || t('overview')}</h1>
-            <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-xs font-medium border border-green-100">{t('online')}</span>
+            <h1 className="font-semibold text-base md:text-lg text-slate-800 truncate min-w-0">{project?.name || t('overview')}</h1>
+            <span className="hidden sm:inline-block shrink-0 px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-xs font-medium border border-green-100">{t('online')}</span>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-2 md:gap-4 shrink-0">
              <button
                type="button"
                className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-accent hidden sm:flex transition-colors duration-200 ease-out motion-reduce:transition-none"

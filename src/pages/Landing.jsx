@@ -149,33 +149,40 @@ function LandingContent() {
     { n: '04', title: de ? 'Loslegen' : 'Get going', text: de ? 'Aufgaben, Dateien, Meetings an einem Ort' : 'Tasks, files and meetings in one place' },
   ];
 
+  // "Dunkelmodus" stand hier, den gibt es nicht mehr — jetzt Videokonferenz.
   const benefits = de
-    ? ['Kostenlos starten', 'Keine Kreditkarte', 'Daten in der EU', 'Dunkelmodus', 'Deutsch und Englisch', 'Voll-Backups']
-    : ['Free to start', 'No credit card', 'Data in the EU', 'Dark mode', 'German and English', 'Full backups'];
+    ? ['Kostenlos starten', 'Keine Kreditkarte', 'Daten in der EU', 'Videokonferenz inklusive', 'Deutsch und Englisch', 'Voll-Backups']
+    : ['Free to start', 'No credit card', 'Data in the EU', 'Video meetings included', 'German and English', 'Full backups'];
 
   return (
     <div className="min-h-screen bg-white text-black">
       {/* Kopfzeile */}
       <header className="border-b-2 border-black">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 bg-black text-white flex items-center justify-center font-black text-lg leading-none">O</span>
-            <span className="font-extrabold tracking-tight text-lg">RBYLOX</span>
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-8 h-8 shrink-0 bg-black text-white rounded-full flex items-center justify-center font-black text-lg leading-none">
+              O
+            </span>
+            <span className="font-extrabold tracking-tight text-base sm:text-lg">RBYLOX</span>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Auf dem Handy nur Sprache + Anmelden — sonst laeuft die Zeile ueber
+              den Rand. Registrieren steht direkt darunter im Hero. */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setLanguage(de ? 'en' : 'de')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border-2 border-black text-xs font-bold uppercase hover:bg-black hover:text-white transition-colors"
+              aria-label={de ? 'Auf Englisch umschalten' : 'Switch to German'}
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 border-2 border-black text-xs font-bold uppercase hover:bg-black hover:text-white transition-colors"
             >
               <Languages className="w-4 h-4" />
-              {de ? 'EN' : 'DE'}
+              <span className="hidden xs:inline">{de ? 'EN' : 'DE'}</span>
             </button>
-            <TnButton variant="outline" className="px-4 py-2 text-xs" onClick={goLogin}>
+            <TnButton variant="outline" className="px-3 sm:px-4 py-2 text-xs" onClick={goLogin}>
               <LogIn className="w-4 h-4" />
               {de ? 'Anmelden' : 'Login'}
             </TnButton>
-            <TnButton variant="solid" className="px-4 py-2 text-xs" onClick={goLogin}>
+            <TnButton variant="solid" className="hidden sm:inline-flex px-4 py-2 text-xs" onClick={goLogin}>
               <UserPlus className="w-4 h-4" />
               {de ? 'Registrieren' : 'Register'}
             </TnButton>
@@ -188,7 +195,7 @@ function LandingContent() {
         <div className="max-w-6xl mx-auto px-4 py-16 sm:py-20 grid lg:grid-cols-2 gap-10 items-center">
           <div className="text-center lg:text-left">
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter mb-4 flex items-center justify-center lg:justify-start gap-2 sm:gap-3">
-            <span className="bg-black text-white w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center leading-none">O</span>
+            <span className="bg-black text-white rounded-full w-14 h-14 sm:w-16 sm:h-16 shrink-0 flex items-center justify-center leading-none">O</span>
             <span>RBYLOX</span>
           </h1>
           <p className="text-xl sm:text-2xl font-bold mb-4">
@@ -495,7 +502,7 @@ function LandingContent() {
         <div className="max-w-6xl mx-auto px-4 py-10 grid sm:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="w-7 h-7 bg-black text-white flex items-center justify-center font-black text-sm leading-none">O</span>
+              <span className="w-7 h-7 shrink-0 bg-black text-white rounded-full flex items-center justify-center font-black text-sm leading-none">O</span>
               <span className="font-extrabold tracking-tight">RBYLOX</span>
             </div>
             <p className="text-sm text-slate-600">
