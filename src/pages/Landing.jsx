@@ -5,6 +5,7 @@ import { createPageUrl } from "@/utils";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import ModuleShowcase from "@/components/landing/ModuleShowcase";
+import OrbyloxMark from "@/components/OrbyloxMark";
 import {
   ArrowRight,
   Check,
@@ -160,9 +161,7 @@ function LandingContent() {
       <header className="border-b-2 border-black">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="w-8 h-8 shrink-0 bg-black text-white rounded-full flex items-center justify-center font-black text-lg leading-none">
-              O
-            </span>
+            <OrbyloxMark className="w-8 h-8 shrink-0" />
             <span className="font-extrabold tracking-tight text-base sm:text-lg">RBYLOX</span>
           </div>
 
@@ -195,7 +194,7 @@ function LandingContent() {
         <div className="max-w-6xl mx-auto px-4 py-16 sm:py-20 grid lg:grid-cols-2 gap-10 items-center">
           <div className="text-center lg:text-left">
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter mb-4 flex items-center justify-center lg:justify-start gap-2 sm:gap-3">
-            <span className="bg-black text-white rounded-full w-14 h-14 sm:w-16 sm:h-16 shrink-0 flex items-center justify-center leading-none">O</span>
+            <OrbyloxMark className="w-14 h-14 sm:w-16 sm:h-16 shrink-0" />
             <span>RBYLOX</span>
           </h1>
           <p className="text-xl sm:text-2xl font-bold mb-4">
@@ -502,7 +501,7 @@ function LandingContent() {
         <div className="max-w-6xl mx-auto px-4 py-10 grid sm:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="w-7 h-7 shrink-0 bg-black text-white rounded-full flex items-center justify-center font-black text-sm leading-none">O</span>
+              <OrbyloxMark className="w-7 h-7 shrink-0" />
               <span className="font-extrabold tracking-tight">RBYLOX</span>
             </div>
             <p className="text-sm text-slate-600">

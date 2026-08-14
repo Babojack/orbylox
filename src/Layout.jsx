@@ -44,6 +44,7 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
 import { PageTransition } from "@/components/PageTransition";
+import OrbyloxMark from "@/components/OrbyloxMark";
 import { startTimer, getActiveTimer, setTrackedTimeSyncHandler } from "@/lib/projectTimer";
 
 const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
@@ -459,9 +460,7 @@ function LayoutContent({ children, currentPageName }) {
       <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 flex flex-col fixed lg:fixed h-full bg-white z-50 transition-transform duration-300 ease-out motion-reduce:transition-none`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="w-7 h-7 shrink-0 bg-black text-white rounded-full flex items-center justify-center font-black text-sm leading-none">
-              O
-            </span>
+            <OrbyloxMark className="w-7 h-7 shrink-0" />
             <div className="min-w-0">
               <div className="text-sm font-extrabold tracking-tight leading-none text-slate-900">
                 RBYLOX
