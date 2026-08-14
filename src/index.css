@@ -259,13 +259,18 @@ button:focus-visible {
 /* ---------------------------------------------------------------------------
    Verhalten beim Überfahren — eine Regel für die ganze App.
 
-   Grundsatz: NICHTS ändert seine Größe oder Position. Kein Verschieben, kein
-   Vergrößern, kein Springen — das Layout steht still. Sichtbar wird der Hover
-   nur über Farbe und einen weichen Schatten, der über 260 ms sanft aufzieht
-   und genauso ruhig wieder verschwindet.
+   Der 3D-Effekt: das Element hebt sich schräg nach oben an und legt darunter
+   einen harten schwarzen Schatten ab. Das ist gewollt und bleibt.
 
-   Vorher rückte jedes Element 4px zur Seite und bekam einen harten schwarzen
-   Klotz als Schatten, in 130 ms. Das war der grobe Effekt.
+   Gestellt sind drei Zahlen — hier ändern, wenn es weicher oder kräftiger
+   werden soll:
+
+     Dauer     260ms   (war 130ms — das ruckte)
+     Versatz     3px   (war 4px)
+     Schatten    6px   (war 8px, jetzt zusätzlich 12% durchscheinend)
+
+   NICHTS ändert dabei seine Größe: kein Zoomen, kein Wachsen. Nur der
+   schräge Versatz, und der läuft weich an und weich wieder aus.
    --------------------------------------------------------------------------- */
 @layer components {
   /* Weich auslaufende Kurve, gleiche Dauer für alle Eigenschaften */
@@ -277,32 +282,44 @@ button:focus-visible {
   input,
   textarea,
   select {
-    transition-property: background-color, border-color, color, fill, stroke,
-      box-shadow, opacity;
+    transition-property: transform, box-shadow, background-color, border-color,
+      color, fill, stroke, opacity;
     transition-duration: 260ms;
     transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  /* Die Ring-Variablen bleiben vorne stehen, damit eine Auswahl-Umrandung
-     beim Überfahren nicht verschwindet. */
-  button:not([data-no-lift]):not(:disabled):hover,
-  [role="button"]:not([data-no-lift]):hover,
+  /* Der 3D-Versatz bleibt — nur ruhiger. Die Ring-Variablen stehen vorne,
+     damit eine Auswahl-Umrandung beim Überfahren nicht verschwindet. */
+  button:not(.rounded-full):not([data-no-lift]):not(:disabled):hover,
+  [role="button"]:not(.rounded-full):not([data-no-lift]):hover,
   a.tn-lift:hover,
   .tn-lift:hover,
   .tn-card:hover {
+    transform: translate(-3px, -3px);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
-      var(--tw-ring-shadow, 0 0 #0000), 0 4px 16px rgb(10 10 10 / 0.14);
+      var(--tw-ring-shadow, 0 0 #0000), 6px 6px 0 0 rgb(10 10 10 / 0.88);
   }
 
-  /* Beim Drücken rückt der Schatten enger heran — spürbar, aber ohne Bewegung */
-  button:not([data-no-lift]):not(:disabled):active,
-  [role="button"]:not([data-no-lift]):active,
+  /* Kleine Knöpfe heben flacher, sonst wirkt der Schatten größer als der Knopf */
+  button.h-7:not([data-no-lift]):hover,
+  button.h-8:not([data-no-lift]):hover,
+  .h-7[role="button"]:not([data-no-lift]):hover,
+  .h-8[role="button"]:not([data-no-lift]):hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+      var(--tw-ring-shadow, 0 0 #0000), 4px 4px 0 0 rgb(10 10 10 / 0.88);
+  }
+
+  /* Beim Drücken fällt es zurück auf seinen Platz — kurz und bestimmt */
+  button:not(.rounded-full):not([data-no-lift]):not(:disabled):active,
+  [role="button"]:not(.rounded-full):not([data-no-lift]):active,
   a.tn-lift:active,
   .tn-lift:active,
   .tn-card:active {
+    transform: translate(0, 0);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
-      var(--tw-ring-shadow, 0 0 #0000), 0 1px 5px rgb(10 10 10 / 0.18);
-    transition-duration: 90ms;
+      var(--tw-ring-shadow, 0 0 #0000);
+    transition-duration: 110ms;
   }
 
   /* Tastaturfokus: liegt außen an, verschiebt also nichts */
@@ -316,9 +333,13 @@ button:focus-visible {
     outline-offset: 2px;
   }
 
+  /* Wer weniger Bewegung eingestellt hat, bekommt den Schatten ohne die Fahrt */
   @media (prefers-reduced-motion: reduce) {
     button, [role="button"], a.tn-lift, .tn-lift, .tn-card, input, textarea, select {
       transition-duration: 0.01ms;
+    }
+    button:hover, [role="button"]:hover, a.tn-lift:hover, .tn-lift:hover, .tn-card:hover {
+      transform: none;
     }
   }
 }
