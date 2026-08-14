@@ -1,20 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
-import { ListTodo, FolderOpen, Shapes, LayoutGrid, Check } from 'lucide-react';
+import { ListTodo, FolderOpen, Shapes, LayoutGrid } from 'lucide-react';
 
 /**
- * Modul-Schaufenster mit Sticky-Scroll.
+ * Modul-Rundgang mit Scroll-Bühne.
  *
- * Der Bildbereich bleibt beim Scrollen stehen, während links die Erklärungen
- * durchlaufen. Das jeweils aktive Modul blendet sein Bild ein — dadurch wirkt
- * es wie ein geführter Rundgang statt einer Bildergalerie.
+ * Jedes Modul bekommt eine hohe Sektion, in der eine bildschirmhohe Bühne
+ * klebt. Beim Durchscrollen zoomt das Bild langsam heran, der Titel wandert
+ * nach oben und die Beschreibung schiebt sich darunter ins Bild. Dadurch
+ * bekommt man pro Modul einen ruhigen Moment statt einer Bilderflut.
+ *
+ * Die Screenshots stehen bewusst ohne Rahmen und mit object-contain in einer
+ * Box fester Höhe: so bleibt jedes Bild vollständig sichtbar und die Bühne
+ * springt nicht, wenn der Text erscheint.
  */
 
 const MODULES = (de) => [
   {
     key: 'tasks',
     icon: ListTodo,
-    src: '/screens/hero-laptop.webp',
+    src: '/screens/tasks.webp',
     label: de ? 'Aufgaben' : 'Tasks',
     title: de ? 'Kanban, das mitdenkt' : 'Kanban that keeps up',
     text: de
@@ -28,7 +33,7 @@ const MODULES = (de) => [
     key: 'feed',
     icon: LayoutGrid,
     src: '/screens/feed.webp',
-    label: de ? 'Feed' : 'Feed',
+    label: 'Feed',
     title: de ? 'Alles Wichtige an einer Stelle' : 'Everything important in one place',
     text: de
       ? 'Ankündigungen, Rückfragen, Reaktionen. Wichtiges bleibt oben angeheftet, der Rest sortiert sich nach Aktualität.'
@@ -65,141 +70,121 @@ const MODULES = (de) => [
   },
 ];
 
-function ModulePanel({ item, index, onActive, active }) {
+function ModuleStage({ item, index, total, de }) {
   const ref = useRef(null);
+  const reduceMotion = useReducedMotion();
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    const observer = new IntersectionObserver(
-      ([entry]) => entry.isIntersecting && onActive(index),
-      { rootMargin: '-45% 0px -45% 0px' },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [index, onActive]);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start start', 'end end'],
+  });
+
+  // Wer weniger Bewegung eingestellt hat, bekommt dieselbe Buehne ohne Fahrt.
+  const rm = !!reduceMotion;
+
+  // Bild faehrt langsam heran — der Blick wandert von der Uebersicht ins Detail.
+  const imageScale = useTransform(scrollYProgress, [0, 0.55, 1], rm ? [1, 1, 1] : [0.86, 1.02, 1.1]);
+  const imageY = useTransform(scrollYProgress, [0, 1], rm ? [0, 0] : [36, -28]);
+
+  // Titel steigt auf, sobald die Buehne steht.
+  const headY = useTransform(scrollYProgress, [0, 0.4], rm ? [0, 0] : [56, 0]);
+  const headOpacity = useTransform(scrollYProgress, [0, 0.12], rm ? [1, 1] : [0, 1]);
+
+  // Beschreibung kommt danach von unten nach.
+  const textY = useTransform(scrollYProgress, [0.22, 0.5], rm ? [0, 0] : [28, 0]);
+  const textOpacity = useTransform(scrollYProgress, [0.22, 0.45], rm ? [1, 1] : [0, 1]);
+
+  // Die ganze Buehne blendet an den Raendern weich weg.
+  const stageOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.06, 0.9, 1],
+    rm ? [1, 1, 1, 1] : [0, 1, 1, 0],
+  );
+
+  const barWidth = useTransform(scrollYProgress, [0.05, 0.85], ['0%', '100%']);
 
   return (
-    <div ref={ref} className="min-h-[70vh] lg:min-h-[80vh] flex flex-col justify-center py-10">
-      <motion.div
-        initial={{ opacity: 0, x: -24 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true, margin: '-20%' }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <span
-            className={`w-10 h-10 flex items-center justify-center border-2 transition-colors ${
-              active ? 'bg-[#ef5a24] text-white border-[#ef5a24]' : 'bg-white text-black border-black'
-            }`}
-          >
-            <item.icon className="w-5 h-5" />
-          </span>
-          <span className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">
-            {String(index + 1).padStart(2, '0')} · {item.label}
-          </span>
-        </div>
-
-        <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-3">{item.title}</h3>
-        <p className="text-slate-600 leading-relaxed mb-5 max-w-md">{item.text}</p>
-
-        <ul className="space-y-2">
-          {item.points.map((p) => (
-            <li key={p} className="flex items-center gap-2 text-sm font-medium">
-              <span className="w-4 h-4 bg-[#ef5a24] text-white flex items-center justify-center shrink-0">
-                <Check className="w-3 h-3" />
+    <section ref={ref} className="relative h-[170vh]">
+      <div className="sticky top-0 h-[100svh] flex items-center overflow-hidden">
+        <motion.div
+          style={{ opacity: stageOpacity }}
+          className="w-full max-w-5xl mx-auto px-4 flex flex-col items-center text-center"
+        >
+          {/* Kopf: steigt beim Scrollen nach oben */}
+          <motion.div style={{ y: headY, opacity: headOpacity }} className="mb-5 sm:mb-7">
+            <div className="flex items-center justify-center gap-2.5 mb-3">
+              <span className="w-9 h-9 bg-[#ef5a24] text-white flex items-center justify-center">
+                <item.icon className="w-[18px] h-[18px]" />
               </span>
-              {p}
-            </li>
-          ))}
-        </ul>
-      </motion.div>
+              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+                {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')} · {item.label}
+              </span>
+            </div>
+            <h3 className="text-3xl sm:text-5xl font-black tracking-tighter leading-[1.05]">
+              {item.title}
+            </h3>
+          </motion.div>
 
-      {/* Auf schmalen Bildschirmen steht das Bild direkt unter dem Text */}
-      <div className="lg:hidden mt-6 border-2 border-black bg-[#f5f5f5]">
-        <img src={item.src} alt={item.title} loading="lazy" className="w-full" />
+          {/* Bild: feste Hoehe, object-contain — nichts wird abgeschnitten */}
+          <div className="w-full h-[38vh] sm:h-[44vh] flex items-center justify-center">
+            <motion.img
+              src={item.src}
+              alt={item.title}
+              loading={index === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              style={{ scale: imageScale, y: imageY }}
+              className="max-h-full max-w-full w-auto object-contain drop-shadow-[0_24px_50px_rgba(10,10,10,0.18)]"
+            />
+          </div>
+
+          {/* Beschreibung: schiebt sich darunter ins Bild */}
+          <motion.div style={{ y: textY, opacity: textOpacity }} className="mt-6 sm:mt-8 max-w-2xl">
+            <p className="text-slate-600 leading-relaxed text-sm sm:text-base">{item.text}</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {item.points.map((p) => (
+                <span
+                  key={p}
+                  className="px-3 py-1.5 bg-[#f5f5f5] text-[11px] sm:text-xs font-bold uppercase tracking-wide text-slate-700"
+                >
+                  {p}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Fortschritt dieses Moduls */}
+          <div className="mt-7 sm:mt-9 w-40 h-[3px] bg-slate-200 overflow-hidden">
+            <motion.div style={{ width: barWidth }} className="h-full bg-[#ef5a24]" />
+          </div>
+          <span className="sr-only">
+            {de ? 'Modul' : 'Module'} {index + 1} {de ? 'von' : 'of'} {total}
+          </span>
+        </motion.div>
       </div>
-    </div>
+    </section>
   );
 }
 
 export default function ModuleShowcase({ de }) {
   const items = MODULES(de);
-  const [active, setActive] = useState(0);
-  const sectionRef = useRef(null);
-  const reduceMotion = useReducedMotion();
-
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ['start start', 'end end'],
-  });
-  // Der Bildstapel kippt beim Durchscrollen ganz leicht — genug, um Bewegung
-  // zu zeigen, wenig genug, um nicht abzulenken.
-  const tilt = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [1.5, -1.5]);
 
   return (
-    <section ref={sectionRef} className="border-b-2 border-black bg-white">
-      <div className="max-w-6xl mx-auto px-4 pt-16">
-        <div className="text-center mb-4">
-          <span className="inline-block px-3 py-1 bg-black text-white text-xs font-bold uppercase tracking-wide">
-            {de ? 'Rundgang' : 'Guided tour'}
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-4">
-            {de ? 'Vier Module, ein Projekt' : 'Four modules, one project'}
-          </h2>
-          <p className="text-slate-600 mt-2">
-            {de ? 'Scroll dich durch — die Ansicht wechselt mit.' : 'Scroll through — the view follows along.'}
-          </p>
-        </div>
+    <div className="border-b-2 border-black bg-white">
+      <div className="max-w-6xl mx-auto px-4 pt-20 pb-4 text-center">
+        <span className="inline-block px-3 py-1 bg-black text-white text-xs font-bold uppercase tracking-wide">
+          {de ? 'Rundgang' : 'Guided tour'}
+        </span>
+        <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-4">
+          {de ? 'Vier Module, ein Projekt' : 'Four modules, one project'}
+        </h2>
+        <p className="text-slate-600 mt-2">
+          {de ? 'Scroll dich durch — jedes Modul zeigt sich selbst.' : 'Scroll through — each module shows itself.'}
+        </p>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-2 gap-12">
-        <div>
-          {items.map((item, i) => (
-            <ModulePanel key={item.key} item={item} index={i} active={active === i} onActive={setActive} />
-          ))}
-        </div>
-
-        {/* Sticky-Bildbereich: bleibt stehen, während links gescrollt wird */}
-        <div className="hidden lg:block">
-          <motion.div style={{ rotate: tilt }} className="sticky top-24">
-            <div className="relative border-2 border-black bg-[#f5f5f5] aspect-[16/10] overflow-hidden">
-              {items.map((item, i) => (
-                <motion.img
-                  key={item.key}
-                  src={item.src}
-                  alt={item.title}
-                  loading={i === 0 ? 'eager' : 'lazy'}
-                  className="absolute inset-0 w-full h-full object-cover object-top"
-                  initial={false}
-                  animate={{
-                    opacity: active === i ? 1 : 0,
-                    scale: active === i ? 1 : 1.04,
-                  }}
-                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                />
-              ))}
-            </div>
-
-            {/* Fortschrittsleiste statt Punkte — passt zur kantigen Sprache */}
-            <div className="mt-3 flex gap-1.5">
-              {items.map((item, i) => (
-                <div key={item.key} className="flex-1 h-1.5 bg-slate-200 overflow-hidden">
-                  <motion.div
-                    className="h-full bg-[#ef5a24]"
-                    initial={false}
-                    animate={{ width: active >= i ? '100%' : '0%' }}
-                    transition={{ duration: 0.4, ease: 'easeOut' }}
-                  />
-                </div>
-              ))}
-            </div>
-            <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-              {items[active].label}
-            </p>
-          </motion.div>
-        </div>
-      </div>
-    </section>
+      {items.map((item, i) => (
+        <ModuleStage key={item.key} item={item} index={i} total={items.length} de={de} />
+      ))}
+    </div>
   );
 }

@@ -3,6 +3,7 @@ import { api } from "@/api/apiClient";
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from "@/utils";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import ModuleShowcase from "@/components/landing/ModuleShowcase";
 import {
   ArrowRight,
@@ -87,6 +88,19 @@ function LandingContent() {
   const de = language === 'de';
   const goLogin = () => navigate(createPageUrl('login'));
 
+  // Beim Verlassen des Hero zieht das Geraetebild nach vorne weg und uebergibt
+  // an den Rundgang, der die einzelnen Module heranholt.
+  const heroRef = React.useRef(null);
+  const reduceMotion = useReducedMotion();
+  const rm = !!reduceMotion;
+  const { scrollYProgress: heroProgress } = useScroll({
+    target: heroRef,
+    offset: ['start start', 'end start'],
+  });
+  const heroScale = useTransform(heroProgress, [0, 1], rm ? [1, 1] : [1, 1.14]);
+  const heroY = useTransform(heroProgress, [0, 1], rm ? [0, 0] : [0, -70]);
+  const heroFade = useTransform(heroProgress, [0, 0.75], rm ? [1, 1] : [1, 0]);
+
   const submitWaitlist = async () => {
     if (!waitlistEmail.includes('@')) {
       window.alert(de ? 'Bitte eine gültige E-Mail eingeben.' : 'Please enter a valid email.');
@@ -169,8 +183,8 @@ function LandingContent() {
         </div>
       </header>
 
-      {/* Hero: Text links, Bildplatzhalter rechts */}
-      <section className="border-b-2 border-black">
+      {/* Hero: Text links, Geraetebild rechts */}
+      <section ref={heroRef} className="border-b-2 border-black overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 py-16 sm:py-20 grid lg:grid-cols-2 gap-10 items-center">
           <div className="text-center lg:text-left">
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter mb-4 flex items-center justify-center lg:justify-start gap-2 sm:gap-3">
@@ -209,18 +223,30 @@ function LandingContent() {
           </div>
           </div>
 
-          {/* Produktbild */}
-          <div className="border-2 border-black bg-[#f5f5f5] overflow-hidden">
-            <img
-              src="/screens/hero-laptop.webp"
-              alt={de ? 'ORBYLOX Kanban-Board auf einem Laptop' : 'ORBYLOX kanban board on a laptop'}
-              className="w-full"
-              width="1235"
-              height="745"
+          {/* Produktbild — ohne Rahmen, faehrt beim Scrollen nach vorne weg */}
+          <motion.div
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full"
+          >
+            <motion.img
+              src="/screens/hero-devices.webp"
+              alt={
+                de
+                  ? 'ORBYLOX auf Laptop, Tablet und Handy'
+                  : 'ORBYLOX on laptop, tablet and phone'
+              }
+              width="1800"
+              height="825"
+              style={{ scale: heroScale, y: heroY, opacity: heroFade }}
+              className="w-full h-auto"
             />
-          </div>
+          </motion.div>
         </div>
       </section>
+
+      <ModuleShowcase de={de} />
 
       {/* Video: laedt erst nach dem Klick, damit YouTube nicht ungefragt mitliest */}
       <section className="border-b-2 border-black bg-[#f5f5f5]">
@@ -261,8 +287,6 @@ function LandingContent() {
           </div>
         </div>
       </section>
-
-      <ModuleShowcase de={de} />
 
       {/* Warum */}
       <section className="border-b-2 border-black">
