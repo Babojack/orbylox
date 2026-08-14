@@ -463,9 +463,17 @@ function LayoutContent({ children, currentPageName }) {
       {/* Sidebar */}
       <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 dark:border-slate-800 flex flex-col fixed lg:fixed h-full bg-white dark:bg-slate-900 z-50 transition-transform duration-300 ease-out motion-reduce:transition-none`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="text-[11px] sm:text-xs font-extrabold tracking-[0.08em] leading-tight text-slate-900 dark:text-slate-100">
-              ORBYLOX - FREE PROJECT MANAGEMENT FOR EVERYONE
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-7 h-7 shrink-0 bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-black text-sm leading-none">
+              O
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-extrabold tracking-tight leading-none text-slate-900 dark:text-slate-100">
+                RBYLOX
+              </div>
+              <div className="text-[9px] tracking-[0.08em] text-slate-500 dark:text-slate-400 truncate">
+                FREE PROJECT MANAGEMENT
+              </div>
             </div>
           </div>
           <button 
