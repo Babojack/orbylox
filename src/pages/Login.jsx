@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { auth, hasFirebaseConfig, googleProvider, signInWithPopup } from "@/lib/firebase";
 import { Mail, Lock, User, Camera, X, Check } from "lucide-react";
+import OrbyloxMark from "@/components/OrbyloxMark";
 
 const gradientBtn =
   "w-full py-3.5 rounded-xl font-semibold text-white uppercase tracking-wide bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 hover:opacity-95 transition-opacity shadow-lg disabled:opacity-60";
@@ -203,6 +204,10 @@ export default function Login() {
 
       <div className="relative w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10 border border-white/50">
+          <div className="flex items-center justify-center gap-2 mb-5">
+            <OrbyloxMark className="w-10 h-10" />
+            <span className="text-xl font-extrabold tracking-tight text-slate-900">RBYLOX</span>
+          </div>
           <h1 className="text-2xl md:text-3xl font-bold text-center text-slate-800 mb-1">
             {isRegister ? "Konto erstellen" : "Willkommen zurück"}
           </h1>

@@ -20,6 +20,7 @@ import { useProjectsListRealtimeSync } from "@/hooks/useProjectsListRealtimeSync
 import { useProjectListPrefs } from "@/hooks/useProjectListPrefs";
 import { hasFirebaseConfig } from "@/lib/firebase";
 import { getMaxProjectsForPlan, canCreateProject as canCreateProjectByPlan } from "@/lib/planLimits";
+import OrbyloxMark from "@/components/OrbyloxMark";
 
 const ADMIN_EMAIL = "gudfransen@gmail.com";
 const MAX_MEMBERS_PER_PROJECT = 3;
@@ -529,9 +530,15 @@ function ProjectsListContent() {
       {/* Header */}
       <div className="border-b border-slate-200 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="text-[11px] sm:text-sm font-extrabold tracking-[0.08em] leading-tight text-slate-900">
-              ORBYLOX - FREE PROJECT MANAGEMENT FOR EVERYONE
+          <div className="flex items-center gap-2.5 min-w-0">
+            <OrbyloxMark className="w-8 h-8 shrink-0" />
+            <div className="min-w-0">
+              <div className="text-sm font-extrabold tracking-[0.08em] leading-none text-slate-900">
+                ORBYLOX
+              </div>
+              <div className="hidden sm:block mt-0.5 text-[10px] tracking-[0.08em] leading-tight text-slate-500">
+                FREE PROJECT MANAGEMENT FOR EVERYONE
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">

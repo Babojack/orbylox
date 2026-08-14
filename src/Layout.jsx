@@ -578,6 +578,8 @@ function LayoutContent({ children, currentPageName }) {
             >
               <Menu className="w-6 h-6" />
             </button>
+            {/* Auf dem Handy ist die Seitenleiste zu — dort traegt die Kopfzeile das Zeichen */}
+            <OrbyloxMark className="w-7 h-7 shrink-0 lg:hidden" />
             <h1 className="font-semibold text-base md:text-lg text-slate-800 truncate min-w-0">{project?.name || t('overview')}</h1>
             <span className="hidden sm:inline-block shrink-0 px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-xs font-medium border border-green-100">{t('online')}</span>
           </div>

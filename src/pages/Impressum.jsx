@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
+import OrbyloxMark from "@/components/OrbyloxMark";
 
 const ADDRESS = ['Jeyhun Afandiyev', 'c/o Online-Impressum #6833', 'Europaring 90', '53757 Sankt Augustin', 'Deutschland'];
 const ODR_URL = 'https://ec.europa.eu/consumers/odr/';
@@ -211,6 +212,11 @@ function ImpressumContent() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           {de ? 'Zurück' : 'Back'}
         </Button>
+
+        <div className="flex items-center gap-2 mb-6">
+          <OrbyloxMark className="w-9 h-9" />
+          <span className="text-lg font-extrabold tracking-tight text-slate-900">RBYLOX</span>
+        </div>
 
         <h1 className="text-3xl font-black tracking-tight text-slate-900 mb-8">
           {de ? 'Impressum' : 'Legal notice'}

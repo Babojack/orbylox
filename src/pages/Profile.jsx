@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLanguage } from "@/components/LanguageProvider";
+import OrbyloxMark from "@/components/OrbyloxMark";
 
 const RANDOM_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
@@ -83,7 +84,10 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">{t('editProfile')}</h1>
+      <div className="flex items-center gap-3">
+        <OrbyloxMark className="w-9 h-9 shrink-0" />
+        <h1 className="text-2xl font-bold text-slate-900">{t('editProfile')}</h1>
+      </div>
 
       <Card>
         <CardHeader>

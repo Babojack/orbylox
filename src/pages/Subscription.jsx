@@ -5,6 +5,7 @@ import { CreditCard, Check, Star, Zap, Crown } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import OrbyloxMark from "@/components/OrbyloxMark";
 
 const PLANS = [
   {
@@ -93,6 +94,10 @@ export default function Subscription() {
   return (
     <div className="max-w-5xl mx-auto space-y-8 py-4">
       <div className="text-center">
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <OrbyloxMark className="w-10 h-10" />
+          <span className="text-xl font-extrabold tracking-tight text-slate-900">RBYLOX</span>
+        </div>
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Wähle deinen Plan</h1>
         <p className="text-slate-600">Finde den perfekten Plan für dein Team</p>
       </div>
