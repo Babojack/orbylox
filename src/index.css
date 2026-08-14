@@ -171,7 +171,6 @@ button:focus-visible {
   .border-slate-100, .border-slate-200, .border-slate-200\/80, .border-white\/50 {
     border-color: hsl(var(--tn-ink));
   }
-  .border, .border-2 { border-width: 2px; }
 
   /* Buttons: schwarz gefüllt, Akzent orange, keine Verläufe */
   .bg-indigo-600, .bg-indigo-700, .hover\:bg-indigo-700:hover,
@@ -258,51 +257,93 @@ button:focus-visible {
 }
 
 /* ---------------------------------------------------------------------------
-   Hebe-Effekt — Werte aus der Bildschirmaufnahme des Vorbilds gemessen:
-   Element rückt 4px nach oben links, darunter bleibt ein harter Schatten mit
-   8px Versatz liegen. Beim Klick fällt es zurück auf seinen Platz.
+   Verhalten beim Überfahren — eine Regel für die ganze App.
+
+   Grundsatz: NICHTS ändert seine Größe oder Position. Kein Verschieben, kein
+   Vergrößern, kein Springen — das Layout steht still. Sichtbar wird der Hover
+   nur über Farbe und einen weichen Schatten, der über 260 ms sanft aufzieht
+   und genauso ruhig wieder verschwindet.
+
+   Vorher rückte jedes Element 4px zur Seite und bekam einen harten schwarzen
+   Klotz als Schatten, in 130 ms. Das war der grobe Effekt.
    --------------------------------------------------------------------------- */
 @layer components {
+  /* Weich auslaufende Kurve, gleiche Dauer für alle Eigenschaften */
   button,
   [role="button"],
   a.tn-lift,
   .tn-lift,
-  .tn-card {
-    transition: transform 0.13s cubic-bezier(0.2, 0, 0, 1),
-      box-shadow 0.13s cubic-bezier(0.2, 0, 0, 1), background-color 0.15s ease-out,
-      color 0.15s ease-out, border-color 0.15s ease-out;
+  .tn-card,
+  input,
+  textarea,
+  select {
+    transition-property: background-color, border-color, color, fill, stroke,
+      box-shadow, opacity;
+    transition-duration: 260ms;
+    transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  /* Runde Bedienelemente (Avatare, Canvas-Griffe) bleiben ruhig */
-  button:not(.rounded-full):not([data-no-lift]):not(:disabled):hover,
-  [role="button"]:not(.rounded-full):not([data-no-lift]):hover,
+  /* Die Ring-Variablen bleiben vorne stehen, damit eine Auswahl-Umrandung
+     beim Überfahren nicht verschwindet. */
+  button:not([data-no-lift]):not(:disabled):hover,
+  [role="button"]:not([data-no-lift]):hover,
   a.tn-lift:hover,
   .tn-lift:hover,
   .tn-card:hover {
-    transform: translate(-4px, -4px);
-    box-shadow: 8px 8px 0 0 #0a0a0a;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+      var(--tw-ring-shadow, 0 0 #0000), 0 4px 16px rgb(10 10 10 / 0.14);
   }
 
-  button:not(.rounded-full):not([data-no-lift]):not(:disabled):active,
-  [role="button"]:not(.rounded-full):not([data-no-lift]):active,
+  /* Beim Drücken rückt der Schatten enger heran — spürbar, aber ohne Bewegung */
+  button:not([data-no-lift]):not(:disabled):active,
+  [role="button"]:not([data-no-lift]):active,
   a.tn-lift:active,
   .tn-lift:active,
   .tn-card:active {
-    transform: translate(0, 0);
-    box-shadow: none;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+      var(--tw-ring-shadow, 0 0 #0000), 0 1px 5px rgb(10 10 10 / 0.18);
+    transition-duration: 90ms;
   }
 
-  /* Kleine Knöpfe heben dezenter, sonst wirkt der Schatten größer als der Knopf */
-  button.h-7:hover, button.h-8:hover, .h-7[role="button"]:hover, .h-8[role="button"]:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 4px 4px 0 0 #0a0a0a;
+  /* Tastaturfokus: liegt außen an, verschiebt also nichts */
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid hsl(var(--tn-orange));
+    outline-offset: 2px;
   }
 
-  /* Wer weniger Bewegung möchte, bekommt nur die Farbänderung */
   @media (prefers-reduced-motion: reduce) {
-    button:hover, [role="button"]:hover, .tn-lift:hover, .tn-card:hover {
-      transform: none;
-      box-shadow: none;
+    button, [role="button"], a.tn-lift, .tn-lift, .tn-card, input, textarea, select {
+      transition-duration: 0.01ms;
     }
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Einheitliche Größen — nichts wächst, nichts schrumpft.
+
+   1. Vergrößern beim Überfahren wird abgeschaltet. Statt die ganze transform-
+      Eigenschaft zu löschen, werden nur die Skalierungs-Variablen von Tailwind
+      auf 1 gesetzt: so behalten Elemente ihre Positionierung (-translate-y-1/2
+      und Ähnliches), verlieren aber das Zoomen.
+   2. Rahmen und Ringe sind überall gleich dick.
+   --------------------------------------------------------------------------- */
+.hover\:scale-105:hover,
+.hover\:scale-110:hover,
+.hover\:scale-125:hover,
+.hover\:scale-\[1\.02\]:hover,
+.group:hover .group-hover\:scale-110 {
+  --tw-scale-x: 1 !important;
+  --tw-scale-y: 1 !important;
+}
+
+@layer components {
+  /* Rahmen von Flächen und Knöpfen: überall dieselben 2px.
+     border-4 bleibt bewusst unangetastet — das sind ausschließlich die
+     kreisenden Ladeanzeigen, keine Rahmen. */
+  .border, .border-2 { border-width: 2px; }
 }

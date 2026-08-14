@@ -1946,7 +1946,7 @@ export default function MindMap() {
                 key={node.id}
                 data-mindmap-node
                 className={`group pointer-events-auto absolute select-none touch-manipulation ${isSelected ? "z-50" : "z-10"} ${
-                  isConnectTarget ? 'ring-4 ring-[#ef5a24] ring-offset-2 rounded-sm' : ''
+                  isConnectTarget ? 'ring-2 ring-[#ef5a24] ring-offset-2' : ''
                 }`}
                 style={{ left: node.x, top: node.y, width: nodeW }}
                 onPointerDown={(e) => handleNodePointerDown(e, node)}
