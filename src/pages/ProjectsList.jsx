@@ -516,9 +516,9 @@ function ProjectsListContent() {
 
   if (isLoading || userLoading || !user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ef5a24] mx-auto"></div>
           <p className="mt-4 text-slate-600">{t('myProjects')}...</p>
         </div>
       </div>
@@ -526,7 +526,7 @@ function ProjectsListContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen bg-[#f5f5f5]">
       {/* Header */}
       <div className="border-b border-slate-200 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
@@ -608,15 +608,15 @@ function ProjectsListContent() {
                     setCreateMode('project');
                     setIsCreateOpen(true);
                   }}
-                  className={`bg-gradient-to-br from-indigo-50 to-purple-50 border-2 rounded-2xl p-6 text-left transition-all group ${
+                  className={`bg-[#f5f5f5] border-2 rounded-2xl p-6 text-left transition-all group ${
                     canCreateProject 
-                      ? 'border-indigo-200 hover:border-indigo-400' 
+                      ? 'border-black hover:border-[#ef5a24]' 
                       : 'border-slate-200 opacity-60 cursor-not-allowed'
                   }`}
                 >
                   <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform ${
                     canCreateProject 
-                      ? 'bg-gradient-to-br from-indigo-600 to-purple-600 group-hover:scale-110' 
+                      ? 'bg-[#ef5a24] group-hover:scale-110' 
                       : 'bg-slate-400'
                   }`}>
                     <FolderOpen className="w-7 h-7 text-white" />
@@ -639,9 +639,9 @@ function ProjectsListContent() {
                     setShowDecisionMenu(false);
                     navigate(createPageUrl('IdeasHub'));
                   }}
-                  className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 hover:border-amber-400 rounded-2xl p-6 text-left transition-all group"
+                  className="bg-amber-50 border-2 border-amber-200 hover:border-amber-400 rounded-2xl p-6 text-left transition-all group"
                 >
-                  <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform bg-gradient-to-br from-amber-500 to-orange-500 group-hover:scale-110">
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform bg-amber-500 group-hover:scale-110">
                     <Lightbulb className="w-7 h-7 text-white" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 mb-2">
@@ -729,7 +729,7 @@ function ProjectsListContent() {
             )}
             <Button 
               onClick={() => setShowDecisionMenu(true)}
-              className="shadow-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shrink-0"
+              className="shadow-lg bg-[#ef5a24] hover:bg-black text-white shrink-0"
               aria-label={
                 language === 'de'
                   ? 'Neu: Projekt oder Ideen Hub'
@@ -755,7 +755,7 @@ function ProjectsListContent() {
                     </>
                   ) : (
                     <>
-                      <FolderOpen className="w-5 h-5 text-indigo-600" />
+                      <FolderOpen className="w-5 h-5 text-[#ef5a24]" />
                       {t('newProject')}
                     </>
                   )}
@@ -800,7 +800,7 @@ function ProjectsListContent() {
                         onChange={handleCoverUpload}
                         disabled={uploadingCover}
                       />
-                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-indigo-500 transition-colors flex flex-col items-center justify-center">
+                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-[#ef5a24] transition-colors flex flex-col items-center justify-center">
                         <Image className="w-8 h-8 text-slate-400 mb-2" />
                         <span className="text-sm text-slate-500">
                           {uploadingCover ? 'Uploading...' : 'Click to upload cover'}
@@ -811,7 +811,7 @@ function ProjectsListContent() {
                 </div>
                 <Button
                   type="button"
-                  className="w-full bg-indigo-600 hover:bg-indigo-700"
+                  className="w-full bg-[#ef5a24] hover:bg-black"
                   onClick={() => {
                     if (!newProject.name?.trim()) {
                       toast({ title: t('enterProjectName'), variant: "destructive" });
@@ -837,7 +837,7 @@ function ProjectsListContent() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-indigo-600" />
+                <Pencil className="w-5 h-5 text-[#ef5a24]" />
                 {t('editProject')}
               </DialogTitle>
             </DialogHeader>
@@ -866,7 +866,7 @@ function ProjectsListContent() {
                 ) : (
                   <label className="cursor-pointer">
                     <input type="file" accept="image/*" className="hidden" onChange={handleEditCoverUpload} disabled={editingCoverUpload} />
-                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-indigo-500 transition-colors flex flex-col items-center justify-center">
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-[#ef5a24] transition-colors flex flex-col items-center justify-center">
                       <Image className="w-8 h-8 text-slate-400 mb-2" />
                       <span className="text-sm text-slate-500">
                         {editingCoverUpload ? 'Uploading...' : 'Click to upload cover'}
@@ -899,7 +899,7 @@ function ProjectsListContent() {
               </div>
               <Button
                 type="button"
-                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                className="w-full bg-[#ef5a24] hover:bg-black"
                 disabled={updateProjectMutation.isPending || !editProjectId || !editDraft.name.trim()}
                 onClick={() => {
                   const payload = {
@@ -964,7 +964,7 @@ function ProjectsListContent() {
             </Button>
             <Button
               onClick={() => setShowDecisionMenu(true)}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
+              className="bg-[#ef5a24] hover:bg-black text-white"
             >
               <Plus className="w-5 h-5 mr-2" />
               {t('createFirstProjectCta')}
@@ -972,8 +972,8 @@ function ProjectsListContent() {
           </div>
         ) : visibleProjects.length === 0 ? (
           <div className="text-center py-20">
-            <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FolderOpen className="w-12 h-12 text-indigo-600" />
+            <div className="w-24 h-24 bg-[#ef5a24]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FolderOpen className="w-12 h-12 text-[#ef5a24]" />
             </div>
             <h3 className="text-2xl font-semibold text-slate-900 mb-2">{hiddenIds.length > 0 ? "Alle Projekte sind ausgeblendet" : t('noProjects')}</h3>
             <p className="text-slate-600 mb-6">{hiddenIds.length > 0 ? "Blende Projekte wieder ein oder erstelle ein neues." : t('noProjectsDesc')}</p>
@@ -989,7 +989,7 @@ function ProjectsListContent() {
             )}
             <Button
               onClick={() => setShowDecisionMenu(true)}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
+              className="bg-[#ef5a24] hover:bg-black text-white"
             >
               <Plus className="w-5 h-5 mr-2" />
               {t('createFirstProject')}
@@ -1001,9 +1001,9 @@ function ProjectsListContent() {
             <div className="mb-10 space-y-4">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <FolderOpen className="w-5 h-5 text-indigo-600 shrink-0" />
+                  <FolderOpen className="w-5 h-5 text-[#ef5a24] shrink-0" />
                   <span className="text-base font-semibold text-slate-800">{t('projectsMine')}</span>
-                  <Badge variant="secondary" className="bg-indigo-50 text-indigo-800">
+                  <Badge variant="secondary" className="bg-[#ef5a24]/10 text-[#ef5a24]">
                     {myVisibleProjects.length}
                   </Badge>
                 </div>
@@ -1315,9 +1315,9 @@ function ProjectCard({
         className={`hover:shadow-xl transition-all duration-300 cursor-pointer group border-2 relative ${
           project.is_done
             ? "border-emerald-200/80 hover:border-emerald-300 bg-emerald-50/30"
-            : "hover:border-indigo-300"
+            : "hover:border-[#ef5a24]"
         } ${
-          selectedProjects.includes(project.id) ? 'ring-2 ring-indigo-500 border-indigo-500' : ''
+          selectedProjects.includes(project.id) ? 'ring-2 ring-[#ef5a24] border-[#ef5a24]' : ''
         }`}
         onClick={() => isSelectionMode ? toggleProjectSelection(project.id) : openProject(project)}
       >
@@ -1325,10 +1325,10 @@ function ProjectCard({
         <div className="absolute top-3 right-3 z-10" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => toggleProjectSelection(project.id)}
-            className="p-1 bg-white rounded border-2 border-slate-300 hover:border-indigo-500"
+            className="p-1 bg-white rounded border-2 border-slate-300 hover:border-[#ef5a24]"
           >
             {selectedProjects.includes(project.id) ? (
-              <CheckSquare className="w-5 h-5 text-indigo-600" />
+              <CheckSquare className="w-5 h-5 text-[#ef5a24]" />
             ) : (
               <Square className="w-5 h-5 text-slate-400" />
             )}
@@ -1346,7 +1346,7 @@ function ProjectCard({
       )}
       <CardHeader className={compact ? "py-3" : undefined}>
         <div className="flex items-start justify-between">
-          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center mb-3">
+          <div className="w-12 h-12 bg-[#ef5a24] rounded-xl flex items-center justify-center mb-3">
             <FolderOpen className="w-6 h-6 text-white" />
           </div>
           {!isSelectionMode && (
@@ -1419,7 +1419,7 @@ function ProjectCard({
                   : (language === 'de' ? 'Projekt ausblenden' : 'Hide project')}
                 className={`h-8 w-8 rounded-full border flex items-center justify-center ${
                   isHidden
-                    ? 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'
+                    ? 'bg-[#ef5a24]/10 border-[#ef5a24]/40 text-[#ef5a24] hover:bg-[#ef5a24]/20'
                     : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
                 }`}
                 whileHover={{ scale: 1.06 }}
@@ -1466,7 +1466,7 @@ function ProjectCard({
               >
                 {running ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               </motion.button>
-              <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+              <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-[#ef5a24] group-hover:translate-x-1 transition-all" />
             </div>
           )}
         </div>
