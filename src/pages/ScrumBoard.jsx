@@ -4,7 +4,7 @@ import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Draggable } from '@hello-pangea/dnd';
 import { StrictModeDroppable as Droppable } from "@/components/StrictModeDroppable";
-import { Plus, MoreVertical, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, LayoutPanelLeft, Pencil, Trash2, Lock } from 'lucide-react';
+import { Plus, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, LayoutPanelLeft, Pencil, Trash2, Lock, GripVertical } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -1145,9 +1145,13 @@ export default function ScrumBoard() {
                                   `}>
                                       {draggableTask.priority}
                                   </Badge>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 text-slate-300 hover:text-slate-600">
-                                      <MoreVertical className="w-3 h-3" />
-                                  </Button>
+                                  <span
+                                    className="text-slate-300 group-hover:text-slate-500 transition-colors -mr-1 cursor-grab"
+                                    title={t('dragHint')}
+                                    aria-hidden="true"
+                                  >
+                                      <GripVertical className="w-4 h-4" />
+                                  </span>
                               </div>
                               <p className="text-sm font-medium text-slate-800 leading-snug mb-2">
                                   {draggableTask.title}
@@ -1210,37 +1214,48 @@ export default function ScrumBoard() {
                                 )}
                               </div>
 
-                              {/* Ohne Ziehen umschalten: die drei anderen Spalten
-                                  als Knopfreihe. Gesperrte Ziele zeigen ein
-                                  Schloss statt einfach nicht zu reagieren. */}
-                              <div className="flex flex-wrap gap-1 mb-2.5">
-                                {Object.entries(COLUMNS)
-                                  .filter(([sid]) => sid !== draggableTask.status)
-                                  .map(([sid, cfg]) => {
-                                    const allowed = canMoveTo(draggableTask, sid, tasksById).ok;
-                                    return (
-                                      <button
-                                        key={sid}
-                                        type="button"
-                                        data-no-lift
-                                        title={t(cfg.key)}
-                                        aria-label={t(cfg.key)}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          switchStatus(draggableTask, sid);
-                                        }}
-                                        className={`flex-1 min-w-0 min-h-[32px] px-1.5 py-1 text-[10px] font-bold uppercase tracking-wide border-2 truncate transition-colors ${
-                                          allowed
-                                            ? 'border-slate-200 bg-white text-slate-600 hover:border-[#ef5a24] hover:text-[#ef5a24]'
-                                            : 'border-slate-100 bg-slate-50 text-slate-300'
-                                        }`}
-                                      >
-                                        {!allowed && <Lock className="w-2.5 h-2.5 inline-block mr-0.5 -mt-0.5" />}
-                                        {t(cfg.key)}
-                                      </button>
-                                    );
-                                  })}
+                              {/* Statuswechsel ohne Ziehen.
+                                  Vorher standen hier drei nackte Spaltennamen —
+                                  die sahen aus wie Etiketten, nicht wie Knoepfe.
+                                  Jetzt ein beschriftetes Auswahlfeld: das Wort
+                                  "Status" sagt, worum es geht, der aktuelle Wert
+                                  zeigt den Ist-Zustand, das Pfeilchen verspricht
+                                  eine Liste. Das versteht man ohne Erklaerung. */}
+                              <div
+                                className="mb-2.5"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Select
+                                  value={draggableTask.status}
+                                  onValueChange={(v) => switchStatus(draggableTask, v)}
+                                >
+                                  <SelectTrigger className="h-9 w-full text-xs border-2 border-slate-200 bg-white hover:border-[#ef5a24] px-2">
+                                    <span className="flex items-center gap-1.5 min-w-0">
+                                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 shrink-0">
+                                        {t('status')}
+                                      </span>
+                                      <span className="font-semibold text-slate-700 truncate">
+                                        <SelectValue />
+                                      </span>
+                                    </span>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Object.entries(COLUMNS).map(([sid, cfg]) => {
+                                      const allowed =
+                                        sid === draggableTask.status ||
+                                        canMoveTo(draggableTask, sid, tasksById).ok;
+                                      return (
+                                        <SelectItem key={sid} value={sid} disabled={!allowed}>
+                                          <span className="flex items-center gap-2">
+                                            {!allowed && <Lock className="w-3 h-3 text-slate-400" />}
+                                            {t(cfg.key)}
+                                          </span>
+                                        </SelectItem>
+                                      );
+                                    })}
+                                  </SelectContent>
+                                </Select>
                               </div>
 
                               <div className="flex items-center justify-between pt-2 border-t border-slate-50">
