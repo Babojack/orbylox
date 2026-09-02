@@ -214,6 +214,33 @@ if ($type === 'event') {
         $bodyText = eventText($language, $event, $base);
     }
     $icsBody = eventIcs($event, (string)($config['from_email'] ?? ''));
+} elseif ($type === 'assignment') {
+    // Ticket wurde jemandem zugewiesen. Der Empfaenger ist bereits Mitglied,
+    // deshalb reicht der Link ins Projekt — die Anmeldung leitet weiter.
+    $taskData = is_array($data['task'] ?? null) ? $data['task'] : [];
+    $task = [
+        'title'        => trim((string)($taskData['title'] ?? '')),
+        'priority'     => trim((string)($taskData['priority'] ?? '')),
+        'due'          => trim((string)($taskData['due'] ?? '')),
+        'project_name' => $projectName,
+        'assigner'     => $inviterName,
+        'blockers'     => array_slice(array_map(
+            static fn ($b) => trim((string)$b),
+            is_array($taskData['blockers'] ?? null) ? $taskData['blockers'] : []
+        ), 0, 6),
+    ];
+    if ($task['title'] === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Ticket ohne Titel.']);
+        exit;
+    }
+    if ($subject === '') {
+        $subject = assignmentSubject($language, $task['title'], $projectName);
+    }
+    $bodyHtml = assignmentHtml($language, $task, $inviteLink, $base);
+    if ($bodyText === '') {
+        $bodyText = assignmentText($language, $task, $inviteLink);
+    }
 } else {
     if ($subject === '') {
         $subject = inviteSubject($language, $projectName);

@@ -4,7 +4,7 @@ import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Draggable } from '@hello-pangea/dnd';
 import { StrictModeDroppable as Droppable } from "@/components/StrictModeDroppable";
-import { Plus, MoreVertical, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, LayoutPanelLeft, Pencil, Trash2 } from 'lucide-react';
+import { Plus, MoreVertical, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, LayoutPanelLeft, Pencil, Trash2, Lock } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -14,12 +14,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import TaskDetailDialog from "@/components/kanban/TaskDetailDialog";
 import TimelineView from "@/components/kanban/TimelineView";
 import DustEffect from "@/components/kanban/DustEffect";
+import { indexTasks, openBlockersOf, canMoveTo } from "@/lib/taskDependencies";
+import { useLanguage } from "@/components/LanguageProvider";
+import { notifyAssignment } from "@/lib/notifyAssignment";
 
+/* `key` zeigt auf den Uebersetzungsschluessel — die Spaltentitel standen
+   vorher fest auf Englisch, auch in der deutschen Fassung. */
 const COLUMNS = {
-  todo: { label: "To Do", color: "bg-slate-100" },
-  in_progress: { label: "In Progress", color: "bg-blue-50" },
-  review: { label: "Review", color: "bg-[#f5f5f5]" },
-  done: { label: "Done", color: "bg-green-50" }
+  todo: { key: "todo", color: "bg-slate-100" },
+  in_progress: { key: "inProgress", color: "bg-blue-50" },
+  review: { key: "review", color: "bg-[#f5f5f5]" },
+  done: { key: "done", color: "bg-green-50" }
 };
 
 function sortTasksByBoardOrder(taskList) {
@@ -76,6 +81,7 @@ function mergeTaskPatches(updates) {
 
 export default function ScrumBoard() {
     const queryClient = useQueryClient();
+    const { t, language } = useLanguage();
     const [isNewTaskOpen, setIsNewTaskOpen] = React.useState(false);
     const [newTask, setNewTask] = React.useState({ title: "", priority: "medium", assignee_email: "", tagsInput: "" });
     const [selectedTask, setSelectedTask] = React.useState(null);
@@ -139,6 +145,10 @@ export default function ScrumBoard() {
       currentUser?.uid && hasFirebaseConfig ? false : 5000,
     enabled: !!projectId
   });
+
+  // Wer wartet auf wen — einmal aufgebaut, von Karten und Dialog genutzt.
+  const tasksById = React.useMemo(() => indexTasks(tasks || []), [tasks]);
+  const [blockedNotice, setBlockedNotice] = React.useState(null);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -355,6 +365,20 @@ export default function ScrumBoard() {
     onError: (err, variables, context) => {
       queryClient.setQueryData(['tasks', projectId], context.previousTasks);
     },
+    onSuccess: (created, variables) => {
+      // Erst nach echtem Speichern benachrichtigen — sonst ginge eine Mail
+      // raus fuer ein Ticket, das es am Ende gar nicht gibt.
+      if (variables?.assignee_email) {
+        notifyAssignment({
+          task: { ...(created || {}), ...variables, project_id: projectId },
+          assigneeEmail: variables.assignee_email,
+          currentUser,
+          project,
+          allTasks: tasks || [],
+          language,
+        });
+      }
+    },
     onSettled: () => {
       queryClient.invalidateQueries(['tasks', projectId]);
     }
@@ -434,6 +458,18 @@ export default function ScrumBoard() {
     if (!result.destination) return;
 
     const { draggableId, source, destination } = result;
+
+    // Ein Ticket darf erst nach "Done", wenn alles erledigt ist, worauf es wartet.
+    const moved = (tasks || []).find((x) => x.id === draggableId);
+    const check = moved ? canMoveTo(moved, destination.droppableId, tasksById) : { ok: true };
+    if (!check.ok) {
+      setBlockedNotice({
+        title: moved.title,
+        blockers: check.blockers.map((b) => b.title),
+      });
+      window.setTimeout(() => setBlockedNotice(null), 6000);
+      return;
+    }
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
@@ -807,6 +843,30 @@ export default function ScrumBoard() {
         </div>
       )}
 
+      {/* Warum die Karte zurueckgesprungen ist */}
+      {blockedNotice && (
+        <div
+          role="status"
+          className="mb-4 flex items-start gap-2.5 border-2 border-[#ef5a24] bg-[#ef5a24]/10 px-3 py-2.5"
+        >
+          <Lock className="w-4 h-4 mt-0.5 shrink-0 text-[#ef5a24]" />
+          <p className="text-sm text-slate-800 min-w-0">
+            <span className="font-bold">{blockedNotice.title}</span>
+            {' — '}
+            {t('cannotMoveToDone').replace('{list}', blockedNotice.blockers.join(', '))}
+          </p>
+          <button
+            type="button"
+            data-no-lift
+            onClick={() => setBlockedNotice(null)}
+            className="ml-auto shrink-0 h-6 w-6 flex items-center justify-center bg-transparent border-0 p-0 text-slate-500"
+            aria-label="OK"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {viewMode === 'timeline' ? (
         <TimelineView 
           tasks={boardScopedTasks} 
@@ -888,7 +948,7 @@ export default function ScrumBoard() {
                           task.status === 'review' ? 'bg-[#ef5a24]/10 text-[#ef5a24]' :
                           'bg-slate-100 text-slate-600'
                         }`}>
-                          {COLUMNS[task.status]?.label || task.status}
+                          {COLUMNS[task.status] ? t(COLUMNS[task.status].key) : task.status}
                         </span>
                       </div>
                     </div>
@@ -950,7 +1010,7 @@ export default function ScrumBoard() {
             <div key={columnId} className="flex-shrink-0 w-[80vw] sm:flex-1 sm:w-auto sm:min-w-[260px] flex flex-col bg-slate-50/50 rounded-2xl border border-slate-100/60 snap-center sm:snap-align-none min-h-[60vh]">
               <div className={`p-4 border-b border-slate-100 rounded-t-2xl ${config.color} bg-opacity-40`}>
                 <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-slate-700">{config.label}</h3>
+                    <h3 className="font-semibold text-slate-700">{t(config.key)}</h3>
                     <Badge variant="secondary" className="bg-white text-slate-500 shadow-sm">
                         {columnTaskCount(columnId)}
                     </Badge>
@@ -1021,9 +1081,29 @@ export default function ScrumBoard() {
                                       <MoreVertical className="w-3 h-3" />
                                   </Button>
                               </div>
-                              <p className="text-sm font-medium text-slate-800 leading-snug mb-3">
+                              <p className="text-sm font-medium text-slate-800 leading-snug mb-2">
                                   {draggableTask.title}
                               </p>
+
+                              {/* Wartet noch auf andere Tickets */}
+                              {(() => {
+                                const open = openBlockersOf(draggableTask, tasksById);
+                                if (open.length === 0) return null;
+                                return (
+                                  <div
+                                    className="mb-3 flex items-start gap-1.5 border-l-2 border-[#ef5a24] bg-[#ef5a24]/8 pl-2 py-1"
+                                    title={open.map((b) => b.title).join('\n')}
+                                  >
+                                    <Lock className="w-3 h-3 mt-0.5 shrink-0 text-[#ef5a24]" />
+                                    <span className="text-[11px] leading-tight text-slate-600 min-w-0">
+                                      <span className="font-bold text-[#ef5a24]">{t('blockedBadge')}</span>
+                                      {' · '}
+                                      <span className="truncate">{open[0].title}</span>
+                                      {open.length > 1 && ` +${open.length - 1}`}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                               {(draggableTask.tags?.length > 0) && (
                                 <div className="flex flex-wrap gap-1 mb-2">
                                   {draggableTask.tags.slice(0, 4).map((tg) => (
@@ -1108,6 +1188,8 @@ export default function ScrumBoard() {
         currentUser={currentUser}
         projectId={projectId}
         onDeleteTask={(taskId) => deleteTaskMutation.mutate(taskId)}
+        allTasks={tasks || []}
+        project={project}
       />
     </div>
   );

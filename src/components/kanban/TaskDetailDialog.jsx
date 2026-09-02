@@ -9,6 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import TaskDependencies from "@/components/kanban/TaskDependencies";
+import { notifyAssignment } from "@/lib/notifyAssignment";
+import { canMoveTo, indexTasks } from "@/lib/taskDependencies";
+import { useLanguage } from "@/components/LanguageProvider";
 import { 
   Send, 
   Plus, 
@@ -56,9 +60,13 @@ export default function TaskDetailDialog({
   allAssignees, 
   currentUser,
   projectId,
-  onDeleteTask
+  onDeleteTask,
+  allTasks = [],
+  project = null
 }) {
   const queryClient = useQueryClient();
+  const { language, t } = useLanguage();
+  const [statusBlocked, setStatusBlocked] = useState(null);
   const [newComment, setNewComment] = useState('');
   const [newSubtask, setNewSubtask] = useState('');
   const [newTagText, setNewTagText] = useState('');
@@ -343,8 +351,42 @@ export default function TaskDetailDialog({
 
             {/* Priority, Assignee & Dates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
+              {/* Spalte wechseln, ohne zu ziehen — auf dem Handy ist Ziehen
+                  zwischen Spalten kaum zu treffen. */}
               <div>
-                <label className="text-sm font-medium text-slate-600 mb-2 block">Priority</label>
+                <label className="text-sm font-medium text-slate-600 mb-2 block">{t('status')}</label>
+                <Select
+                  value={editedTask.status || 'todo'}
+                  onValueChange={(v) => {
+                    const check = canMoveTo(editedTask, v, indexTasks(allTasks));
+                    if (!check.ok) {
+                      setStatusBlocked(check.blockers.map((b) => b.title));
+                      window.setTimeout(() => setStatusBlocked(null), 6000);
+                      return;
+                    }
+                    setStatusBlocked(null);
+                    setEditedTask({ ...editedTask, status: v });
+                    updateTaskMutation.mutate({ status: v });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todo">{t('todo')}</SelectItem>
+                    <SelectItem value="in_progress">{t('inProgress')}</SelectItem>
+                    <SelectItem value="review">{t('review')}</SelectItem>
+                    <SelectItem value="done">{t('done')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {statusBlocked && (
+                  <p className="mt-2 text-xs text-[#ef5a24] font-medium">
+                    {t('cannotMoveToDone').replace('{list}', statusBlocked.join(', '))}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-600 mb-2 block">{t('priority')}</label>
                 <Select
                   value={editedTask.priority || "medium"}
                   onValueChange={(v) => {
@@ -393,6 +435,16 @@ export default function TaskDetailDialog({
                       const newAssignees = [...(editedTask.assignees || []), v];
                       setEditedTask({ ...editedTask, assignees: newAssignees });
                       updateTaskMutation.mutate({ assignees: newAssignees });
+                      // Benachrichtigung laeuft nebenher — sie darf die
+                      // Zuweisung nicht aufhalten und nicht scheitern lassen.
+                      notifyAssignment({
+                        task: { ...editedTask, assignees: newAssignees },
+                        assigneeEmail: v,
+                        currentUser,
+                        project: project || { id: projectId },
+                        allTasks,
+                        language,
+                      });
                     }
                   }}
                 >
@@ -436,6 +488,18 @@ export default function TaskDetailDialog({
                   }}
                 />
               </div>
+            </div>
+
+            {/* Abhängigkeiten: worauf dieses Ticket wartet */}
+            <div className="mb-6">
+              <TaskDependencies
+                task={editedTask}
+                allTasks={allTasks}
+                onChange={(next) => {
+                  setEditedTask({ ...editedTask, depends_on: next });
+                  updateTaskMutation.mutate({ depends_on: next });
+                }}
+              />
             </div>
 
             {/* Subtasks */}

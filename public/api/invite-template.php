@@ -404,3 +404,192 @@ function inviteText(string $language, string $inviteLink, string $projectName, s
 
     return implode("\n", $lines);
 }
+
+/* ---------------------------------------------------------------------------
+   Ticket-Zuweisung: "Dir wurde ein Ticket zugewiesen."
+
+   Bewusst kurz gehalten — die Mail soll in der Vorschau des Postfachs schon
+   alles Wichtige zeigen: Ticket, Projekt, wer zugewiesen hat.
+   --------------------------------------------------------------------------- */
+
+function assignmentTexts(string $language): array
+{
+    if ($language === 'en') {
+        return [
+            'preheader' => 'A ticket was assigned to you in ORBYLOX.',
+            'kicker'    => 'New assignment',
+            'greeting'  => 'A ticket is waiting for you',
+            'intro_named' => '%s assigned you a ticket in the project “%s”.',
+            'intro_plain' => 'You were assigned a ticket in the project “%s”.',
+            'labels'    => ['ticket' => 'Ticket', 'project' => 'Project', 'priority' => 'Priority', 'due' => 'Due', 'blocked' => 'Waits for'],
+            'cta'       => 'Open ticket',
+            'blocked_note' => 'This ticket still waits for other tickets. You can start once those are done.',
+            'footer'    => 'You get this email because you are a member of this project in ORBYLOX.',
+        ];
+    }
+    return [
+        'preheader' => 'Dir wurde ein Ticket in ORBYLOX zugewiesen.',
+        'kicker'    => 'Neue Zuweisung',
+        'greeting'  => 'Ein Ticket wartet auf dich',
+        'intro_named' => '%s hat dir ein Ticket im Projekt „%s“ zugewiesen.',
+        'intro_plain' => 'Dir wurde ein Ticket im Projekt „%s“ zugewiesen.',
+        'labels'    => ['ticket' => 'Ticket', 'project' => 'Projekt', 'priority' => 'Priorität', 'due' => 'Fällig', 'blocked' => 'Wartet auf'],
+        'cta'       => 'Ticket öffnen',
+        'blocked_note' => 'Dieses Ticket wartet noch auf andere Tickets. Sobald die erledigt sind, kannst du loslegen.',
+        'footer'    => 'Du bekommst diese E-Mail, weil du Mitglied dieses Projekts in ORBYLOX bist.',
+    ];
+}
+
+function assignmentSubject(string $language, string $taskTitle, string $projectName): string
+{
+    $title = $taskTitle !== '' ? $taskTitle : ($language === 'en' ? 'Ticket' : 'Ticket');
+    if ($language === 'en') {
+        return $projectName !== ''
+            ? sprintf('Assigned to you: %s (%s)', $title, $projectName)
+            : sprintf('Assigned to you: %s', $title);
+    }
+    return $projectName !== ''
+        ? sprintf('Dir zugewiesen: %s (%s)', $title, $projectName)
+        : sprintf('Dir zugewiesen: %s', $title);
+}
+
+function assignmentHtml(string $language, array $task, string $link, string $appUrl): string
+{
+    $t = assignmentTexts($language);
+    $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+    $projectName = (string)($task['project_name'] ?? '');
+    $assigner    = (string)($task['assigner'] ?? '');
+
+    if ($assigner !== '' && $projectName !== '') {
+        $intro = sprintf($t['intro_named'], $e($assigner), $e($projectName));
+    } elseif ($projectName !== '') {
+        $intro = sprintf($t['intro_plain'], $e($projectName));
+    } else {
+        $intro = $e($t['greeting']);
+    }
+
+    $rows = '';
+    $row = static function (string $label, string $value) use ($e): string {
+        if (trim($value) === '') return '';
+        return '<tr>'
+            . '<td style="padding:9px 0;font:600 12px/16px Helvetica,Arial,sans-serif;color:#888780;text-transform:uppercase;letter-spacing:1.2px;width:110px;vertical-align:top;">' . $e($label) . '</td>'
+            . '<td style="padding:9px 0;font:400 15px/22px Helvetica,Arial,sans-serif;color:#0a0a0a;">' . $e($value) . '</td>'
+            . '</tr>';
+    };
+    $rows .= $row($t['labels']['ticket'],   (string)($task['title'] ?? ''));
+    $rows .= $row($t['labels']['project'],  $projectName);
+    $rows .= $row($t['labels']['priority'], (string)($task['priority'] ?? ''));
+    $rows .= $row($t['labels']['due'],      (string)($task['due'] ?? ''));
+
+    $blockers = is_array($task['blockers'] ?? null) ? array_filter($task['blockers']) : [];
+    $blockedBlock = '';
+    if ($blockers) {
+        $rows .= $row($t['labels']['blocked'], implode(', ', $blockers));
+        $blockedBlock = '<tr><td style="padding:0 32px 8px 32px;">'
+            . '<div style="border-left:3px solid #ef5a24;background:#fdf1ec;padding:12px 14px;font:400 14px/21px Helvetica,Arial,sans-serif;color:#5f5e5a;">'
+            . $e($t['blocked_note']) . '</div></td></tr>';
+    }
+
+    $linkE = $e($link);
+    $home  = $e($appUrl !== '' ? $appUrl : 'https://orbylox.de');
+
+    return <<<HTML
+<!DOCTYPE html>
+<html lang="{$language}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ORBYLOX</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f5f5f5;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">{$t['preheader']}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:32px 12px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background-color:#ffffff;border:2px solid #0a0a0a;">
+
+        <tr>
+          <td style="background-color:#0a0a0a;padding:24px 32px;">
+            <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+              <td style="width:34px;vertical-align:middle;">
+                <div style="width:30px;height:30px;background:#ef5a24;border-radius:9px;text-align:center;font:800 15px/30px Helvetica,Arial,sans-serif;color:#ffffff;">O</div>
+              </td>
+              <td style="vertical-align:middle;font:800 20px/30px Helvetica,Arial,sans-serif;color:#ffffff;letter-spacing:1px;">RBYLOX</td>
+            </tr></table>
+            <div style="font:700 11px/16px Helvetica,Arial,sans-serif;color:#ef5a24;margin-top:10px;letter-spacing:2px;text-transform:uppercase;">{$t['kicker']}</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:28px 32px 4px 32px;">
+            <p style="margin:0 0 10px 0;font:800 22px/29px Helvetica,Arial,sans-serif;color:#0a0a0a;">{$t['greeting']}</p>
+            <p style="margin:0;font:400 16px/24px Helvetica,Arial,sans-serif;color:#5f5e5a;">{$intro}</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:18px 32px 4px 32px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:2px solid #0a0a0a;">
+              {$rows}
+            </table>
+          </td>
+        </tr>
+
+        {$blockedBlock}
+
+        <tr>
+          <td style="padding:24px 32px 32px 32px;">
+            <a href="{$linkE}" style="display:inline-block;background:#ef5a24;color:#ffffff;font:700 14px/20px Helvetica,Arial,sans-serif;text-decoration:none;padding:14px 28px;letter-spacing:1px;text-transform:uppercase;">{$t['cta']}</a>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:18px 32px 24px 32px;border-top:1px solid #e5e5e5;">
+            <p style="margin:0;font:400 12px/18px Helvetica,Arial,sans-serif;color:#888780;">{$t['footer']}</p>
+            <p style="margin:6px 0 0 0;font:400 12px/18px Helvetica,Arial,sans-serif;color:#888780;"><a href="{$home}" style="color:#ef5a24;text-decoration:none;">{$home}</a></p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+HTML;
+}
+
+function assignmentText(string $language, array $task, string $link): string
+{
+    $t = assignmentTexts($language);
+    $lines = [];
+    $lines[] = $t['greeting'];
+    $lines[] = '';
+    $projectName = (string)($task['project_name'] ?? '');
+    $assigner = (string)($task['assigner'] ?? '');
+    if ($assigner !== '' && $projectName !== '') {
+        $lines[] = sprintf($t['intro_named'], $assigner, $projectName);
+    } elseif ($projectName !== '') {
+        $lines[] = sprintf($t['intro_plain'], $projectName);
+    }
+    $lines[] = '';
+    foreach ([
+        $t['labels']['ticket']   => (string)($task['title'] ?? ''),
+        $t['labels']['project']  => $projectName,
+        $t['labels']['priority'] => (string)($task['priority'] ?? ''),
+        $t['labels']['due']      => (string)($task['due'] ?? ''),
+    ] as $label => $value) {
+        if (trim($value) !== '') $lines[] = $label . ': ' . $value;
+    }
+    $blockers = is_array($task['blockers'] ?? null) ? array_filter($task['blockers']) : [];
+    if ($blockers) {
+        $lines[] = $t['labels']['blocked'] . ': ' . implode(', ', $blockers);
+        $lines[] = $t['blocked_note'];
+    }
+    $lines[] = '';
+    $lines[] = $t['cta'] . ': ' . $link;
+    $lines[] = '';
+    $lines[] = $t['footer'];
+    return implode("\n", $lines);
+}
