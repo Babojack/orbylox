@@ -206,7 +206,7 @@ function ImpressumContent() {
   const de = language === 'de';
 
   return (
-    <div className="min-h-screen bg-white py-12 px-6">
+    <div className="min-h-screen bg-white py-8 px-4 sm:py-12 sm:px-6">
       <div className="max-w-3xl mx-auto">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-8">
           <ArrowLeft className="w-4 h-4 mr-2" />

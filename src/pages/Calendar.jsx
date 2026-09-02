@@ -4,25 +4,29 @@ import { api } from "@/api/apiClient";
 import { eventRoomName, roomUrl, roomFromUrl, meetingPageUrl } from "@/lib/meetingRoom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { de as dateDe, enUS as dateEn } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, Loader2, UserPlus, Video } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/components/LanguageProvider";
+import { Reveal } from "@/components/motion/Reveal";
 
 const EVENT_COLORS = [
-  { value: '#6366f1', label: 'Indigo' },
+  { value: '#ef5a24', label: 'Orange' },
   { value: '#22c55e', label: 'Grün' },
-  { value: '#f97316', label: 'Orange' },
+  { value: '#f59e0b', label: 'Amber' },
   { value: '#ec4899', label: 'Pink' },
-  { value: '#8b5cf6', label: 'Violett' },
+  { value: '#0a0a0a', label: 'Schwarz' },
   { value: '#ef4444', label: 'Rot' },
 ];
 
 export default function Calendar() {
   const queryClient = useQueryClient();
+  const { t, language } = useLanguage();
+  const dateLocale = language === 'en' ? dateEn : dateDe;
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
@@ -216,7 +220,7 @@ export default function Calendar() {
       start_date: event.start_date?.slice(0, 16) || '',
       end_date: event.end_date?.slice(0, 16) || '',
       all_day: event.all_day || false,
-      color: event.color || '#6366f1',
+      color: event.color || '#ef5a24',
       attendees: event.attendees || [],
       video_enabled: !!event.video_url,
       video_url: event.video_url || ''
@@ -232,7 +236,10 @@ export default function Calendar() {
     return { ...eventData, video_url: eventData.video_url || buildMeetingUrl() };
   };
 
-  const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const weekDays =
+    language === 'en'
+      ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      : ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
   if (userLoading || !currentUser) {
     return <div className="flex items-center justify-center h-[50vh] text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
@@ -242,12 +249,12 @@ export default function Calendar() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-slate-900">Kalender</h2>
+          <h2 className="text-2xl font-bold text-slate-900">{t('calendar')}</h2>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-8">
           <div className="flex flex-col items-center justify-center h-64 text-slate-400">
             <Loader2 className="w-8 h-8 animate-spin mb-3" />
-            <span className="text-sm">Termine werden geladen...</span>
+            <span className="text-sm">{t('calendarLoading')}</span>
           </div>
         </div>
       </div>
@@ -256,10 +263,10 @@ export default function Calendar() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-900">Kalender</h2>
-        <Button onClick={() => openNewEventDialog(new Date())} className="bg-[#ef5a24] hover:bg-black">
-          <Plus className="w-4 h-4 mr-2" /> Termin
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{t('calendar')}</h2>
+        <Button onClick={() => openNewEventDialog(new Date())} className="bg-[#ef5a24] hover:bg-black min-h-[44px]">
+          <Plus className="w-4 h-4 mr-2" /> {t('newEvent')}
         </Button>
       </div>
 
@@ -270,15 +277,104 @@ export default function Calendar() {
             <ChevronLeft className="w-5 h-5" />
           </Button>
           <h3 className="text-lg font-semibold text-slate-800">
-            {format(currentDate, 'MMMM yyyy', { locale: de })}
+            {format(currentDate, 'MMMM yyyy', { locale: dateLocale })}
           </h3>
           <Button variant="ghost" size="icon" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
             <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
 
+        {/* Handy: Termine als Liste statt als Raster */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {(() => {
+            const monthDays = days.filter((d) => isSameMonth(d, currentDate));
+            const withEvents = monthDays.filter((d) => getEventsForDay(d).length > 0);
+
+            if (withEvents.length === 0) {
+              return (
+                <div className="px-4 py-10 text-center">
+                  <CalendarDays className="w-8 h-8 mx-auto mb-3 text-slate-300" />
+                  <p className="text-sm text-slate-500">{t('noEventsThisMonth')}</p>
+                  <button
+                    type="button"
+                    onClick={() => openNewEventDialog(new Date())}
+                    className="mt-4 h-11 px-4 border-2 border-black bg-white text-xs font-bold uppercase"
+                  >
+                    {t('newEvent')}
+                  </button>
+                </div>
+              );
+            }
+
+            return withEvents.map((day, i) => {
+              const dayEvents = getEventsForDay(day);
+              const today = isSameDay(day, new Date());
+              return (
+                <Reveal key={day.toISOString()} index={i} className="px-3 py-3">
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openNewEventDialog(day)}
+                      className="shrink-0 w-12 h-12 flex flex-col items-center justify-center border-2 bg-white p-0"
+                      style={{ borderColor: today ? '#ef5a24' : '#e2e8f0' }}
+                      aria-label={format(day, 'PPP', { locale: dateLocale })}
+                    >
+                      <span className={`text-base font-bold leading-none ${today ? 'text-[#ef5a24]' : 'text-slate-800'}`}>
+                        {format(day, 'd')}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wide text-slate-400 mt-0.5">
+                        {format(day, 'EEE', { locale: dateLocale })}
+                      </span>
+                    </button>
+
+                    <ul className="flex-1 min-w-0 space-y-1.5">
+                      {dayEvents.map((event) => (
+                        <li key={event.id}>
+                          <button
+                            type="button"
+                            onClick={() => openEditEventDialog(event)}
+                            className="w-full text-left flex items-center gap-2 px-2.5 min-h-[44px] py-2 border-0"
+                            style={{ backgroundColor: (event.color || '#ef5a24') + '1a' }}
+                          >
+                            <span
+                              className="w-1.5 self-stretch shrink-0"
+                              style={{ backgroundColor: event.color || '#ef5a24' }}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-medium text-slate-800 truncate">
+                                {event.title}
+                              </span>
+                              {event.start_date && (
+                                <span className="block text-[11px] text-slate-500">
+                                  {event.all_day
+                                    ? t('allDay')
+                                    : format(new Date(event.start_date), 'HH:mm', { locale: dateLocale })}
+                                </span>
+                              )}
+                            </span>
+                            {event.video_url && (
+                              <Link
+                                to={meetingPageUrl(projectId, roomFromUrl(event.video_url))}
+                                onClick={(e) => e.stopPropagation()}
+                                title={t('joinVideoInApp')}
+                                className="shrink-0 w-9 h-9 flex items-center justify-center bg-[#ef5a24] text-white"
+                              >
+                                <Video className="w-4 h-4" />
+                              </Link>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Reveal>
+              );
+            });
+          })()}
+        </div>
+
         {/* Weekday Headers */}
-        <div className="grid grid-cols-7 border-b border-slate-100">
+        <div className="hidden md:grid grid-cols-7 border-b border-slate-100">
           {weekDays.map(day => (
             <div key={day} className="py-2 text-center text-xs font-medium text-slate-500 uppercase">
               {day}
@@ -286,8 +382,8 @@ export default function Calendar() {
           ))}
         </div>
 
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7">
+        {/* Monatsraster — erst ab Tablet, auf dem Handy waeren die Zellen 53px breit */}
+        <div className="hidden md:grid grid-cols-7">
           {days.map((day, index) => {
             const dayEvents = getEventsForDay(day);
             const isCurrentMonth = isSameMonth(day, currentDate);
@@ -319,13 +415,13 @@ export default function Calendar() {
                         openEditEventDialog(event);
                       }}
                       className="text-xs px-2 py-1 rounded text-white cursor-pointer hover:opacity-80 flex items-center gap-1"
-                      style={{ backgroundColor: event.color || '#6366f1' }}
+                      style={{ backgroundColor: event.color || '#ef5a24' }}
                     >
                       {event.video_url && (
                         <Link
                           to={meetingPageUrl(projectId, roomFromUrl(event.video_url))}
                           onClick={(e) => e.stopPropagation()}
-                          title="Videokonferenz in ORBYLOX beitreten"
+                          title={t('joinVideoInApp')}
                           className="shrink-0 hover:scale-110 transition-transform"
                         >
                           <Video className="w-3 h-3" />
@@ -360,18 +456,18 @@ export default function Calendar() {
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <Input
-              placeholder="Titel"
+              placeholder={t('eventTitle')}
               value={newEvent.title}
               onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
             />
             <Textarea
-              placeholder="Beschreibung (optional)"
+              placeholder={t('eventDescription')}
               value={newEvent.description}
               onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
             />
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-slate-600 mb-1 block">Start</label>
+                <label className="text-sm text-slate-600 mb-1 block">{t('eventStart')}</label>
                 <Input
                   type="datetime-local"
                   value={newEvent.start_date}
@@ -379,7 +475,7 @@ export default function Calendar() {
                 />
               </div>
               <div>
-                <label className="text-sm text-slate-600 mb-1 block">Ende</label>
+                <label className="text-sm text-slate-600 mb-1 block">{t('eventEnd')}</label>
                 <Input
                   type="datetime-local"
                   value={newEvent.end_date}
@@ -421,7 +517,7 @@ export default function Calendar() {
             </div>
 
             <div>
-              <label className="text-sm text-slate-600 mb-1 block">Farbe</label>
+              <label className="text-sm text-slate-600 mb-1 block">{t('eventColor')}</label>
               <div className="flex gap-2">
                 {EVENT_COLORS.map(color => (
                   <button

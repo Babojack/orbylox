@@ -519,7 +519,7 @@ function ProjectsListContent() {
   if (isLoading || userLoading || !user) {
     return (
       <div className="min-h-screen bg-[#f5f5f5]">
-        <div className="max-w-7xl mx-auto px-6 py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
           <div className="h-5 w-40 bg-slate-200/80 animate-pulse mb-6" />
           <CardGridSkeleton count={6} withMedia />
         </div>
@@ -531,7 +531,7 @@ function ProjectsListContent() {
     <div className="min-h-screen bg-[#f5f5f5]">
       {/* Header */}
       <div className="border-b border-slate-200 bg-white sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <OrbyloxMark className="w-8 h-8 shrink-0" />
             <div className="min-w-0">

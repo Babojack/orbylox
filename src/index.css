@@ -368,3 +368,44 @@ button:focus-visible {
      kreisenden Ladeanzeigen, keine Rahmen. */
   .border, .border-2 { border-width: 2px; }
 }
+
+/* ---------------------------------------------------------------------------
+   Bedienung mit dem Finger.
+
+   Kleine Symbolknöpfe (24–32px) sind mit der Maus gut zu treffen, mit dem
+   Daumen nicht — empfohlen sind mindestens 40px. Statt 32 Knöpfe optisch
+   aufzublasen (und damit die einheitlichen Größen zu zerstören), wächst hier
+   nur die unsichtbare Trefferfläche über ein ::after. Aussehen bleibt gleich,
+   Treffsicherheit steigt.
+
+   Gilt nur für grobe Zeigegeräte — am Rechner ändert sich nichts.
+   --------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  /* Knöpfe, die selbst schon positioniert sind, nicht anfassen — sonst
+     verrutschen Canvas-Griffe und Abzeichen. */
+  button.h-6:not(.absolute):not(.fixed),
+  button.h-7:not(.absolute):not(.fixed),
+  button.h-8:not(.absolute):not(.fixed) {
+    position: relative;
+  }
+  button.h-6::after,
+  button.h-7::after,
+  button.h-8::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+/* Kein Wartezyklus beim Antippen (die alten 300ms fürs Doppeltippen) */
+@layer base {
+  button,
+  a,
+  [role="button"],
+  input,
+  select,
+  textarea,
+  label {
+    touch-action: manipulation;
+  }
+}
