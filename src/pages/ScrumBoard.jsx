@@ -457,6 +457,30 @@ export default function ScrumBoard() {
     [getTasksForColumnFiltered],
   );
 
+  /**
+   * Ticket ohne Ziehen in eine andere Spalte setzen.
+   * Auf dem Handy ist Ziehen zwischen Spalten kaum zu treffen, deshalb liegt
+   * dieselbe Bewegung als Knopfreihe auf der Karte.
+   */
+  const switchStatus = (task, nextStatus) => {
+    if (!task || task.status === nextStatus) return;
+    const check = canMoveTo(task, nextStatus, tasksById);
+    if (!check.ok) {
+      setBlockedNotice({
+        title: task.title,
+        blockers: check.blockers.map((b) => b.title),
+      });
+      window.setTimeout(() => setBlockedNotice(null), 6000);
+      return;
+    }
+    // Ans Ende der Zielspalte haengen, damit nichts anderes umsortiert wird.
+    const target = getColumnTasks(nextStatus);
+    const maxOrder = target.reduce((m, x) => Math.max(m, Number(x.board_order) || 0), -1);
+    reorderTasksMutation.mutate([
+      { id: task.id, patch: { status: nextStatus, board_order: maxOrder + 1 } },
+    ]);
+  };
+
   const onDragStart = (start) => {
     const t = (tasks || []).find((x) => x.id === start.draggableId);
     setDraggingTask(t || null);
@@ -1184,6 +1208,39 @@ export default function ScrumBoard() {
                                     {attachmentsCount}
                                   </span>
                                 )}
+                              </div>
+
+                              {/* Ohne Ziehen umschalten: die drei anderen Spalten
+                                  als Knopfreihe. Gesperrte Ziele zeigen ein
+                                  Schloss statt einfach nicht zu reagieren. */}
+                              <div className="flex flex-wrap gap-1 mb-2.5">
+                                {Object.entries(COLUMNS)
+                                  .filter(([sid]) => sid !== draggableTask.status)
+                                  .map(([sid, cfg]) => {
+                                    const allowed = canMoveTo(draggableTask, sid, tasksById).ok;
+                                    return (
+                                      <button
+                                        key={sid}
+                                        type="button"
+                                        data-no-lift
+                                        title={t(cfg.key)}
+                                        aria-label={t(cfg.key)}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          switchStatus(draggableTask, sid);
+                                        }}
+                                        className={`flex-1 min-w-0 min-h-[32px] px-1.5 py-1 text-[10px] font-bold uppercase tracking-wide border-2 truncate transition-colors ${
+                                          allowed
+                                            ? 'border-slate-200 bg-white text-slate-600 hover:border-[#ef5a24] hover:text-[#ef5a24]'
+                                            : 'border-slate-100 bg-slate-50 text-slate-300'
+                                        }`}
+                                      >
+                                        {!allowed && <Lock className="w-2.5 h-2.5 inline-block mr-0.5 -mt-0.5" />}
+                                        {t(cfg.key)}
+                                      </button>
+                                    );
+                                  })}
                               </div>
 
                               <div className="flex items-center justify-between pt-2 border-t border-slate-50">
