@@ -45,6 +45,7 @@ import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
 import { PageTransition } from "@/components/PageTransition";
 import OrbyloxMark from "@/components/OrbyloxMark";
+import MentionToast from "@/components/MentionToast";
 import { startTimer, getActiveTimer, setTrackedTimeSyncHandler } from "@/lib/projectTimer";
 
 const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
@@ -142,6 +143,7 @@ function LayoutContent({ children, currentPageName }) {
     } catch { return {}; }
   });
   const [showNotifications, setShowNotifications] = React.useState(false);
+  const [mentionToasts, setMentionToasts] = React.useState([]);
   const [teamActivityItems, setTeamActivityItems] = React.useState([]);
   const isAdmin = getAdminEmails().includes((currentUser?.email || "").toLowerCase());
 
@@ -164,12 +166,29 @@ function LayoutContent({ children, currentPageName }) {
     );
   }, []);
 
+  /** Erwaehnung im Chat: Meldung unten rechts, verschwindet nach 9 Sekunden. */
+  const onMention = useCallback((m) => {
+    const item = {
+      id: m.id,
+      projectId: m.projectId,
+      senderName: (m.sender || "").split("@")[0] || "?",
+      content: m.content.length > 140 ? `${m.content.slice(0, 140)}…` : m.content,
+    };
+    setMentionToasts((prev) =>
+      prev.some((x) => x.id === item.id) ? prev : [...prev, item].slice(-3),
+    );
+    window.setTimeout(() => {
+      setMentionToasts((prev) => prev.filter((x) => x.id !== item.id));
+    }, 9000);
+  }, []);
+
   useProjectRealtimeSync({
     queryClient,
     projectId,
     currentUser,
     enabled: !!projectId && !!currentUser?.uid && hasFirebaseConfig,
     onTeamActivity,
+    onMention,
   });
 
   const teamActivityUnread = teamActivityItems.filter((i) => !i.read).length;
@@ -730,6 +749,15 @@ function LayoutContent({ children, currentPageName }) {
           </PageTransition>
         </div>
       </main>
+
+      <MentionToast
+        items={mentionToasts}
+        onDismiss={(id) => setMentionToasts((prev) => prev.filter((x) => x.id !== id))}
+        onOpen={(item) => {
+          setMentionToasts((prev) => prev.filter((x) => x.id !== item.id));
+          window.location.href = `${createPageUrl("Chat")}?project=${item.projectId}`;
+        }}
+      />
 
       {/* Voice Agent Widget */}
       <VoiceAgent />

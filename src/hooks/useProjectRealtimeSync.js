@@ -226,6 +226,7 @@ export function useProjectRealtimeSync({
   currentUser,
   enabled,
   onTeamActivity,
+  onMention,
 }) {
   const projectDataRef = useRef(null);
   const activityTimerRef = useRef(null);
@@ -234,6 +235,10 @@ export function useProjectRealtimeSync({
   const timerOnlyDebounceRef = useRef(null);
   const onTeamActivityRef = useRef(onTeamActivity);
   onTeamActivityRef.current = onTeamActivity;
+  const onMentionRef = useRef(onMention);
+  onMentionRef.current = onMention;
+  /** Schon gemeldete Nachrichten — Firestore liefert denselben Zusatz mehrfach. */
+  const seenMentionsRef = useRef(new Set());
 
   useEffect(() => {
     projectDataRef.current = null;
@@ -266,10 +271,15 @@ export function useProjectRealtimeSync({
     const attachEntity = (entityName) => {
       const coll = collection(db, entityName);
       const qy = query(coll, where("project_id", "==", projectId));
+      // Die erste Antwort listet den gesamten Bestand als "added" auf. Ohne
+      // diese Sperre ploppte beim Seitenaufruf jede alte Erwaehnung erneut auf.
+      let isFirstSnapshot = true;
       const unsub = onSnapshot(
         qy,
         (snap) => {
           if (snap.metadata.fromCache) return;
+          const wasFirst = isFirstSnapshot;
+          isFirstSnapshot = false;
           const changes = snap.docChanges();
           if (!changes.length) return;
 
@@ -282,6 +292,26 @@ export function useProjectRealtimeSync({
             (c) => !isActorSelf(c.doc.data(), currentUser),
           );
           if (!fromOthers.length) return;
+
+          // Wurde ich in einer neuen Nachricht erwaehnt?
+          if (entityName === "Message" && !wasFirst) {
+            const myEmail = normalizeEmail(currentUser?.email);
+            for (const change of fromOthers) {
+              if (change.type !== "added") continue;
+              const data = change.doc.data();
+              const list = Array.isArray(data.mentions) ? data.mentions : [];
+              if (!myEmail || !list.some((m) => normalizeEmail(m) === myEmail)) continue;
+              if (seenMentionsRef.current.has(change.doc.id)) continue;
+              seenMentionsRef.current.add(change.doc.id);
+              onMentionRef.current?.({
+                id: change.doc.id,
+                projectId,
+                sender: data.sender_email || "",
+                content: String(data.content || ""),
+              });
+            }
+          }
+
           scheduleActivity(entityName);
         },
         (err) => {

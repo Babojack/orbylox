@@ -9,12 +9,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import VideoCall from '@/components/chat/VideoCall';
+import {
+  mentionCandidates,
+  mentionQueryAt,
+  filterCandidates,
+  applyMention,
+  resolveMentions,
+  splitByMentions,
+  handleFor,
+} from '@/lib/mentions';
+import { useLanguage } from '@/components/LanguageProvider';
 
 export default function Chat() {
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
   const [message, setMessage] = useState("");
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState("");
+  const [mentionIndex, setMentionIndex] = useState(0);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   
@@ -79,7 +91,10 @@ export default function Chat() {
     mutationFn: (content) => api.entities.Message.create({
       content,
       project_id: projectId,
-      sender_email: currentUser?.email
+      sender_email: currentUser?.email,
+      // Aufgeloeste Adressen mitschreiben — im Text steht nur ein Anzeigename,
+      // und daraus laesst sich niemand zuverlaessig benachrichtigen.
+      mentions: resolveMentions(content, projectMembers, currentUser?.email),
     }),
     onMutate: async (content) => {
       await queryClient.cancelQueries({ queryKey: ['messages', projectId] });
@@ -120,66 +135,91 @@ export default function Chat() {
   const [showMembers, setShowMembers] = useState(false);
   const [showVideoCall, setShowVideoCall] = useState(false);
 
-  // All mentionable users
-  const allMentionUsers = [
-    { email: 'alle', name: 'Alle' },
-    ...projectMembers.filter(e => e !== currentUser?.email).map(email => ({ email, name: email.split('@')[0] }))
-  ];
+  // Auswahl fuer die @-Liste
+  const allMentionUsers = React.useMemo(
+    () => mentionCandidates(projectMembers, currentUser?.email, t('mentionAll')),
+    [projectMembers, currentUser?.email, t],
+  );
 
-  // Handle @ mentions
+  const filteredMentions = React.useMemo(
+    () => filterCandidates(allMentionUsers, mentionFilter),
+    [allMentionUsers, mentionFilter],
+  );
+
+  /**
+   * Die Liste oeffnet sich anhand der Schreibmarke, nicht anhand des letzten @
+   * im Text. Sonst springt sie wieder auf, sobald man weiter vorne etwas
+   * korrigiert — und eine getippte E-Mail-Adresse loest sie gar nicht erst aus.
+   */
   const handleMessageChange = (e) => {
     const value = e.target.value;
     setMessage(value);
-    
-    // Check for @ trigger
-    const lastAtIndex = value.lastIndexOf('@');
-    if (lastAtIndex !== -1) {
-      const textAfterAt = value.slice(lastAtIndex + 1);
-      const hasSpace = textAfterAt.includes(' ');
-      if (!hasSpace) {
-        setMentionFilter(textAfterAt.toLowerCase());
-        setShowMentions(true);
-        return;
-      }
+    const found = mentionQueryAt(value, e.target.selectionStart);
+    if (found) {
+      setMentionFilter(found.query);
+      setMentionIndex(0);
+      setShowMentions(true);
+    } else {
+      setShowMentions(false);
     }
-    setShowMentions(false);
   };
 
-  const insertMention = (user) => {
-    const lastAtIndex = message.lastIndexOf('@');
-    const newMessage = message.slice(0, lastAtIndex) + `@${user.name} `;
-    setMessage(newMessage);
+  const insertMention = (candidate) => {
+    const caret = inputRef.current?.selectionStart ?? message.length;
+    const { text, caret: nextCaret } = applyMention(message, caret, candidate);
+    setMessage(text);
     setShowMentions(false);
-    inputRef.current?.focus();
+    setMentionFilter('');
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange?.(nextCaret, nextCaret);
+    });
   };
 
-  const filteredMentions = allMentionUsers.filter(u => 
-    u.name.toLowerCase().includes(mentionFilter) || u.email.toLowerCase().includes(mentionFilter)
+  /** Pfeiltasten und Enter in der Liste — wie im Messenger gewohnt. */
+  const handleMentionKeys = (e) => {
+    if (!showMentions || filteredMentions.length === 0) {
+      if (e.key === 'Escape') setShowMentions(false);
+      return false;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setMentionIndex((i) => (i + 1) % filteredMentions.length);
+      return true;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setMentionIndex((i) => (i - 1 + filteredMentions.length) % filteredMentions.length);
+      return true;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      insertMention(filteredMentions[Math.min(mentionIndex, filteredMentions.length - 1)]);
+      return true;
+    }
+    if (e.key === 'Escape') {
+      setShowMentions(false);
+      return true;
+    }
+    return false;
+  };
+
+  const knownHandles = React.useMemo(
+    () => projectMembers.map((m) => handleFor(m)),
+    [projectMembers],
   );
 
-  // Render message with highlighted mentions
-  const renderMessageContent = (content) => {
-    const mentionRegex = /@(\w+)/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
-    
-    while ((match = mentionRegex.exec(content)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(content.slice(lastIndex, match.index));
-      }
-      parts.push(
-        <span key={match.index} className="bg-[#ef5a24]/20 text-[#ef5a24] px-1 rounded font-medium">
-          @{match[1]}
+  /** Nachricht mit hervorgehobenen Erwaehnungen darstellen. */
+  const renderMessageContent = (content) =>
+    splitByMentions(content, knownHandles).map((part, i) =>
+      part.type === 'mention' ? (
+        <span key={i} className="bg-[#ef5a24]/20 text-[#ef5a24] px-1 rounded font-medium">
+          {part.value}
         </span>
-      );
-      lastIndex = match.index + match[0].length;
-    }
-    if (lastIndex < content.length) {
-      parts.push(content.slice(lastIndex));
-    }
-    return parts.length > 0 ? parts : content;
-  };
+      ) : (
+        <span key={i}>{part.value}</span>
+      ),
+    );
 
   if (userLoading || !currentUser) {
     return <div className="flex items-center justify-center h-[50vh] text-slate-400">Laden...</div>;
@@ -319,20 +359,24 @@ export default function Chat() {
              {/* Mentions dropdown */}
              {showMentions && filteredMentions.length > 0 && (
                <div className="absolute bottom-full left-2 right-2 sm:left-14 sm:right-14 mb-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50">
-                 {filteredMentions.map(user => (
+                 {filteredMentions.map((user, i) => (
                    <button
                      key={user.email}
                      type="button"
+                     data-no-lift
+                     onMouseEnter={() => setMentionIndex(i)}
                      onClick={() => insertMention(user)}
-                     className="w-full px-4 py-2 flex items-center gap-2 hover:bg-[#f5f5f5] text-left"
+                     className={`w-full px-4 py-2 flex items-center gap-2 text-left min-w-0 ${
+                       i === mentionIndex ? 'bg-[#ef5a24]/10' : 'hover:bg-[#f5f5f5]'
+                     }`}
                    >
-                     <Avatar className="h-6 w-6">
-                       <AvatarFallback className={`text-xs ${user.email === 'alle' ? 'bg-orange-100 text-orange-600' : 'bg-[#ef5a24]/10 text-[#ef5a24]'}`}>
-                         {user.email === 'alle' ? '👥' : user.name[0]?.toUpperCase()}
+                     <Avatar className="h-6 w-6 shrink-0">
+                       <AvatarFallback className={`text-xs ${user.isAll ? 'bg-[#ef5a24] text-white' : 'bg-[#ef5a24]/10 text-[#ef5a24]'}`}>
+                         {user.isAll ? '@' : user.name[0]?.toUpperCase()}
                        </AvatarFallback>
                      </Avatar>
-                     <span className="text-sm font-medium">{user.name}</span>
-                     {user.email !== 'alle' && <span className="text-xs text-slate-400">{user.email}</span>}
+                     <span className="text-sm font-medium shrink-0">{user.name}</span>
+                     {!user.isAll && <span className="text-xs text-slate-400 truncate">{user.email}</span>}
                    </button>
                  ))}
                </div>
@@ -354,10 +398,8 @@ export default function Chat() {
                     ref={inputRef}
                     value={message}
                     onChange={handleMessageChange}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') setShowMentions(false);
-                    }}
-                    placeholder="Nachricht... (@ für Erwähnung)" 
+                    onKeyDown={handleMentionKeys}
+                    placeholder={t('chatPlaceholder')} 
                     className="flex-1 min-w-0 rounded-full bg-slate-50 border-slate-200 focus-visible:ring-[#ef5a24] text-sm"
                 />
                 <Button 
