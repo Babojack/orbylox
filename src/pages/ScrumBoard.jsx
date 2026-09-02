@@ -151,6 +151,8 @@ export default function ScrumBoard() {
   // Wer wartet auf wen — einmal aufgebaut, von Karten und Dialog genutzt.
   const tasksById = React.useMemo(() => indexTasks(tasks || []), [tasks]);
   const [blockedNotice, setBlockedNotice] = React.useState(null);
+  /** Ticket, das gerade gezogen wird — fuer die Rueckmeldung an den Spalten. */
+  const [draggingTask, setDraggingTask] = React.useState(null);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -455,7 +457,13 @@ export default function ScrumBoard() {
     [getTasksForColumnFiltered],
   );
 
+  const onDragStart = (start) => {
+    const t = (tasks || []).find((x) => x.id === start.draggableId);
+    setDraggingTask(t || null);
+  };
+
   const onDragEnd = (result) => {
+    setDraggingTask(null);
     if (result.reason === "CANCEL") return;
     if (!result.destination) return;
 
@@ -1011,25 +1019,46 @@ export default function ScrumBoard() {
           )}
         </div>
       ) : (
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="flex gap-3 sm:gap-4 overflow-auto pb-4 flex-1 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
           {Object.entries(COLUMNS).map(([columnId, config]) => {
             const columnTasks = getColumnTasks(columnId);
             const columnIndex = Object.keys(COLUMNS).indexOf(columnId);
+            // Waehrend des Ziehens zeigt jede Spalte, ob sie das Ticket
+            // ueberhaupt annehmen wuerde — man sieht es VOR dem Loslassen.
+            const dropCheck = draggingTask
+              ? canMoveTo(draggingTask, columnId, tasksById)
+              : { ok: true };
+            const forbidden = !!draggingTask && !dropCheck.ok;
             return (
             <Reveal
               key={columnId}
               index={columnIndex}
               className="flex-shrink-0 w-[80vw] sm:flex-1 sm:w-auto sm:min-w-[260px] snap-center sm:snap-align-none flex"
             >
-            <div className="flex-1 flex flex-col bg-slate-50/50 rounded-2xl border border-slate-100/60 min-h-[60vh]">
+            <div
+              className={`flex-1 flex flex-col bg-slate-50/50 rounded-2xl border min-h-[60vh] transition-all duration-200 ${
+                forbidden ? 'border-slate-200 opacity-45' : 'border-slate-100/60'
+              }`}
+            >
               <div className={`p-4 border-b border-slate-100 rounded-t-2xl ${config.color} bg-opacity-40`}>
-                <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-slate-700">{t(config.key)}</h3>
-                    <Badge variant="secondary" className="bg-white text-slate-500 shadow-sm">
+                <div className="flex justify-between items-center gap-2">
+                    <h3 className="font-semibold text-slate-700 flex items-center gap-1.5 min-w-0">
+                      {forbidden && <Lock className="w-3.5 h-3.5 shrink-0 text-slate-400" />}
+                      <span className="truncate">{t(config.key)}</span>
+                    </h3>
+                    <Badge variant="secondary" className="bg-white text-slate-500 shadow-sm shrink-0">
                         {columnTaskCount(columnId)}
                     </Badge>
                 </div>
+                {forbidden && (
+                  <p className="mt-1.5 text-[11px] leading-tight text-slate-500">
+                    {t('cannotMoveToDone').replace(
+                      '{list}',
+                      dropCheck.blockers.map((b) => b.title).join(', '),
+                    )}
+                  </p>
+                )}
               </div>
 
               <div className="flex-1 p-2 min-h-[120px]">
@@ -1042,15 +1071,15 @@ export default function ScrumBoard() {
                     <div
                       {...provided.droppableProps}
                       ref={provided.innerRef}
-                      className={`min-h-[72px] space-y-2 transition-colors ${
-                        snapshot.isDraggingOver
-                          ? "bg-[#f5f5f5] rounded-xl px-1 py-1"
+                      className={`min-h-[72px] space-y-2 transition-all duration-200 ${
+                        snapshot.isDraggingOver && !forbidden
+                          ? "bg-[#ef5a24]/8 outline-2 outline-dashed outline-[#ef5a24] outline-offset-2 px-1 py-1"
                           : ""
                       }`}
                     >
                       {columnTasks.length === 0 && (
                         <p className="text-xs text-slate-400 text-center py-8 px-3">
-                          Keine Aufgaben in dieser Spalte.
+                          {t('noTasksInColumn')}
                         </p>
                       )}
                       {columnTasks.map((draggableTask, index) => {
@@ -1071,7 +1100,7 @@ export default function ScrumBoard() {
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                               className={`relative bg-white p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-all group cursor-grab active:cursor-grabbing ${
-                                    snapshot.isDragging ? "shadow-2xl scale-105 ring-2 ring-[#ef5a24]/50 z-50" : ""
+                                    snapshot.isDragging ? "shadow-2xl rotate-2 ring-2 ring-[#ef5a24] z-50 cursor-grabbing" : ""
                                   } ${
                                     draggableTask.priority === "high" && !snapshot.isDragging ? "border-red-200 animate-pulse-border" : "border-slate-100"
                                   }`}
