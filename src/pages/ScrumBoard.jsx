@@ -17,6 +17,8 @@ import DustEffect from "@/components/kanban/DustEffect";
 import { indexTasks, openBlockersOf, canMoveTo } from "@/lib/taskDependencies";
 import { useLanguage } from "@/components/LanguageProvider";
 import { notifyAssignment } from "@/lib/notifyAssignment";
+import { Reveal } from "@/components/motion/Reveal";
+import { BoardSkeleton } from "@/components/motion/Skeletons";
 
 /* `key` zeigt auf den Uebersetzungsschluessel — die Spaltentitel standen
    vorher fest auf Englisch, auch in der deutschen Fassung. */
@@ -546,7 +548,14 @@ export default function ScrumBoard() {
     return allComments.filter(c => c.task_id === taskId).length;
   };
 
-  if (isLoading || userLoading) return <div className="flex items-center justify-center h-[70vh] text-slate-400">Loading Board...</div>;
+  if (isLoading || userLoading) {
+    return (
+      <div className="min-h-[calc(100vh-120px)] flex flex-col">
+        <div className="h-8 w-48 bg-slate-200/80 animate-pulse mb-6" />
+        <BoardSkeleton columns={4} />
+      </div>
+    );
+  }
   if (!currentUser) return <div className="flex items-center justify-center h-[70vh] text-slate-400">Redirecting to login...</div>;
   if (!tasks) return <div className="flex items-center justify-center h-[70vh] text-slate-400"><AlertCircle className="mr-2" /> Failed to load tasks</div>;
   if (project && !hasAccess) return <div className="flex items-center justify-center h-[70vh] text-red-500"><AlertCircle className="mr-2" /> No access to this project</div>;
@@ -1006,8 +1015,14 @@ export default function ScrumBoard() {
         <div className="flex gap-3 sm:gap-4 overflow-auto pb-4 flex-1 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
           {Object.entries(COLUMNS).map(([columnId, config]) => {
             const columnTasks = getColumnTasks(columnId);
+            const columnIndex = Object.keys(COLUMNS).indexOf(columnId);
             return (
-            <div key={columnId} className="flex-shrink-0 w-[80vw] sm:flex-1 sm:w-auto sm:min-w-[260px] flex flex-col bg-slate-50/50 rounded-2xl border border-slate-100/60 snap-center sm:snap-align-none min-h-[60vh]">
+            <Reveal
+              key={columnId}
+              index={columnIndex}
+              className="flex-shrink-0 w-[80vw] sm:flex-1 sm:w-auto sm:min-w-[260px] snap-center sm:snap-align-none flex"
+            >
+            <div className="flex-1 flex flex-col bg-slate-50/50 rounded-2xl border border-slate-100/60 min-h-[60vh]">
               <div className={`p-4 border-b border-slate-100 rounded-t-2xl ${config.color} bg-opacity-40`}>
                 <div className="flex justify-between items-center">
                     <h3 className="font-semibold text-slate-700">{t(config.key)}</h3>
@@ -1170,6 +1185,7 @@ export default function ScrumBoard() {
                 </Droppable>
               </div>
             </div>
+            </Reveal>
             );
           })}
         </div>

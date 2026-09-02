@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { api } from "@/api/apiClient";
 import { createPageUrl } from "@/utils";
+import { CardGridSkeleton } from "@/components/motion/Skeletons";
 import { useLanguage } from "@/components/LanguageProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -225,8 +226,9 @@ export default function Dashboard() {
 
   if (userLoading || tasksLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#ef5a24]" />
+      <div className="space-y-6">
+        <div className="h-5 w-44 bg-slate-200/80 animate-pulse" />
+        <CardGridSkeleton count={3} />
       </div>
     );
   }

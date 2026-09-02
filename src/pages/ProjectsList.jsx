@@ -21,6 +21,8 @@ import { useProjectListPrefs } from "@/hooks/useProjectListPrefs";
 import { hasFirebaseConfig } from "@/lib/firebase";
 import { getMaxProjectsForPlan, canCreateProject as canCreateProjectByPlan } from "@/lib/planLimits";
 import OrbyloxMark from "@/components/OrbyloxMark";
+import { EASE, DURATION, STAGGER } from "@/components/motion/Reveal";
+import { CardGridSkeleton } from "@/components/motion/Skeletons";
 
 const ADMIN_EMAIL = "gudfransen@gmail.com";
 const MAX_MEMBERS_PER_PROJECT = 3;
@@ -516,10 +518,10 @@ function ProjectsListContent() {
 
   if (isLoading || userLoading || !user) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ef5a24] mx-auto"></div>
-          <p className="mt-4 text-slate-600">{t('myProjects')}...</p>
+      <div className="min-h-screen bg-[#f5f5f5]">
+        <div className="max-w-7xl mx-auto px-6 py-10">
+          <div className="h-5 w-40 bg-slate-200/80 animate-pulse mb-6" />
+          <CardGridSkeleton count={6} withMedia />
         </div>
       </div>
     );
@@ -1038,8 +1040,9 @@ function ProjectsListContent() {
                           </Badge>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {myFavoriteProjects.map((project) => (
+                          {myFavoriteProjects.map((project, i) => (
                             <ProjectCard
+                              index={i}
                               key={project.id}
                               project={project}
                               language={language}
@@ -1077,8 +1080,9 @@ function ProjectsListContent() {
 
                   {viewMode === "list" ? (
                     <div className="space-y-3">
-                      {myNonFavoriteProjects.map((project) => (
+                      {myNonFavoriteProjects.map((project, i) => (
                         <ProjectCard
+                          index={i}
                           key={project.id}
                           project={project}
                           language={language}
@@ -1106,8 +1110,9 @@ function ProjectsListContent() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {myNonFavoriteProjects.map((project) => (
+                      {myNonFavoriteProjects.map((project, i) => (
                         <ProjectCard
+                          index={i}
                           key={project.id}
                           project={project}
                           language={language}
@@ -1162,8 +1167,9 @@ function ProjectsListContent() {
                         </Badge>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {sharedFavoriteProjects.map((project) => (
+                        {sharedFavoriteProjects.map((project, i) => (
                           <ProjectCard
+                            index={i}
                             key={project.id}
                             project={project}
                             language={language}
@@ -1202,8 +1208,9 @@ function ProjectsListContent() {
 
                 {viewMode === "list" ? (
                   <div className="space-y-3">
-                    {sharedNonFavoriteProjects.map((project) => (
+                    {sharedNonFavoriteProjects.map((project, i) => (
                       <ProjectCard
+                        index={i}
                         key={project.id}
                         project={project}
                         language={language}
@@ -1232,8 +1239,9 @@ function ProjectsListContent() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {sharedNonFavoriteProjects.map((project) => (
+                    {sharedNonFavoriteProjects.map((project, i) => (
                       <ProjectCard
+                        index={i}
                         key={project.id}
                         project={project}
                         language={language}
@@ -1292,6 +1300,7 @@ function ProjectCard({
   isFavorite,
   stats,
   compact = false,
+  index = 0,
 }) {
   const timer = getProjectTimer(project.id, project);
   const running = timer.isRunning;
@@ -1307,9 +1316,13 @@ function ProjectCard({
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.98 }}
-      transition={{ type: "spring", stiffness: 420, damping: 32, mass: 0.8 }}
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.985 }}
+      transition={{
+        duration: DURATION,
+        ease: EASE,
+        // Karten laufen nacheinander ein; ab ~9 Karten gedeckelt, sonst
+        // wartet die letzte spuerbar lange.
+        delay: Math.min(index * STAGGER, 0.4),
+      }}
     >
       <Card
         className={`hover:shadow-xl transition-all duration-300 cursor-pointer group border-2 relative ${

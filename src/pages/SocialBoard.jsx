@@ -22,6 +22,9 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import ImageCollage from "@/components/feed/ImageCollage";
+import { FeedSkeleton } from "@/components/motion/Skeletons";
+import { Reveal } from "@/components/motion/Reveal";
+import { AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/components/LanguageProvider";
 
 function avatarSeedFromEmail(email = "") {
@@ -338,10 +341,7 @@ export default function SocialBoard() {
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">{t('projectFeed')}</h2>
           <p className="text-slate-500">{t('feedSubtitle')}</p>
         </div>
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <div className="w-8 h-8 border-4 border-[#ef5a24] border-t-transparent rounded-full animate-spin mb-4" />
-          <span>{t('feedLoading')}</span>
-        </div>
+        <FeedSkeleton count={3} />
       </div>
     );
   }
@@ -438,7 +438,7 @@ export default function SocialBoard() {
             <p className="text-slate-400 text-lg">{t('noPostsYet')}</p>
             <p className="text-slate-300 text-sm mt-2">{t('createFirstPost')}</p>
           </div>
-        ) : sortedPosts.map((post) => (
+        ) : <AnimatePresence initial={false}>{sortedPosts.map((post, postIndex) => (
           (() => {
             const allPostImages = Array.isArray(post.images)
               ? post.images
@@ -449,8 +449,13 @@ export default function SocialBoard() {
               (url) => typeof url === "string" && url.trim() !== "" && !url.startsWith("blob:")
             );
             return (
-          <Card
+          <Reveal
             key={post.id}
+            index={postIndex}
+            layout
+            exit={{ opacity: 0, y: -6, transition: { duration: 0.2 } }}
+          >
+          <Card
             className={`shadow-sm hover:shadow-md transition-shadow min-w-0 max-w-full overflow-hidden ${
               post.pinned ? 'border-[#ef5a24]/30 bg-[#f5f5f5]' : 'border-slate-100'
             }`}
@@ -629,9 +634,10 @@ export default function SocialBoard() {
                )}
             </CardFooter>
           </Card>
+          </Reveal>
             );
           })()
-        ))}
+        ))}</AnimatePresence>}
       </div>
     </div>
   );
