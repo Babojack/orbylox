@@ -195,7 +195,7 @@ function AboutContent() {
     <div className="min-h-screen bg-white">
       {/* Kopfzeile */}
       <header className="border-b-2 border-black sticky top-0 bg-white/95 backdrop-blur-sm z-40">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2 group" title={de ? 'Zur Startseite' : 'To the homepage'}>
             <OrbyloxMark className="w-8 h-8 shrink-0 transition-transform group-hover:-rotate-6" />
             <span className="font-extrabold tracking-tight">RBYLOX</span>
@@ -235,7 +235,7 @@ function AboutContent() {
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 sm:py-12">
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -411,9 +411,12 @@ function AboutContent() {
                 </p>
               )}
 
-              {/* Ansicht */}
+              {/* Ansicht.
+                  Zwei Spalten bis 1280 px, erst darüber drei. Lieber wenige
+                  große Karten als viele kleine — auf dem Foto soll der
+                  Pullover zu erkennen sein, nicht nur der Kopf. */}
               {!editing && team.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
                   {team.map((m, i) => (
                     <Reveal key={m.id} index={i}>
                       <article className="border-2 border-black bg-white h-full flex flex-col overflow-hidden">

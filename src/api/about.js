@@ -14,7 +14,7 @@ const ENDPOINT =
 
 /** Fallback, falls der Endpunkt fehlt (lokale Entwicklung ohne PHP). */
 export const ABOUT_FALLBACK = {
-  hero_image: '/team/team.jpg',
+  hero_image: '/team/team-v2.jpg',
   hero_alt: 'Das ORBYLOX-Team',
   de: {
     headline: 'Über uns',
@@ -42,27 +42,27 @@ export const ABOUT_FALLBACK = {
   // etwas Sinnvolles zeigen soll, wenn der PHP-Endpunkt nicht erreichbar ist.
   team: [
     {
-      id: 'jeyhun-afandiyev', name: 'Jeyhun Afandiyev', photo: '/team/jeyhun-afandiyev.jpg',
+      id: 'jeyhun-afandiyev', name: 'Jeyhun Afandiyev', photo: '/team/jeyhun-afandiyev-v2.jpg',
       role_de: 'Gründer & Geschäftsführer (CEO)', role_en: 'Founder & CEO',
       bio_de: '', bio_en: '', email: '', link: '',
     },
     {
-      id: 'ilkin-alibayli', name: 'Ilkin Alibayli', photo: '/team/ilkin-alibayli.jpg',
+      id: 'ilkin-alibayli', name: 'Ilkin Alibayli', photo: '/team/ilkin-alibayli-v2.jpg',
       role_de: 'Technischer Leiter (CTO)', role_en: 'CTO',
       bio_de: '', bio_en: '', email: '', link: '',
     },
     {
-      id: 'solution-architect', name: '', photo: '/team/solution-architect.jpg',
+      id: 'solution-architect', name: '', photo: '/team/solution-architect-v2.jpg',
       role_de: 'Solution Architect', role_en: 'Solution Architect',
       bio_de: '', bio_en: '', email: '', link: '',
     },
     {
-      id: 'nick-huseynov', name: 'Nick Huseynov', photo: '/team/nick-huseynov.jpg',
+      id: 'nick-huseynov', name: 'Nick Huseynov', photo: '/team/nick-huseynov-v2.jpg',
       role_de: 'Leiter Finanzen', role_en: 'Finance Director',
       bio_de: '', bio_en: '', email: '', link: '',
     },
     {
-      id: 'murad-rustamov', name: 'Murad Rustamov', photo: '/team/murad-rustamov.jpg',
+      id: 'murad-rustamov', name: 'Murad Rustamov', photo: '/team/murad-rustamov-v2.jpg',
       role_de: 'Teamleiter IT', role_en: 'IT Team Lead',
       bio_de: '', bio_en: '', email: '', link: '',
     },

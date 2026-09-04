@@ -31,7 +31,7 @@ function aboutFilePath(): string
 function aboutDefault(): array
 {
     return [
-        'hero_image' => '/team/team.jpg',
+        'hero_image' => '/team/team-v2.jpg',
         'hero_alt' => 'Das ORBYLOX-Team',
         'de' => [
             'headline' => 'Über uns',
@@ -55,7 +55,7 @@ function aboutDefault(): array
         [
             'id' => 'jeyhun-afandiyev',
             'name' => 'Jeyhun Afandiyev',
-            'photo' => '/team/jeyhun-afandiyev.jpg',
+            'photo' => '/team/jeyhun-afandiyev-v2.jpg',
             'role_de' => 'Gründer & Geschäftsführer (CEO)',
             'role_en' => 'Founder & CEO',
             'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
@@ -63,7 +63,7 @@ function aboutDefault(): array
         [
             'id' => 'ilkin-alibayli',
             'name' => 'Ilkin Alibayli',
-            'photo' => '/team/ilkin-alibayli.jpg',
+            'photo' => '/team/ilkin-alibayli-v2.jpg',
             'role_de' => 'Technischer Leiter (CTO)',
             'role_en' => 'CTO',
             'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
@@ -71,7 +71,7 @@ function aboutDefault(): array
         [
             'id' => 'solution-architect',
             'name' => '',
-            'photo' => '/team/solution-architect.jpg',
+            'photo' => '/team/solution-architect-v2.jpg',
             'role_de' => 'Solution Architect',
             'role_en' => 'Solution Architect',
             'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
@@ -79,7 +79,7 @@ function aboutDefault(): array
         [
             'id' => 'nick-huseynov',
             'name' => 'Nick Huseynov',
-            'photo' => '/team/nick-huseynov.jpg',
+            'photo' => '/team/nick-huseynov-v2.jpg',
             'role_de' => 'Leiter Finanzen',
             'role_en' => 'Finance Director',
             'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
@@ -87,7 +87,7 @@ function aboutDefault(): array
         [
             'id' => 'murad-rustamov',
             'name' => 'Murad Rustamov',
-            'photo' => '/team/murad-rustamov.jpg',
+            'photo' => '/team/murad-rustamov-v2.jpg',
             'role_de' => 'Teamleiter IT',
             'role_en' => 'IT Team Lead',
             'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
