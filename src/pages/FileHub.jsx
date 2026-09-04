@@ -52,10 +52,9 @@ export default function FileHub() {
   const { data: files, isLoading } = useQuery({
     queryKey: ['files', projectId, currentFolderId],
     queryFn: async () => {
-      const allFiles = await api.entities.FileRecord.list('-created_date', 200);
-      return allFiles.filter(f => 
-        f.project_id === projectId && 
-        (currentFolderId ? f.folder_id === currentFolderId : !f.folder_id)
+      const projectFiles = await api.entities.FileRecord.listByProject(projectId, '-created_date');
+      return projectFiles.filter(f =>
+        currentFolderId ? f.folder_id === currentFolderId : !f.folder_id
       );
     },
     initialData: [],
@@ -68,8 +67,7 @@ export default function FileHub() {
   const { data: folders } = useQuery({
     queryKey: ['folders', projectId],
     queryFn: async () => {
-      const allFolders = await api.entities.Folder.list('-created_date', 200);
-      return allFolders.filter(f => f.project_id === projectId);
+      return api.entities.Folder.listByProject(projectId, '-created_date');
     },
     initialData: [],
     staleTime: 0,

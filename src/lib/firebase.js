@@ -11,7 +11,12 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  memoryLocalCache,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -40,7 +45,31 @@ const analytics =
     ? getAnalytics(app)
     : null;
 const auth = app ? getAuth(app) : null;
-const db = app ? getFirestore(app) : null;
+/**
+ * Firestore mit dauerhaftem Cache im Geraetespeicher (IndexedDB).
+ *
+ * Vorher lief alles ueber den fluechtigen Speicher: jeder Seitenaufruf holte
+ * jedes Dokument komplett neu vom Server. Jetzt liegt der Bestand lokal,
+ * Firestore zieht nur noch Aenderungen nach — der zweite Aufruf ist sofort da,
+ * und ohne Netz laesst sich weiter lesen und schreiben (wird spaeter
+ * synchronisiert).
+ *
+ * Mehrere offene Tabs teilen sich den Cache ueber den Tab-Manager. Faellt
+ * IndexedDB aus (privater Modus in manchen Browsern), springt der fluechtige
+ * Speicher ein — die App laeuft dann wie bisher.
+ */
+function createDb(firebaseApp) {
+  try {
+    return initializeFirestore(firebaseApp, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch (err) {
+    console.warn("[Firestore] Dauerhafter Cache nicht verfuegbar, nutze Speicher:", err?.message || err);
+    return initializeFirestore(firebaseApp, { localCache: memoryLocalCache() });
+  }
+}
+
+const db = app ? createDb(app) : null;
 const storage = app ? getStorage(app) : null;
 
 const googleProvider = app ? new GoogleAuthProvider() : null;

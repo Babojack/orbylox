@@ -17,6 +17,7 @@ import {
   collection,
   doc,
   getDocs,
+  getDocsFromCache,
   getDoc,
   setDoc,
   updateDoc,
@@ -249,6 +250,72 @@ function chunkArray(arr, size = 10) {
   return out;
 }
 
+/**
+ * Zugaengliche Projekt-IDs, 30 Sekunden gemerkt.
+ *
+ * Jeder list()-Aufruf holte vorher zuerst die komplette Projektliste, nur um
+ * die IDs zu kennen. Die Projektuebersicht ruft list() sechsmal parallel auf
+ * (fuer die Zaehler auf den Karten) — das waren sechs identische Abfragen
+ * derselben Projekte, bevor ueberhaupt Daten kamen.
+ */
+const accessibleProjectsMemo = { key: "", at: 0, promise: null };
+const PROJECT_IDS_TTL_MS = 30000;
+
+function invalidateAccessibleProjects() {
+  accessibleProjectsMemo.key = "";
+  accessibleProjectsMemo.promise = null;
+}
+
+async function accessibleProjectIdsFor(db, userId, emailLower) {
+  const key = `${userId}|${emailLower}`;
+  const fresh =
+    accessibleProjectsMemo.key === key &&
+    accessibleProjectsMemo.promise &&
+    Date.now() - accessibleProjectsMemo.at < PROJECT_IDS_TTL_MS;
+  if (fresh) return accessibleProjectsMemo.promise;
+
+  const clauses = [where("userId", "==", userId)];
+  if (emailLower) {
+    clauses.push(where("created_by", "==", emailLower));
+    clauses.push(where("members", "array-contains", emailLower));
+  }
+  const promise = getDocs(query(collection(db, "Project"), or(...clauses))).then((snap) => [
+    ...new Set(snap.docs.map((d) => d.id).filter(Boolean)),
+  ]);
+  accessibleProjectsMemo.key = key;
+  accessibleProjectsMemo.at = Date.now();
+  accessibleProjectsMemo.promise = promise;
+  promise.catch(invalidateAccessibleProjects);
+  return promise;
+}
+
+/**
+ * Alles aus EINEM Projekt — eine einzige Abfrage.
+ *
+ * Der bisherige Weg (list() und dann im Browser nach project_id sieben) lud
+ * die Daten ALLER Projekte, inklusive vollstaendiger Notizinhalte und
+ * Chatverlaeufe, und warf dann 95 % davon weg. Fuer jede Seite eines Projekts.
+ */
+async function firestoreListByProject(db, collectionName, projectId, orderBy) {
+  const q = query(collection(db, collectionName), where("project_id", "==", projectId));
+  const toItems = (snap) => sortItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })), orderBy);
+
+  // Erst der Geraetespeicher: was schon da ist, erscheint sofort. Die
+  // Echtzeit-Listener (useProjectRealtimeSync) beobachten genau dieselbe
+  // Abfrage und halten den Speicher aktuell — Aenderungen vom Server kommen
+  // also weiterhin an, nur eben ohne dass der Nutzer auf sie warten muss.
+  try {
+    const cached = await getDocsFromCache(q);
+    if (!cached.empty) {
+      getDocs(q).catch(() => {}); // Server-Stand im Hintergrund nachziehen
+      return toItems(cached);
+    }
+  } catch {
+    /* kein Cache-Treffer — normal beim ersten Aufruf */
+  }
+  return toItems(await getDocs(q));
+}
+
 async function firestoreList(db, collectionName, userId, orderBy) {
   const coll = collection(db, collectionName);
   const user = await getStorageUser();
@@ -267,11 +334,7 @@ async function firestoreList(db, collectionName, userId, orderBy) {
     return sortItems(items, orderBy);
   }
 
-  const projectColl = collection(db, "Project");
-  const projectSnap = await getDocs(query(projectColl, or(...projectClauses)));
-  const accessibleProjectIds = [
-    ...new Set(projectSnap.docs.map((d) => d.id).filter(Boolean)),
-  ];
+  const accessibleProjectIds = await accessibleProjectIdsFor(db, userId, emailLower);
 
   const dedupe = (items) => [...new Map(items.map((item) => [item.id, item])).values()];
 
@@ -849,13 +912,42 @@ function createEntityApi(entityName) {
         throw err;
       }
     },
+    /**
+     * Nur die Eintraege eines Projekts — direkt gefiltert, eine Abfrage.
+     * Ohne Firebase (Demo/lokal) faellt es auf list()+Filter zurueck.
+     */
+    async listByProject(projectId, orderBy = "-created_date") {
+      if (!projectId) return [];
+      await delay();
+      const user = await getStorageUser();
+      const userId = user ? getStorageUserId(user) : null;
+      const canQueryDirectly =
+        !user?.demo && hasFirebaseConfig && firestoreDb && userId &&
+        PROJECT_SCOPED_COLLECTIONS.has(entityName);
+      if (!canQueryDirectly) {
+        const items = await this.list(orderBy);
+        return items.filter((item) => item.project_id === projectId);
+      }
+      try {
+        return await firestoreListByProject(firestoreDb, entityName, projectId, orderBy);
+      } catch (err) {
+        console.error(`[Firestore] ${entityName}.listByProject fehlgeschlagen:`, err.message);
+        throw err;
+      }
+    },
     async filter(whereClause = {}, orderBy = "-created_date") {
+      // Schnellweg: nur nach Projekt gefiltert -> direkte Abfrage
+      const keys = Object.keys(whereClause);
+      if (keys.length === 1 && keys[0] === "project_id" && whereClause.project_id) {
+        return this.listByProject(whereClause.project_id, orderBy);
+      }
       const items = await this.list(orderBy);
       return items.filter((item) =>
         Object.entries(whereClause).every(([k, v]) => item[k] === v),
       );
     },
     async create(data) {
+      if (entityName === "Project") invalidateAccessibleProjects();
       await delay();
       const payload =
         entityName === "Project" ? normalizeProjectPayloadForSave({ ...data }) : data;
@@ -914,6 +1006,7 @@ function createEntityApi(entityName) {
       }
     },
     async update(id, data) {
+      if (entityName === "Project") invalidateAccessibleProjects();
       await delay();
       const patch =
         entityName === "Project" ? normalizeProjectPayloadForSave({ ...data }) : data;
@@ -971,6 +1064,7 @@ function createEntityApi(entityName) {
       }
     },
     async delete(id) {
+      if (entityName === "Project") invalidateAccessibleProjects();
       await delay();
       const user = await getStorageUser();
       if (user?.demo) {

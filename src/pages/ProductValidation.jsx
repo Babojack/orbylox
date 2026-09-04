@@ -48,8 +48,7 @@ export default function ProductValidation() {
   const { data: ideas = [], isLoading } = useQuery({
     queryKey: ['productIdeas', projectId],
     queryFn: async () => {
-      const all = await api.entities.ProductIdea.list('-created_date', 100);
-      return all.filter(i => i.project_id === projectId);
+      return api.entities.ProductIdea.listByProject(projectId, '-created_date');
     },
     enabled: !!projectId
   });

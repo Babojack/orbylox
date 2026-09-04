@@ -137,8 +137,7 @@ export default function ScrumBoard() {
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks', projectId],
     queryFn: async () => {
-      const allTasks = await api.entities.Task.list('-updated_date', 200);
-      return allTasks.filter(t => t.project_id === projectId);
+      return api.entities.Task.listByProject(projectId, '-updated_date');
     },
     initialData: [],
     staleTime: 0,
@@ -226,14 +225,14 @@ export default function ScrumBoard() {
   // Fetch subtasks count for each task
   const { data: allSubtasks = [] } = useQuery({
     queryKey: ['allSubtasks', projectId],
-    queryFn: () => api.entities.Subtask.list('-created_date', 500),
+    queryFn: () => api.entities.Subtask.listByProject(projectId, '-created_date'),
     enabled: !!projectId
   });
 
   // Fetch comments count for each task
   const { data: allComments = [] } = useQuery({
     queryKey: ['allComments', projectId],
-    queryFn: () => api.entities.TaskComment.list('-created_date', 500),
+    queryFn: () => api.entities.TaskComment.listByProject(projectId, '-created_date'),
     enabled: !!projectId
   });
   

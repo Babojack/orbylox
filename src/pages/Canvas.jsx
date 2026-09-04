@@ -214,8 +214,7 @@ export default function MindMap() {
   const { data: serverNodes = [], isLoading: isLoadingNodes } = useQuery({
     queryKey: ['mindmapNodes', projectId],
     queryFn: async () => {
-      const all = await api.entities.CanvasItem.list('-created_date', 200);
-      return all.filter(i => i.project_id === projectId);
+      return api.entities.CanvasItem.listByProject(projectId, '-created_date');
     },
     staleTime: Infinity, // Никогда не перезагружать автоматически
     refetchOnMount: false,
@@ -227,8 +226,7 @@ export default function MindMap() {
   const { data: serverConnections = [], isLoading: isLoadingConnections } = useQuery({
     queryKey: ['mindmapConnections', projectId],
     queryFn: async () => {
-      const all = await api.entities.CanvasConnection.list('-created_date', 200);
-      return all.filter(c => c.project_id === projectId);
+      return api.entities.CanvasConnection.listByProject(projectId, '-created_date');
     },
     staleTime: Infinity,
     refetchOnMount: false,
@@ -241,8 +239,7 @@ export default function MindMap() {
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks', projectId],
     queryFn: async () => {
-      const all = await api.entities.Task.list('-updated_date', 200);
-      return all.filter(t => t.project_id === projectId);
+      return api.entities.Task.listByProject(projectId, '-updated_date');
     },
     staleTime: 60000,
     enabled: !!projectId
@@ -251,8 +248,7 @@ export default function MindMap() {
   const { data: projectFiles = [] } = useQuery({
     queryKey: ['canvasFileHubList', projectId],
     queryFn: async () => {
-      const all = await api.entities.FileRecord.list('-created_date', 500);
-      return all.filter((f) => f.project_id === projectId);
+      return api.entities.FileRecord.listByProject(projectId, '-created_date');
     },
     staleTime: 30000,
     enabled: !!projectId,
@@ -378,8 +374,7 @@ export default function MindMap() {
   const { data: comments = [] } = useQuery({
     queryKey: ['canvasComments', projectId],
     queryFn: async () => {
-      const all = await api.entities.CanvasComment.list('-created_date', 500);
-      return all.filter(c => c.project_id === projectId);
+      return api.entities.CanvasComment.listByProject(projectId, '-created_date');
     },
     staleTime: 30000,
     enabled: !!projectId,

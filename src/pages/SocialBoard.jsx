@@ -78,7 +78,7 @@ export default function SocialBoard() {
   // Fetch comments with optimized settings
   const { data: allComments = [] } = useQuery({
     queryKey: ['postComments', projectId],
-    queryFn: () => api.entities.PostComment.list('-created_date', 500),
+    queryFn: () => api.entities.PostComment.listByProject(projectId, '-created_date'),
     staleTime: 30000,
     enabled: !!projectId
   });

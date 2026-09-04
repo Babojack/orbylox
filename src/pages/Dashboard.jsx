@@ -72,8 +72,7 @@ export default function Dashboard() {
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
     queryKey: ["tasks", projectId],
     queryFn: async () => {
-      const all = await api.entities.Task.list("-updated_date", 300);
-      return filterByProject(all, projectId);
+      return api.entities.Task.listByProject(projectId, "-updated_date");
     },
     enabled: !!projectId,
     staleTime: 15000,
@@ -82,11 +81,9 @@ export default function Dashboard() {
   const { data: subtasks = [] } = useQuery({
     queryKey: ["dashboardSubtasks", projectId],
     queryFn: async () => {
-      const allTasks = await api.entities.Task.list("-updated_date", 300);
-      const projectTasks = filterByProject(allTasks, projectId);
-      const taskIds = new Set(projectTasks.map((t) => t.id));
-      const all = await api.entities.Subtask.list("-updated_date", 500);
-      return (Array.isArray(all) ? all : []).filter((s) => taskIds.has(s.task_id));
+      // Unteraufgaben tragen selbst eine project_id — direkt abfragen.
+      const all = await api.entities.Subtask.listByProject(projectId, "-updated_date");
+      return Array.isArray(all) ? all : [];
     },
     enabled: !!projectId,
   });
@@ -108,8 +105,7 @@ export default function Dashboard() {
   const { data: messages = [] } = useQuery({
     queryKey: ["messages", projectId],
     queryFn: async () => {
-      const all = await api.entities.Message.list("-created_date", 200);
-      return filterByProject(all, projectId);
+      return api.entities.Message.listByProject(projectId, "-created_date");
     },
     enabled: !!projectId,
     staleTime: 30000,
@@ -118,8 +114,7 @@ export default function Dashboard() {
   const { data: files = [] } = useQuery({
     queryKey: ["files", projectId],
     queryFn: async () => {
-      const all = await api.entities.FileRecord.list("-created_date", 200);
-      return filterByProject(all, projectId);
+      return api.entities.FileRecord.listByProject(projectId, "-created_date");
     },
     enabled: !!projectId,
     staleTime: 30000,
@@ -128,8 +123,7 @@ export default function Dashboard() {
   const { data: canvasItems = [] } = useQuery({
     queryKey: ["canvasItems", projectId],
     queryFn: async () => {
-      const all = await api.entities.CanvasItem.list("-updated_date", 200);
-      return filterByProject(all, projectId);
+      return api.entities.CanvasItem.listByProject(projectId, "-updated_date");
     },
     enabled: !!projectId,
     staleTime: 30000,
@@ -138,8 +132,7 @@ export default function Dashboard() {
   const { data: events = [] } = useQuery({
     queryKey: ["events", projectId],
     queryFn: async () => {
-      const all = await api.entities.Event.list("-created_date", 100);
-      return filterByProject(all, projectId);
+      return api.entities.Event.listByProject(projectId, "-created_date");
     },
     enabled: !!projectId,
     staleTime: 30000,

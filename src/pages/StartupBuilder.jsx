@@ -55,8 +55,7 @@ export default function StartupBuilder() {
   const { data: steps = [], isLoading } = useQuery({
     queryKey: ['startupSteps', projectId],
     queryFn: async () => {
-      const allSteps = await api.entities.StartupStep.list('order_index', 200);
-      return allSteps.filter(s => s.project_id === projectId);
+      return api.entities.StartupStep.listByProject(projectId, 'order_index');
     },
     enabled: !!projectId
   });
@@ -65,8 +64,7 @@ export default function StartupBuilder() {
   const { data: journeys = [], isLoading: journeysLoading } = useQuery({
     queryKey: ['startupJourneys', projectId],
     queryFn: async () => {
-      const all = await api.entities.StartupJourney.list('-created_date', 100);
-      return all.filter(j => j.project_id === projectId);
+      return api.entities.StartupJourney.listByProject(projectId, '-created_date');
     },
     enabled: !!projectId
   });

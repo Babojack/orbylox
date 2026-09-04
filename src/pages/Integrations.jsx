@@ -151,8 +151,7 @@ export default function Integrations() {
   const { data: customIntegrations = [] } = useQuery({
     queryKey: ['customIntegrations', projectId],
     queryFn: async () => {
-      const all = await api.entities.CustomIntegration.list('-created_date', 100);
-      return all.filter(i => i.project_id === projectId);
+      return api.entities.CustomIntegration.listByProject(projectId, '-created_date');
     },
     enabled: !!projectId
   });

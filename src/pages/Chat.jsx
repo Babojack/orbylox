@@ -62,8 +62,7 @@ export default function Chat() {
   const { data: messages } = useQuery({
     queryKey: ['messages', projectId],
     queryFn: async () => {
-      const allMessages = await api.entities.Message.list('created_date', 200);
-      return allMessages.filter(m => m.project_id === projectId);
+      return api.entities.Message.listByProject(projectId, 'created_date');
     },
     refetchInterval:
       user?.uid && hasFirebaseConfig ? false : 4000,
