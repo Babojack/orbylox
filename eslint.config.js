@@ -6,11 +6,7 @@ import pluginUnusedImports from "eslint-plugin-unused-imports";
 
 export default [
   {
-    files: [
-      "src/components/**/*.{js,mjs,cjs,jsx}",
-      "src/pages/**/*.{js,mjs,cjs,jsx}",
-      "src/Layout.jsx",
-    ],
+    files: ["src/**/*.{js,mjs,cjs,jsx}"],
     ...pluginJs.configs.recommended,
     ...pluginReact.configs.flat.recommended,
     languageOptions: {
@@ -34,6 +30,8 @@ export default [
       "unused-imports": pluginUnusedImports,
     },
     rules: {
+      // Undefinierte Bezeichner sind Laufzeitfehler — hier abfangen, nicht beim Nutzer.
+      "no-undef": "error",
       "no-unused-vars": "off",
       "react/jsx-uses-vars": "error",
       "unused-imports/no-unused-imports": "error",

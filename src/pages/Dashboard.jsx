@@ -266,7 +266,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 w-full min-w-0 max-w-6xl mx-auto pb-8">
       {/* Kontaktpflege — persoenlich, ueber allen Projekten; blinkt bis erledigt */}
-      <ContactCareCard user={currentUser} />
+      <ContactCareCard user={user} />
 
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
