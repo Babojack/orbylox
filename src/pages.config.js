@@ -50,6 +50,7 @@
 import Calendar from './pages/Calendar';
 import Dashboard from './pages/Dashboard';
 import AdminUsers from './pages/AdminUsers';
+import BlogAdmin from './pages/BlogAdmin';
 import Canvas from './pages/Canvas';
 import Chat from './pages/Chat';
 import Docs from './pages/Docs';
@@ -75,6 +76,7 @@ import __Layout from './Layout.jsx';
 
 export const PAGES = {
     "AdminUsers": AdminUsers,
+    "admin": BlogAdmin,
     "Calendar": Calendar,
     "Dashboard": Dashboard,
     "Canvas": Canvas,

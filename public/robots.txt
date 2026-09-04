@@ -1,4 +1,34 @@
+# ORBYLOX — https://orbylox.de
 User-agent: *
 Allow: /
 
-Sitemap: https://yourdomain.com/sitemap.xml
+# Angemeldeter Bereich und Dienstseiten gehoeren nicht in den Index.
+# Die Seiten liefern zusaetzlich einen noindex-Header bzw. -Tag; robots.txt
+# allein verhindert keine Indexierung, sondern nur das Crawlen.
+Disallow: /admin
+Disallow: /AdminUsers
+Disallow: /Profile
+Disallow: /Settings
+Disallow: /Subscription
+Disallow: /ProjectsList
+Disallow: /Dashboard
+Disallow: /ScrumBoard
+Disallow: /Canvas
+Disallow: /Chat
+Disallow: /Docs
+Disallow: /FileHub
+Disallow: /Calendar
+Disallow: /Meeting
+Disallow: /IdeasHub
+Disallow: /StartupBuilder
+Disallow: /ProductValidation
+Disallow: /Integrations
+Disallow: /login
+Disallow: /api/
+
+# Interne Suche erzeugt endlos Varianten derselben Inhalte
+Disallow: /blog?*
+Disallow: /*?search=
+Disallow: /*?q=
+
+Sitemap: https://orbylox.de/sitemap.xml

@@ -5,6 +5,7 @@
 
 # Hostinger invite API secrets (never commit)
 public/api/invite-config.php
+public/api/blog-config.php
 public/api/vendor/
 
 # Serverkonfiguration mit Passwoertern – liegt nur lokal und auf dem Server

@@ -1,0 +1,156 @@
+ORBYLOX BLOG — Einrichtung auf Hostinger
+========================================
+
+ARCHITEKTUR IN EINEM SATZ
+Die Blogseiten werden von PHP serverseitig gerendert (fertiges HTML, kein
+JavaScript noetig), die Redaktion laeuft in der React-App unter /admin, und
+die Artikel liegen als JSON-Datei ausserhalb des Webverzeichnisses.
+
+WARUM NICHT IN REACT
+Die App ist ein Einzelseiten-Programm. Ein Crawler ohne JavaScript sieht dort
+nur <div id="root"></div>. Fuer einen Blog, der ranken soll, ist das wertlos.
+Der PHP-Renderer liefert stattdessen vollstaendiges HTML — und laedt dabei
+nicht das 2-MB-Bundle der App, was den Seiten sehr gute Ladewerte gibt.
+
+
+-------------------------------------------------------------------------
+1. DATEIEN HOCHLADEN
+-------------------------------------------------------------------------
+Aus dist/ nach public_html/ (bzw. domains/orbylox.de/public_html/):
+
+  .htaccess                      <- WICHTIG, enthaelt das Blog-Routing
+  robots.txt
+  index.html, assets/, screens/, models/, favicon.svg, manifest.json
+  api/blog.php
+  api/blog-store.php
+  api/blog-markdown.php
+  api/blog-admin.php
+  api/blog-seed.php
+  api/blog-posts.seed.json
+  api/blog-config.example.php
+  api/.htaccess                  (schuetzt die *-config.php)
+
+Hinweis: .htaccess liegt jetzt fertig im Build. Das frueher noetige Umbenennen
+von "htaccess" nach ".htaccess" entfaellt.
+
+
+-------------------------------------------------------------------------
+2. KONFIGURATION
+-------------------------------------------------------------------------
+api/blog-config.example.php  ->  api/blog-config.php kopieren und ausfuellen:
+
+  'firebase_project_id' => 'deine-firebase-projekt-id',
+  'admin_emails' => ['jey.afandiyev@gmail.com'],
+
+Enthaelt invite-config.php bereits eine firebase_project_id, wird sie auch
+gelesen — dann genuegt dort ergaenzend 'admin_emails'.
+
+blog-config.php ist in .gitignore und wird nie eingecheckt.
+
+
+-------------------------------------------------------------------------
+3. DATENORDNER
+-------------------------------------------------------------------------
+Der Speicher wird automatisch angelegt, eine Ebene UEBER public_html:
+
+  /home/<nutzer>/domains/orbylox.de/orbylox-data/blog-posts.json
+
+Damit ist die Datei per URL nicht abrufbar. Falls das Anlegen scheitert,
+Ordner von Hand erstellen und Schreibrechte geben (chmod 750).
+
+Pruefen: in der Redaktion erscheint bei Fehlern ein Hinweis. Oder direkt:
+  POST /api/blog-admin.php mit {"action":"diag"} und Admin-Token.
+
+
+-------------------------------------------------------------------------
+4. STARTARTIKEL EINSPIELEN (einmalig)
+-------------------------------------------------------------------------
+Per SSH:      php api/blog-seed.php
+Ohne SSH:     Die vier Artikel in der Redaktion von Hand anlegen — oder
+              blog-posts.seed.json in den Datenordner kopieren und in
+              blog-posts.json umbenennen.
+
+Das Skript spielt nur ein, wenn noch keine Beitraege vorhanden sind.
+
+
+-------------------------------------------------------------------------
+5. PRUEFEN
+-------------------------------------------------------------------------
+  https://orbylox.de/blog                      Uebersicht
+  https://orbylox.de/blog/kanban-board-richtig-aufsetzen
+  https://orbylox.de/sitemap.xml               XML mit allen Artikeln
+  https://orbylox.de/robots.txt
+  https://orbylox.de/blog/gibt-es-nicht        muss 404 liefern
+  https://orbylox.de/admin                     Redaktion (nur Admins)
+
+Ohne JavaScript pruefen (der eigentliche Test):
+  curl -s https://orbylox.de/blog/kanban-board-richtig-aufsetzen | grep "<h1"
+Muss den Titel zeigen. Wenn ja, sieht Google den Artikel vollstaendig.
+
+
+-------------------------------------------------------------------------
+6. GOOGLE SEARCH CONSOLE
+-------------------------------------------------------------------------
+a) search.google.com/search-console -> Property "orbylox.de" (Domain)
+b) Bestaetigung per DNS-TXT-Eintrag bei Hostinger
+c) Sitemaps -> "sitemap.xml" eintragen -> Senden
+d) URL-Pruefung fuer /blog und einen Artikel -> "Indexierung beantragen"
+e) Bing Webmaster Tools: dieselbe Sitemap (importiert die Search Console)
+
+Nach dem Veroeffentlichen eines neuen Artikels erscheint er automatisch in
+der Sitemap — kein erneutes Hochladen noetig. Google holt sie in der Regel
+taeglich ab; bei wichtigen Texten die URL-Pruefung nutzen.
+
+Strukturierte Daten testen:
+  search.google.com/test/rich-results  (Artikel-URL einfuegen)
+  validator.schema.org
+
+Core Web Vitals:
+  pagespeed.web.dev  (Blogseiten laden kein JavaScript und kein externes CSS)
+
+
+-------------------------------------------------------------------------
+7. ARBEITSABLAUF
+-------------------------------------------------------------------------
+/admin  ->  Neuer Beitrag  ->  Titel, Text (Markdown), Bild, Kategorie,
+            SEO-Titel und Beschreibung  ->  Status "Veroeffentlicht"
+            ->  Speichern
+
+Der Artikel ist sofort unter /blog/<slug> erreichbar und steht in der
+Sitemap. Kein Build, kein Hochladen.
+
+Status:
+  Entwurf         nicht abrufbar, nicht in der Sitemap
+  Geplant         wird ab dem eingestellten Zeitpunkt automatisch sichtbar
+  Veroeffentlicht sofort sichtbar
+
+Bilder: ueber den Knopf "Bild waehlen" — laeuft ueber den vorhandenen
+Upload-Endpunkt (api/upload.php).
+
+
+-------------------------------------------------------------------------
+8. SICHERHEIT
+-------------------------------------------------------------------------
+- Anmeldung ueber Firebase (Google oder E-Mail+Passwort). Es wird nie ein
+  Passwort in diesem Projekt gespeichert oder gehasht — das macht Firebase.
+- Jeder Schreibvorgang prueft das ID-Token serverseitig gegen Googles
+  Zertifikate (RS256) und danach die Admin-Liste.
+- Der Artikeltext wird als Markdown gespeichert und beim Rendern vollstaendig
+  escaped; eingebettetes HTML oder <script> kann nicht wirksam werden.
+- Links: nur http(s), relative Pfade und Anker. javascript: und data: werden
+  verworfen.
+- /admin, /api/ und alle PHP-Dateien ausser blog.php liefern noindex.
+- Konfigurationsdateien sind per api/.htaccess gesperrt.
+
+
+-------------------------------------------------------------------------
+9. WAS NOCH OFFEN IST
+-------------------------------------------------------------------------
+- Auf diesem Rechner war kein PHP verfuegbar. Syntax und Klammerbilanz wurden
+  lexikalisch geprueft (alle fuenf Dateien in Ordnung), die Escaping- und
+  URL-Regeln mit Testfaellen. Ein echter Durchlauf steht aus:
+  nach dem Hochladen einmal  php -l api/blog.php  bzw. die Seite aufrufen.
+- Volltextsuche im Blog ist noch nicht eingebaut (Kategorien und Schlagwoerter
+  sind es). Sinnvoll ab etwa 20 Artikeln.
+- Newsletter-Anmeldung: die Warteliste auf der Startseite existiert bereits,
+  sie ist im Blog noch nicht eingebunden.
