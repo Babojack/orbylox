@@ -5,6 +5,7 @@ import { createPageUrl } from "@/utils";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import ModuleShowcase from "@/components/landing/ModuleShowcase";
+import BotSection from "@/components/landing/BotSection";
 import OrbyloxMark from "@/components/OrbyloxMark";
 import {
   ArrowRight,
@@ -253,6 +254,8 @@ function LandingContent() {
       </section>
 
       <ModuleShowcase de={de} />
+
+      <BotSection de={de} />
 
       {/* Video: laedt erst nach dem Klick, damit YouTube nicht ungefragt mitliest */}
       <section className="border-b-2 border-black bg-[#f5f5f5]">
