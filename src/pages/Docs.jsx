@@ -53,6 +53,18 @@ export default function Docs() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
     const debounceTimer = React.useRef(null);
+    /**
+     * Woran der Editor gerade haengt — als Ref, nicht als Render-Wert.
+     * Der alte Code las die Notiz-ID beim Tippen aus dem Render-Closure. Beim
+     * Notizwechsel oder beim Tausch temp-ID -> echte ID lief das verzoegerte
+     * Speichern dann mit der falschen oder einer veralteten ID los.
+     */
+    const activeIdRef = React.useRef(null);
+    /** Noch nicht gespeicherter Text: { id, content }. */
+    const pendingRef = React.useRef(null);
+    /** Zuletzt programmatisch geladener Inhalt — Quill meldet das als Aenderung zurueck. */
+    const lastLoadedRef = React.useRef("");
+    const localContentRef = React.useRef("");
     const [dialogViewportHeight, setDialogViewportHeight] = useState(() =>
       typeof window !== 'undefined' ? window.innerHeight : 800
     );
@@ -105,6 +117,9 @@ export default function Docs() {
     setSelectedDocId(tempId);
     setEditTitle(title);
     
+    activeIdRef.current = tempId;
+    lastLoadedRef.current = "";
+
     try {
       const newDoc = await api.entities.Document.create({
         title,
@@ -112,12 +127,30 @@ export default function Docs() {
         project_id: projectId,
         icon: noteType.icon
       });
+
+      // Was waehrend des Anlegens schon getippt wurde, darf beim Tausch der
+      // temp-ID gegen die echte nicht verloren gehen.
+      const typed = activeIdRef.current === tempId ? localContentRef.current : "";
+      const merged = { ...newDoc, content: typed || newDoc.content || "" };
+
       queryClient.setQueryData(['docs', projectId], old =>
-        (old || []).map(d => d.id === tempId ? newDoc : d)
+        (old || []).map(d => d.id === tempId ? merged : d)
       );
+      if (activeIdRef.current === tempId) {
+        activeIdRef.current = newDoc.id;
+        lastLoadedRef.current = merged.content;
+        if (pendingRef.current?.id === tempId) pendingRef.current = null;
+      }
       setSelectedDocId(newDoc.id);
+      if (typed && typed.replace(/<[^>]*>/g, '').trim()) {
+        updateDocMutation.mutate({ id: newDoc.id, data: { content: typed } });
+      }
     } catch (err) {
+      console.error('[Docs] create', err);
       queryClient.setQueryData(['docs', projectId], previous);
+      if (activeIdRef.current === tempId) activeIdRef.current = null;
+      setSelectedDocId(null);
+      return;
     }
     queryClient.invalidateQueries(['docs', projectId]);
   };
@@ -135,8 +168,9 @@ export default function Docs() {
       );
       return { previous, id };
     },
-    onError: (err, vars, context) => {
-      queryClient.setQueryData(['docs', projectId], context.previous);
+    onError: (err) => {
+      console.error('[Docs] update', err);
+      queryClient.invalidateQueries(['docs', projectId]);
     }
   });
 
@@ -171,12 +205,41 @@ export default function Docs() {
   const selectedDoc = docs?.find(d => d.id === selectedDocId);
   const [localContent, setLocalContent] = useState("");
 
+  /** Haengendes Speichern sofort ausfuehren — fuer die Notiz, in der getippt wurde. */
+  const flushPending = React.useCallback(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+      debounceTimer.current = null;
+    }
+    const p = pendingRef.current;
+    pendingRef.current = null;
+    if (p?.id && !String(p.id).startsWith('temp_')) {
+      updateDocMutation.mutate({ id: p.id, data: { content: p.content } });
+    }
+  }, [updateDocMutation]);
+
   React.useEffect(() => {
+    // Zuerst die vorherige Notiz sichern. Vorher wurde der laufende
+    // Speicher-Timer beim Wechsel einfach ueberschrieben — der letzte
+    // Absatz der alten Notiz war damit weg.
+    flushPending();
+    activeIdRef.current = selectedDocId;
     if (selectedDoc) {
-      setLocalContent(selectedDoc.content || "");
+      const content = selectedDoc.content || "";
+      lastLoadedRef.current = content;
+      localContentRef.current = content;
+      setLocalContent(content);
       setEditTitle(selectedDoc.title || "");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDocId]);
+
+  // Beim Verlassen der Seite nichts liegen lassen. Ueber ein Ref, damit der
+  // Aufraeumer nur EINMAL beim Unmount laeuft — nicht bei jedem Tastendruck,
+  // was das verzoegerte Speichern wieder aushebeln wuerde.
+  const flushRef = React.useRef(flushPending);
+  flushRef.current = flushPending;
+  React.useEffect(() => () => flushRef.current?.(), []);
 
   // Keep dialog height in sync with mobile keyboard/visual viewport.
   React.useEffect(() => {
@@ -199,14 +262,32 @@ export default function Docs() {
     };
   }, [selectedDocId]);
 
+  const isSameContent = (a, b) => {
+    const norm = (v) => String(v || "").replace(/<p><br><\/p>/g, "").trim();
+    return norm(a) === norm(b);
+  };
+
   const handleContentChange = (content) => {
     setLocalContent(content);
-    if (selectedDoc) {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      debounceTimer.current = setTimeout(() => {
-        updateDocMutation.mutate({ id: selectedDoc.id, data: { content } });
-      }, 500);
-    }
+    localContentRef.current = content;
+
+    const id = activeIdRef.current;
+    if (!id) return;
+    // Quill meldet das programmatische Laden als Aenderung zurueck. Das ist
+    // kein Tippen — und wuerde sonst den Timer der VORHERIGEN Notiz loeschen.
+    if (isSameContent(content, lastLoadedRef.current)) return;
+
+    pendingRef.current = { id, content };
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      debounceTimer.current = null;
+      const p = pendingRef.current;
+      if (!p) return;
+      // Noch temporaere ID: bleibt haengen, bis die echte da ist (siehe createDocWithType).
+      if (String(p.id).startsWith('temp_')) return;
+      pendingRef.current = null;
+      updateDocMutation.mutate({ id: p.id, data: { content: p.content } });
+    }, 400);
   };
 
   const handleTitleChange = (e) => {
