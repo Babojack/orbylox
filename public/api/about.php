@@ -31,8 +31,8 @@ function aboutFilePath(): string
 function aboutDefault(): array
 {
     return [
-        'hero_image' => '',
-        'hero_alt' => '',
+        'hero_image' => '/team/team.jpg',
+        'hero_alt' => 'Das ORBYLOX-Team',
         'de' => [
             'headline' => 'Über uns',
             'intro' => 'ORBYLOX ist Projektmanagement, das nichts kostet und trotzdem alles kann, was kleine Teams wirklich brauchen.',
@@ -51,7 +51,48 @@ function aboutDefault(): array
             'team_title' => 'The team',
             'team_intro' => 'The people behind ORBYLOX.',
         ],
-        'team' => [],
+    'team' => [
+        [
+            'id' => 'jeyhun-afandiyev',
+            'name' => 'Jeyhun Afandiyev',
+            'photo' => '/team/jeyhun-afandiyev.jpg',
+            'role_de' => 'Gründer & Geschäftsführer (CEO)',
+            'role_en' => 'Founder & CEO',
+            'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
+        ],
+        [
+            'id' => 'ilkin-alibayli',
+            'name' => 'Ilkin Alibayli',
+            'photo' => '/team/ilkin-alibayli.jpg',
+            'role_de' => 'Technischer Leiter (CTO)',
+            'role_en' => 'CTO',
+            'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
+        ],
+        [
+            'id' => 'solution-architect',
+            'name' => '',
+            'photo' => '/team/solution-architect.jpg',
+            'role_de' => 'Solution Architect',
+            'role_en' => 'Solution Architect',
+            'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
+        ],
+        [
+            'id' => 'nick-huseynli',
+            'name' => 'Nick Huseynli',
+            'photo' => '',
+            'role_de' => 'Leiter Finanzen',
+            'role_en' => 'Finance Director',
+            'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
+        ],
+        [
+            'id' => 'it-team-lead',
+            'name' => '',
+            'photo' => '',
+            'role_de' => 'Teamleiter IT',
+            'role_en' => 'IT Team Lead',
+            'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
+        ],
+    ],
         'updated_at' => '',
     ];
 }
@@ -190,13 +231,19 @@ $team = [];
 foreach ((array)($in['team'] ?? []) as $m) {
     if (!is_array($m)) continue;
     $name = aboutText($m['name'] ?? '', 120);
-    if ($name === '') continue; // ohne Namen kein Eintrag
+    $roleDe = aboutText($m['role_de'] ?? '', 120);
+    $roleEn = aboutText($m['role_en'] ?? '', 120);
+    $photo = aboutUrl($m['photo'] ?? '');
+    // Frueher galt: ohne Namen kein Eintrag. Dann verschwand aber jede Karte,
+    // bei der erst Rolle und Foto stehen und der Name noch fehlt — und zwar
+    // beim naechsten Speichern, unbemerkt. Jetzt reicht irgendein Inhalt.
+    if ($name === '' && $roleDe === '' && $roleEn === '' && $photo === '') continue;
     $team[] = [
         'id' => aboutText($m['id'] ?? '', 40) ?: bin2hex(random_bytes(8)),
         'name' => $name,
-        'photo' => aboutUrl($m['photo'] ?? ''),
-        'role_de' => aboutText($m['role_de'] ?? '', 120),
-        'role_en' => aboutText($m['role_en'] ?? '', 120),
+        'photo' => $photo,
+        'role_de' => $roleDe,
+        'role_en' => $roleEn,
         'bio_de' => aboutText($m['bio_de'] ?? '', 1500),
         'bio_en' => aboutText($m['bio_en'] ?? '', 1500),
         'email' => aboutText($m['email'] ?? '', 160),

@@ -420,8 +420,13 @@ function AboutContent() {
                         <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-black mb-4">
                           <Portrait src={m.photo} name={m.name} />
                         </div>
-                        <h3 className="font-bold text-lg text-slate-900">{m.name}</h3>
-                        {(de ? m.role_de : m.role_en) && (
+                        {/* Solange der Name fehlt, traegt die Rolle die Karte —
+                            dann wirkt eine noch unvollstaendige Karte nicht
+                            kaputt, sondern schlicht. */}
+                        <h3 className="font-bold text-lg text-slate-900">
+                          {m.name || (de ? m.role_de : m.role_en)}
+                        </h3>
+                        {m.name && (de ? m.role_de : m.role_en) && (
                           <p className="text-xs font-bold uppercase tracking-wide text-[#ef5a24] mt-1">
                             {de ? m.role_de : m.role_en}
                           </p>
@@ -462,7 +467,17 @@ function AboutContent() {
                     <div key={m.id} className="border-2 border-black p-4 sm:p-6">
                       <div className="flex items-start justify-between gap-4 mb-4">
                         <span className="text-xs font-bold uppercase text-slate-500">
-                          {de ? 'Person' : 'Person'} {i + 1}
+                          {m.name || (de ? `Person ${i + 1}` : `Person ${i + 1}`)}
+                          {!m.name && (
+                            <em className="ml-2 not-italic normal-case font-normal text-[#ef5a24]">
+                              {de ? 'Name fehlt noch' : 'name still missing'}
+                            </em>
+                          )}
+                          {!m.photo && (
+                            <em className="ml-2 not-italic normal-case font-normal text-[#ef5a24]">
+                              {de ? 'Foto fehlt noch' : 'photo still missing'}
+                            </em>
+                          )}
                         </span>
                         <button
                           type="button"
