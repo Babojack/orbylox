@@ -420,7 +420,7 @@ if ($route['type'] === 'post') {
         . '</p><a class="btn solid" href="' . $SITE . '/login">'
         . ($locale === 'en' ? 'Start for free' : 'Kostenlos starten') . '</a></div></section>';
 
-    header('Cache-Control: public, max-age=300, s-maxage=600');
+    blogSendCacheHeaders();
     echo blogLayout([
         'lang' => $locale,
         'title' => (string)($post['seo_title'] ?: $post['title']) . ' — ' . $BRAND,
@@ -563,7 +563,7 @@ $body = crumbs($crumbItems)
     . '<p>Aufgaben, Notizen, Canvas, Chat und Video — kostenlos starten.</p>'
     . '<a class="btn solid" href="' . $SITE . '/login">Kostenlos starten</a></div></section>';
 
-header('Cache-Control: public, max-age=300, s-maxage=600');
+blogSendCacheHeaders();
 echo blogLayout([
     'title' => ($page > 1 ? $title . ' — Seite ' . $page : $title) . ' — ' . $BRAND,
     'description' => mb_substr($intro, 0, 160, 'UTF-8'),

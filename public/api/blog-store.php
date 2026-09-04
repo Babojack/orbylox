@@ -255,3 +255,37 @@ function blogFirebaseProjectId(): string
     }
     return '';
 }
+
+/**
+ * Zwischenspeicher-Kopfzeilen, die sich am Datenstand orientieren.
+ *
+ * Vorher stand in blog.php eine feste Dauer: fuenf Minuten im Browser, zehn
+ * am Rand des Netzes. Wer einen Artikel veroeffentlicht hatte, sah danach bis
+ * zu zehn Minuten lang die alte Seite — und hielt das verstaendlicherweise
+ * fuer einen Fehler ("es wird immer leer angezeigt").
+ *
+ * Jetzt haengt die Kennung am Aenderungszeitpunkt der Artikeldatei:
+ *   - nichts geaendert  -> 304, der Server schickt kein Byte Inhalt
+ *   - etwas veroeffentlicht -> neue Kennung, alle Ebenen holen frisch
+ *
+ * Die kurze Frist von 60 Sekunden bleibt als Schutz vor Lastspitzen;
+ * stale-while-revalidate laesst den Rand des Netzes im Hintergrund
+ * nachladen, ohne den Besucher warten zu lassen.
+ */
+function blogSendCacheHeaders(): void
+{
+    $mtime = is_file(blogFilePath()) ? (int)filemtime(blogFilePath()) : 0;
+    $etag = '"b' . $mtime . '-' . substr(sha1((string)($_SERVER['REQUEST_URI'] ?? '/')), 0, 12) . '"';
+
+    header('Cache-Control: public, max-age=60, s-maxage=60, stale-while-revalidate=600');
+    header('ETag: ' . $etag);
+    if ($mtime > 0) {
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');
+    }
+
+    $ifNone = trim((string)($_SERVER['HTTP_IF_NONE_MATCH'] ?? ''));
+    if ($ifNone !== '' && strpos($ifNone, $etag) !== false) {
+        http_response_code(304);
+        exit;
+    }
+}

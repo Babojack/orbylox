@@ -12,3 +12,17 @@
 
 # Verzeichnisauflistung abschalten
 Options -Indexes
+
+# Rohdaten und Notizen gehoeren nicht ins Netz: blog-posts.seed.json war
+# direkt abrufbar (49 KB Artikeltext im Klartext) und BLOG-SETUP.txt ebenso.
+# Die Endpunkte lesen diese Dateien ueber das Dateisystem, nicht per URL —
+# das Sperren aendert an ihrer Funktion nichts.
+<FilesMatch "\.(json|txt|md|lock)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

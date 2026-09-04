@@ -14,7 +14,7 @@ require_once __DIR__ . '/blog-store.php';
 
 header('Content-Type: application/xml; charset=utf-8');
 header('X-Robots-Tag: noindex');           // die Sitemap selbst gehört nicht in den Index
-header('Cache-Control: public, max-age=900');
+blogSendCacheHeaders();
 
 $SITE = 'https://orbylox.de';
 
