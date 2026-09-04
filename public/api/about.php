@@ -69,9 +69,9 @@ function aboutDefault(): array
             'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
         ],
         [
-            'id' => 'solution-architect',
-            'name' => '',
-            'photo' => '/team/solution-architect-v2.jpg',
+            'id' => 'elman-huseynov',
+            'name' => 'Elman Huseynov',
+            'photo' => '/team/elman-huseynov-v2.jpg',
             'role_de' => 'Solution Architect',
             'role_en' => 'Solution Architect',
             'bio_de' => '', 'bio_en' => '', 'email' => '', 'link' => '',
