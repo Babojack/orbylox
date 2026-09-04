@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
+import { signOutAndLeave } from '@/lib/signOut';
 import { useLocation, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -104,6 +105,15 @@ function teamActivityLucideIcon(entityName) {
       return Bell;
   }
 }
+
+/**
+ * Seiten, die ohne geoeffnetes Projekt funktionieren: sie bekommen weder die
+ * Seitenleiste noch die Umleitung in die Projektliste.
+ */
+const STANDALONE_PAGES = new Set([
+  'ProjectsList', 'IdeasHub', 'index', 'Landing', 'Profile',
+  'Subscription', 'Impressum', 'AdminUsers', 'admin', 'About',
+]);
 
 function LayoutContent({ children, currentPageName }) {
     const location = useLocation();
@@ -370,20 +380,13 @@ function LayoutContent({ children, currentPageName }) {
     }
   }, [projectId, queryClient]);
 
-  // Redirect to projects list if no project selected (but not from standalone pages like Landing, Profile, Login, etc.)
+  // Seiten ohne Projektbezug: kein Rahmen, keine Umleitung in die Projektliste.
+  // Frueher stand diese Liste zweimal im Code — einmal hier, einmal weiter
+  // unten. Eine neue Seite in nur einer der beiden zu vergessen fuehrte dazu,
+  // dass sie sofort in die Projektliste umgeleitet wurde (so geschehen bei
+  // /admin). Deshalb gibt es jetzt genau eine Liste: STANDALONE_PAGES.
   React.useEffect(() => {
-    if (
-      !projectId &&
-      currentPageName !== 'ProjectsList' &&
-      currentPageName !== 'IdeasHub' &&
-      currentPageName !== 'index' &&
-      currentPageName !== 'Landing' &&
-      currentPageName !== 'Profile' &&
-      currentPageName !== 'Subscription' &&
-      currentPageName !== 'Impressum' &&
-      currentPageName !== 'AdminUsers' &&
-      currentPageName !== 'login'
-    ) {
+    if (!projectId && !STANDALONE_PAGES.has(currentPageName) && currentPageName !== 'login') {
       window.location.href = createPageUrl('ProjectsList');
     }
   }, [projectId, currentPageName]);
@@ -438,11 +441,7 @@ function LayoutContent({ children, currentPageName }) {
     newMessagesCount = messages.filter(m => new Date(m.created_date).getTime() > lastSeen).length;
   }
   
-  // Don't show layout on projects list page or standalone pages
-  const STANDALONE_PAGES = new Set([
-    'ProjectsList', 'IdeasHub', 'index', 'Landing', 'Profile',
-    'Subscription', 'Impressum', 'AdminUsers', 'admin',
-  ]);
+  // Kein Projektrahmen auf diesen Seiten (siehe STANDALONE_PAGES oben).
   if (STANDALONE_PAGES.has(currentPageName)) {
     return (
       <PageTransition pageKey={pageTransitionKey} className="min-h-screen w-full">
@@ -581,10 +580,7 @@ function LayoutContent({ children, currentPageName }) {
                   <span className="text-sm font-medium text-white">{t('settings')}</span>
                </Link>
                <button 
-                 onClick={() => {
-                   api.auth.logout();
-                   window.location.href = createPageUrl('login');
-                 }} 
+                 onClick={() => signOutAndLeave(queryClient, createPageUrl('login'))} 
                  className="w-full flex items-center gap-3 px-4 py-3 bg-red-500 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:-translate-y-0.5 group"
                >
                   <LogOut className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
@@ -737,10 +733,7 @@ function LayoutContent({ children, currentPageName }) {
                      )}
                      <DropdownMenuSeparator />
                      <DropdownMenuItem 
-                      onClick={() => {
-                        api.auth.logout();
-                        window.location.href = createPageUrl('login');
-                      }}
+                      onClick={() => signOutAndLeave(queryClient, createPageUrl('login'))}
                       className="text-red-600 cursor-pointer"
                      >
                       <LogOut className="w-4 h-4 mr-2" />

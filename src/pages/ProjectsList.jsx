@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { signOutAndLeave } from '@/lib/signOut';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -149,12 +150,25 @@ function ProjectsListContent() {
     retry: false
   });
 
+  // Beim Abmelden faellt der Nutzer weg. Ohne diese Sperre haette der
+  // Wachhund-Effekt darunter das sofort als "nicht angemeldet" gedeutet und
+  // auf /login geschickt — mit /ProjectsList als gemerktem Ziel. Die Anmeldung
+  // war da noch gueltig, also landete man wieder hier: Abmelden schien nicht
+  // zu funktionieren. Waehrend des Abmeldens greift der Wachhund deshalb nicht.
+  const loggingOutRef = React.useRef(false);
+
   // Redirect to login if not authenticated
   React.useEffect(() => {
+    if (loggingOutRef.current) return;
     if (userError || (!userLoading && !user)) {
       api.auth.redirectToLogin(window.location.pathname);
     }
   }, [user, userLoading, userError]);
+
+  const handleLogout = () => {
+    loggingOutRef.current = true;
+    return signOutAndLeave(queryClient, '/');
+  };
 
   const userEmailLower = user?.email?.toLowerCase();
 
@@ -641,7 +655,7 @@ function ProjectsListContent() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer text-red-600 focus:text-red-700"
-                  onSelect={() => api.auth.logout()}
+                  onSelect={handleLogout}
                 >
                   <LogOut className="w-4 h-4 mr-2" />
                   {t('logout')}

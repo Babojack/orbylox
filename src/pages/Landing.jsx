@@ -527,8 +527,9 @@ function LandingContent() {
             </ul>
           </div>
           <div>
-            <p className="font-bold uppercase text-xs tracking-wide mb-3">{de ? 'Rechtliches' : 'Legal'}</p>
+            <p className="font-bold uppercase text-xs tracking-wide mb-3">{de ? 'Mehr' : 'More'}</p>
             <ul className="space-y-2 text-sm text-slate-600">
+              <li><a href="/About" className="hover:text-[#ef5a24]">{de ? 'Über uns' : 'About us'}</a></li>
               <li><a href="/blog" className="hover:text-[#ef5a24]">Blog</a></li>
               <li><a href="/Impressum" className="hover:text-[#ef5a24]">{de ? 'Impressum' : 'Imprint'}</a></li>
             </ul>

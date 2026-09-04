@@ -28,6 +28,7 @@ Aus dist/ nach public_html/ (bzw. domains/orbylox.de/public_html/):
   api/blog-seed.php
   api/blog-posts.seed.json
   api/blog-config.example.php
+  api/about.php                  <- Inhalte der Seite "Ueber uns"
   api/.htaccess                  (schuetzt die *-config.php)
 
 Hinweis: .htaccess liegt jetzt fertig im Build. Das frueher noetige Umbenennen
@@ -91,6 +92,19 @@ sein (Punkt 1) und der Datenordner beschreibbar (Punkt 3).
 
 
 -------------------------------------------------------------------------
+4b. SEITE "UEBER UNS"
+-------------------------------------------------------------------------
+  https://orbylox.de/About
+
+Oeffentlich lesbar. Wer angemeldet und in admin_emails eingetragen ist, sieht
+oben rechts "Bearbeiten" und schreibt direkt in der Seite: Kopfbild, Text,
+Team mit Fotos. Gespeichert wird in about.json im selben Datenordner wie die
+Blogartikel; Fotos laufen ueber den vorhandenen api/upload.php.
+
+Zwei Sprachfassungen: Ueberschriften und Texte werden je Sprache gepflegt
+(Sprachschalter), Fotos und Namen gelten fuer beide.
+
+-------------------------------------------------------------------------
 5. PRUEFEN
 -------------------------------------------------------------------------
   https://orbylox.de/blog                      Uebersicht
@@ -99,6 +113,7 @@ sein (Punkt 1) und der Datenordner beschreibbar (Punkt 3).
   https://orbylox.de/robots.txt
   https://orbylox.de/blog/gibt-es-nicht        muss 404 liefern
   https://orbylox.de/admin                     Redaktion (nur Admins)
+  https://orbylox.de/About                     Ueber uns
 
 Ohne JavaScript pruefen (der eigentliche Test):
   curl -s https://orbylox.de/blog/kanban-board-richtig-aufsetzen | grep "<h1"

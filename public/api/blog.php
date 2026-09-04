@@ -239,7 +239,7 @@ CSS;
 </div></header>
 {$body}
 <footer class="bot"><div class="wrap">
-  <a href="{$SITE}/">Startseite</a><a href="{$SITE}/blog">Blog</a><a href="{$SITE}/Impressum">Impressum</a>
+  <a href="{$SITE}/">Startseite</a><a href="{$SITE}/blog">Blog</a><a href="{$SITE}/About">&Uuml;ber uns</a><a href="{$SITE}/Impressum">Impressum</a>
   <span>© 2026 {$BRAND}</span>
 </div></footer>
 </body>

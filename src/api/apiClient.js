@@ -1327,13 +1327,30 @@ export const api = {
 
       return { email: normalizedEmail, plan: normalizedPlan };
     },
-    logout() {
+    /**
+     * Abmelden.
+     *
+     * Wichtig ist das await: firebaseSignOut ist asynchron. Wurde es frueher
+     * nur angestossen und die Seite gleich neu geladen, war die Sitzung beim
+     * naechsten Aufbau oft noch da — die Abmeldung wirkte wie ohne Funktion.
+     * Der Aufrufer soll danach die Seite wechseln (window.location).
+     */
+    async logout() {
       if (typeof window === "undefined") return;
       if (hasFirebaseConfig && firebaseAuth) {
-        firebaseSignOut(firebaseAuth);
+        try {
+          await firebaseSignOut(firebaseAuth);
+        } catch {
+          // Auch bei Netzfehler lokal aufraeumen — sonst haengt der Nutzer fest.
+        }
         clearLegacyLocalEntityStorage();
       }
-      window.localStorage.removeItem(STORAGE_KEY_PREFIX + "user");
+      try {
+        window.localStorage.removeItem(STORAGE_KEY_PREFIX + "user");
+        window.localStorage.removeItem(STORAGE_KEY_PREFIX + "redirect_after_login");
+      } catch {
+        // ignore storage errors
+      }
     },
     redirectToLogin(targetUrl) {
       if (typeof window === "undefined") return;
