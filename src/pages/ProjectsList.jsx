@@ -361,12 +361,12 @@ function ProjectsListContent() {
   };
 
   const openProject = (project) => {
-    navigate(createPageUrl('SocialBoard') + `?project=${project.id}`);
+    navigate(createPageUrl('Dashboard') + `?project=${project.id}`);
   };
 
   const startProjectAndOpen = (project) => {
     startTimer(project.id, { source: "ProjectsList" });
-    navigate(createPageUrl('SocialBoard') + `?project=${project.id}`);
+    navigate(createPageUrl('Dashboard') + `?project=${project.id}`);
   };
 
   const openEditProject = (project) => {

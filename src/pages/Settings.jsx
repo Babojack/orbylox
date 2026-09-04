@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { useContactCare } from "@/hooks/useContactCare";
+import { INTERVAL_CHOICES } from "@/api/contactCare";
 import ProjectMembersManager from "@/components/ProjectMembersManager";
 import BackupManager from "@/components/backup/BackupManager";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -39,6 +41,7 @@ export default function Settings() {
   });
 
   const textToTicketEnabled = currentUser?.text_to_ticket_enabled !== false;
+  const contactCare = useContactCare(currentUser);
 
   if (isLoading) return <div>Loading settings...</div>;
 
@@ -99,6 +102,51 @@ export default function Settings() {
                 onCheckedChange={(checked) => updateUserMutation.mutate({ text_to_ticket_enabled: checked })}
               />
             </div>
+        </CardContent>
+      </Card>
+
+      {/* Kontaktpflege — persoenliche Einstellung, gilt fuer alle Projekte */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('contactCareTitle')}</CardTitle>
+          <CardDescription>{t('contactCareSettingDesc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="contact-care-enabled" className="font-medium">
+              {t('contactCareEnable')}
+            </Label>
+            <Switch
+              id="contact-care-enabled"
+              checked={!!contactCare.prefs.enabled}
+              onCheckedChange={(v) => contactCare.setEnabled(!!v)}
+            />
+          </div>
+          {contactCare.prefs.enabled && (
+            <div>
+              <Label className="font-medium block mb-2">{t('contactCareInterval')}</Label>
+              <div className="flex flex-wrap gap-2">
+                {INTERVAL_CHOICES.map((days) => {
+                  const active = contactCare.prefs.intervalDays === days;
+                  return (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => contactCare.setIntervalDays(days)}
+                      className={`h-10 px-3 text-xs font-bold uppercase tracking-wide border-2 transition-colors ${
+                        active
+                          ? 'bg-black border-black text-white'
+                          : 'bg-white border-black text-black hover:bg-[#f5f5f5]'
+                      }`}
+                      aria-pressed={active}
+                    >
+                      {t('contactCareEvery').replace('{n}', String(days))}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

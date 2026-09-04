@@ -23,6 +23,7 @@ import {
 import { api } from "@/api/apiClient";
 import { createPageUrl } from "@/utils";
 import { CardGridSkeleton } from "@/components/motion/Skeletons";
+import ContactCareCard from "@/components/ContactCareCard";
 import { useLanguage } from "@/components/LanguageProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -264,6 +265,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 w-full min-w-0 max-w-6xl mx-auto pb-8">
+      {/* Kontaktpflege — persoenlich, ueber allen Projekten; blinkt bis erledigt */}
+      <ContactCareCard user={currentUser} />
+
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-[#ef5a24] mb-1">

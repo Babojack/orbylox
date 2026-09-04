@@ -409,3 +409,18 @@ button:focus-visible {
     touch-action: manipulation;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Aufmerksamkeits-Puls — Kontaktpflege im Dashboard.
+   Laeuft, bis drei Namen eingetragen sind. Bewusst nicht wegklickbar.
+   --------------------------------------------------------------------------- */
+@keyframes tn-attention {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(239 90 36 / 0.55); border-color: #ef5a24; }
+  50%      { box-shadow: 0 0 0 10px rgb(239 90 36 / 0); border-color: #0a0a0a; }
+}
+.tn-attention {
+  animation: tn-attention 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tn-attention { animation: none; box-shadow: 0 0 0 4px rgb(239 90 36 / 0.35); }
+}
