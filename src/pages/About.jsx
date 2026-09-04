@@ -49,7 +49,7 @@ function Paragraphs({ text, className = '' }) {
   );
 }
 
-/** Kreisförmiges Foto mit Initialen als Rückfallebene. */
+/** Foto, das seinen Rahmen ausfüllt — mit Initialen als Rückfallebene. */
 function Portrait({ src, name, className = '' }) {
   const initials = String(name || '?')
     .split(/\s+/).filter(Boolean).slice(0, 2)
@@ -65,14 +65,14 @@ function Portrait({ src, name, className = '' }) {
     );
   }
   return (
-    <div className={`w-full h-full flex items-center justify-center bg-[#ef5a24]/10 text-[#ef5a24] text-2xl font-black ${className}`}>
+    <div className={`w-full h-full flex items-center justify-center bg-[#ef5a24]/10 text-[#ef5a24] text-[clamp(1.5rem,12cqw,4rem)] font-black ${className}`}>
       {initials || '?'}
     </div>
   );
 }
 
 /** Bild wählen und hochladen — nutzt denselben Endpunkt wie überall sonst. */
-function PhotoPicker({ value, onChange, label, round = true }) {
+function PhotoPicker({ value, onChange, label, ratio = 'aspect-[4/5] w-24' }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -96,7 +96,7 @@ function PhotoPicker({ value, onChange, label, round = true }) {
   return (
     <div>
       <div className="flex items-center gap-3">
-        <div className={`w-16 h-16 shrink-0 overflow-hidden border-2 border-black ${round ? 'rounded-full' : ''}`}>
+        <div className={`shrink-0 overflow-hidden border-2 border-black bg-[#f5f5f5] ${ratio}`}>
           <Portrait src={value} name={label} />
         </div>
         <div className="flex flex-col gap-1">
@@ -301,7 +301,7 @@ function AboutContent() {
                   <div className="border-2 border-black p-4 space-y-3">
                     <p className="text-xs font-bold uppercase">{de ? 'Kopfbild' : 'Header image'}</p>
                     <PhotoPicker
-                      round={false}
+                      ratio="aspect-[3/2] w-40"
                       label={de ? 'Kopfbild' : 'Header image'}
                       value={editing.hero_image}
                       onChange={(url) => setEditing((p) => ({ ...p, hero_image: url }))}
@@ -413,17 +413,21 @@ function AboutContent() {
 
               {/* Ansicht */}
               {!editing && team.length > 0 && (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                   {team.map((m, i) => (
                     <Reveal key={m.id} index={i}>
-                      <article className="border-2 border-black bg-white p-6 h-full flex flex-col items-center text-center">
-                        <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-black mb-4">
+                      <article className="border-2 border-black bg-white h-full flex flex-col overflow-hidden">
+                        {/* Gross und im Hochformat: nur so sind Gesicht UND
+                            Hoodie zu erkennen. Ein runder Ausschnitt von
+                            112 px zeigte vom Pullover nichts. */}
+                        <div className="aspect-[4/5] w-full overflow-hidden border-b-2 border-black bg-[#f5f5f5] [container-type:inline-size]">
                           <Portrait src={m.photo} name={m.name} />
                         </div>
+                        <div className="p-5 flex flex-col flex-1">
                         {/* Solange der Name fehlt, traegt die Rolle die Karte —
                             dann wirkt eine noch unvollstaendige Karte nicht
                             kaputt, sondern schlicht. */}
-                        <h3 className="font-bold text-lg text-slate-900">
+                        <h3 className="font-bold text-xl text-slate-900 leading-tight">
                           {m.name || (de ? m.role_de : m.role_en)}
                         </h3>
                         {m.name && (de ? m.role_de : m.role_en) && (
@@ -453,6 +457,7 @@ function AboutContent() {
                               <LinkIcon className="w-4 h-4" />
                             </a>
                           )}
+                        </div>
                         </div>
                       </article>
                     </Reveal>

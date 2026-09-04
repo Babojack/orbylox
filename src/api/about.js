@@ -57,12 +57,12 @@ export const ABOUT_FALLBACK = {
       bio_de: '', bio_en: '', email: '', link: '',
     },
     {
-      id: 'nick-huseynli', name: 'Nick Huseynli', photo: '',
+      id: 'nick-huseynov', name: 'Nick Huseynov', photo: '/team/nick-huseynov.jpg',
       role_de: 'Leiter Finanzen', role_en: 'Finance Director',
       bio_de: '', bio_en: '', email: '', link: '',
     },
     {
-      id: 'it-team-lead', name: '', photo: '',
+      id: 'murad-rustamov', name: 'Murad Rustamov', photo: '/team/murad-rustamov.jpg',
       role_de: 'Teamleiter IT', role_en: 'IT Team Lead',
       bio_de: '', bio_en: '', email: '', link: '',
     },
