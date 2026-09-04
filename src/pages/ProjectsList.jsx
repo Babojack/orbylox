@@ -9,10 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, Eye, EyeOff, Pencil, LayoutGrid, List, CheckCircle2, Share2, LogOut } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, Eye, EyeOff, Pencil, LayoutGrid, List, CheckCircle2, Share2, LogOut, User as UserIcon, CreditCard, Home, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPageUrl } from "@/utils";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { toast } from "@/components/ui/use-toast";
 import { getProjectTimer, startTimer, stopTimer, formatDuration } from "@/lib/projectTimer";
@@ -149,6 +157,13 @@ function ProjectsListContent() {
   }, [user, userLoading, userError]);
 
   const userEmailLower = user?.email?.toLowerCase();
+
+  const { data: isAdminUser = false } = useQuery({
+    queryKey: ['isAdmin'],
+    queryFn: () => api.auth.isAdmin(),
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const {
     favoriteIds,
@@ -532,8 +547,13 @@ function ProjectsListContent() {
       {/* Header */}
       <div className="border-b border-slate-200 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <OrbyloxMark className="w-8 h-8 shrink-0" />
+          {/* Logo fuehrt zur Startseite — wie ueberall im Netz erwartet */}
+          <Link
+            to="/"
+            className="flex items-center gap-2.5 min-w-0 group"
+            title={language === 'de' ? 'Zur Startseite' : 'To the homepage'}
+          >
+            <OrbyloxMark className="w-8 h-8 shrink-0 transition-transform group-hover:-rotate-6" />
             <div className="min-w-0">
               <div className="text-sm font-extrabold tracking-[0.08em] leading-none text-slate-900">
                 ORBYLOX
@@ -542,7 +562,7 @@ function ProjectsListContent() {
                 FREE PROJECT MANAGEMENT FOR EVERYONE
               </div>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-3">
             <Button
               type="button"
@@ -567,9 +587,67 @@ function ProjectsListContent() {
             >
               <Languages className="w-5 h-5" />
             </Button>
-            <span className="hidden md:inline text-sm text-slate-600 truncate max-w-[140px] lg:max-w-none">
-              👋 {user?.email}
-            </span>
+            {/* Profilbild mit Menue: Profil, Abo, Startseite, Abmelden */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  data-no-lift
+                  className="rounded-full border-0 bg-transparent p-0 flex items-center gap-2 shrink-0"
+                  aria-label={t('editProfile')}
+                >
+                  <Avatar className="w-9 h-9 border-2 border-black cursor-pointer hover:ring-2 hover:ring-[#ef5a24] transition-all">
+                    <AvatarImage src={user?.avatar_url} alt="" />
+                    <AvatarFallback className="bg-[#ef5a24]/10 text-[#ef5a24] font-bold">
+                      {(user?.full_name || user?.email || '?')[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden lg:inline text-sm text-slate-700 max-w-[160px] truncate">
+                    {user?.full_name || user?.email?.split('@')[0]}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <div className="px-2 py-2 border-b border-slate-100 mb-1">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{user?.full_name || user?.email?.split('@')[0]}</p>
+                  <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                </div>
+                <DropdownMenuItem asChild>
+                  <Link to={createPageUrl('Profile')} className="cursor-pointer">
+                    <UserIcon className="w-4 h-4 mr-2" />
+                    {t('editProfile')}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to={createPageUrl('Subscription')} className="cursor-pointer">
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    {t('subscription')}
+                  </Link>
+                </DropdownMenuItem>
+                {isAdminUser && (
+                  <DropdownMenuItem asChild>
+                    <Link to={createPageUrl('AdminUsers')} className="cursor-pointer">
+                      <ShieldCheck className="w-4 h-4 mr-2" />
+                      Admin
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/" className="cursor-pointer">
+                    <Home className="w-4 h-4 mr-2" />
+                    {language === 'de' ? 'Zur Startseite' : 'Homepage'}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer text-red-600 focus:text-red-700"
+                  onSelect={() => api.auth.logout()}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  {t('logout')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

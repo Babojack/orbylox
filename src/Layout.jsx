@@ -478,8 +478,13 @@ function LayoutContent({ children, currentPageName }) {
       {/* Sidebar */}
       <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 flex flex-col fixed lg:fixed h-full bg-white z-50 transition-transform duration-300 ease-out motion-reduce:transition-none`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50">
-          <div className="flex items-center gap-2 min-w-0">
-            <OrbyloxMark className="w-7 h-7 shrink-0" />
+          {/* Logo in der Seitenleiste fuehrt zurueck zur Projektuebersicht */}
+          <Link
+            to={createPageUrl('ProjectsList')}
+            className="flex items-center gap-2 min-w-0 group"
+            title={t('allProjects')}
+          >
+            <OrbyloxMark className="w-7 h-7 shrink-0 transition-transform group-hover:-rotate-6" />
             <div className="min-w-0">
               <div className="text-sm font-extrabold tracking-tight leading-none text-slate-900">
                 RBYLOX
@@ -488,7 +493,7 @@ function LayoutContent({ children, currentPageName }) {
                 FREE PROJECT MANAGEMENT
               </div>
             </div>
-          </div>
+          </Link>
           <button 
             type="button"
             onPointerDown={closeSidebar}
