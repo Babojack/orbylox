@@ -63,14 +63,26 @@ Pruefen: in der Redaktion erscheint bei Fehlern ein Hinweis. Oder direkt:
 
 
 -------------------------------------------------------------------------
-4. STARTARTIKEL EINSPIELEN (einmalig)
+4. ARTIKEL EINSPIELEN
 -------------------------------------------------------------------------
 Per SSH:      php api/blog-seed.php
-Ohne SSH:     Die vier Artikel in der Redaktion von Hand anlegen — oder
-              blog-posts.seed.json in den Datenordner kopieren und in
-              blog-posts.json umbenennen.
 
-Das Skript spielt nur ein, wenn noch keine Beitraege vorhanden sind.
+Das Skript fuegt nur Beitraege hinzu, deren URL-Kennung noch nicht existiert.
+Vorhandene Artikel werden NIE ueberschrieben — es laesst sich also beliebig
+oft aufrufen, auch nachdem du selbst Texte bearbeitet hast.
+
+Aktuell enthaelt blog-posts.seed.json 10 Artikel: 5 Themen, jeweils auf
+Deutsch und Englisch, gegenseitig ueber hreflang verknuepft.
+
+  kanban-board-richtig-aufsetzen              <-> setting-up-a-kanban-board
+  work-breakdown-structure-wbs-anleitung      <-> work-breakdown-structure-guide
+  projektplan-erstellen-schritt-fuer-schritt  <-> how-to-create-a-project-plan
+  zeiterfassung-projekt-...-scheitern         <-> time-tracking-why-estimates-fail
+  remote-team-fuehren-rituale-statt-kontrolle <-> leading-a-remote-team
+
+Ohne SSH: blog-posts.seed.json in den Datenordner kopieren und in
+blog-posts.json umbenennen (nur solange dort noch nichts liegt) — oder die
+Texte in der Redaktion einfuegen.
 
 
 -------------------------------------------------------------------------

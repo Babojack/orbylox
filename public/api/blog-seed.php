@@ -33,25 +33,52 @@ if (!$isCli) {
     }
 }
 
-$existing = blogLoadAll();
-if ($existing) {
-    echo 'Es sind bereits ' . count($existing) . " Beiträge vorhanden — nichts eingespielt.\n";
-    exit;
-}
-
 $seedFile = __DIR__ . '/blog-posts.seed.json';
 if (!is_file($seedFile)) { echo "blog-posts.seed.json fehlt.\n"; exit(1); }
 
-$posts = json_decode((string)file_get_contents($seedFile), true);
-if (!is_array($posts)) { echo "Startdatei ist kein gültiges JSON.\n"; exit(1); }
+$seed = json_decode((string)file_get_contents($seedFile), true);
+if (!is_array($seed)) { echo "Startdatei ist kein gültiges JSON.\n"; exit(1); }
 
-if (!blogSaveAll($posts)) {
+/**
+ * Zusammenführen statt überschreiben.
+ *
+ * Ein bereits vorhandener Beitrag wird NIE angefasst — sonst würde ein
+ * zweiter Aufruf eigene Änderungen am Text wieder platt machen. Es kommen
+ * nur Beiträge dazu, deren URL-Kennung noch nicht existiert. Damit lässt
+ * sich das Skript gefahrlos beliebig oft laufen lassen.
+ */
+$existing = blogLoadAll();
+$known = [];
+foreach ($existing as $p) { $known[(string)($p['slug'] ?? '')] = true; }
+
+$added = [];
+$skipped = [];
+foreach ($seed as $p) {
+    $slug = (string)($p['slug'] ?? '');
+    if ($slug === '') continue;
+    if (isset($known[$slug])) { $skipped[] = $slug; continue; }
+    $existing[] = $p;
+    $known[$slug] = true;
+    $added[] = $slug;
+}
+
+if (!$added) {
+    echo "Nichts hinzuzufügen — alle " . count($seed) . " Beiträge sind bereits vorhanden.\n";
+    echo 'Datenordner: ' . blogDataDir() . "\n";
+    exit;
+}
+
+if (!blogSaveAll($existing)) {
     echo "Schreiben fehlgeschlagen. Datenordner: " . blogDataDir() . "\n";
+    echo "Rechte prüfen: chmod 750 " . blogDataDir() . "\n";
     exit(1);
 }
 
-echo count($posts) . " Beiträge eingespielt.\n";
-echo 'Datenordner: ' . blogDataDir() . "\n";
-foreach ($posts as $p) {
-    echo '  /blog/' . $p['slug'] . "\n";
+echo count($added) . " Beiträge hinzugefügt";
+if ($skipped) echo ', ' . count($skipped) . ' bereits vorhanden (unverändert)';
+echo ".\n";
+echo 'Bestand jetzt: ' . count($existing) . " Beiträge, davon " . count(blogPublished()) . " veröffentlicht.\n";
+echo 'Datenordner: ' . blogDataDir() . "\n\n";
+foreach ($added as $slug) {
+    echo '  neu:  https://orbylox.de/blog/' . $slug . "\n";
 }
