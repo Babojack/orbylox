@@ -24,19 +24,9 @@ header('X-Content-Type-Options: nosniff');
 
 require_once __DIR__ . '/blog-store.php';
 
-// --- Konfiguration (Firebase-Projekt + Admin-Adressen) ---
-$config = ['firebase_project_id' => '', 'admin_emails' => []];
-foreach ([__DIR__ . '/blog-config.php', __DIR__ . '/invite-config.php'] as $file) {
-    if (is_file($file)) {
-        $loaded = require $file;
-        if (is_array($loaded)) $config = array_merge($config, $loaded);
-    }
-}
-$firebaseProjectId = (string)($config['firebase_project_id'] ?? '');
-$adminEmails = array_map(
-    'strtolower',
-    (array)($config['admin_emails'] ?? ['gudfransen@gmail.com', 'jey.afandiyev@gmail.com'])
-);
+// --- Konfiguration (Firebase-Projekt + Admin-Adressen), siehe blog-store.php ---
+$firebaseProjectId = blogFirebaseProjectId();
+$adminEmails = blogAdminEmails();
 
 // --- CORS: nur die eigene Domain ---
 $allowedOrigins = ['https://orbylox.de', 'https://www.orbylox.de', 'http://localhost:5173', 'http://localhost:4173'];

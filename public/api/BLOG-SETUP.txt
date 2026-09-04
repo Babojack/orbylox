@@ -46,6 +46,10 @@ api/blog-config.example.php  ->  api/blog-config.php kopieren und ausfuellen:
 Enthaelt invite-config.php bereits eine firebase_project_id, wird sie auch
 gelesen — dann genuegt dort ergaenzend 'admin_emails'.
 
+Ist NIRGENDS eine admin_emails-Liste hinterlegt, gilt als einziger Admin
+jey.afandiyev@gmail.com (Ersatzwert in blog-store.php, Funktion
+blogAdminEmails). Sobald eine Liste gesetzt ist, gilt ausschliesslich diese.
+
 blog-config.php ist in .gitignore und wird nie eingecheckt.
 
 

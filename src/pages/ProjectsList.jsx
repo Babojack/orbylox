@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { signOutAndLeave } from '@/lib/signOut';
-import { api } from "@/api/apiClient";
+import { api, isAdminEmail } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,6 @@ import OrbyloxMark from "@/components/OrbyloxMark";
 import { EASE, DURATION, STAGGER } from "@/components/motion/Reveal";
 import { CardGridSkeleton } from "@/components/motion/Skeletons";
 
-const ADMIN_EMAIL = "gudfransen@gmail.com";
 const MAX_MEMBERS_PER_PROJECT = 3;
 
 function toggleInArray(arr, id) {
@@ -271,7 +270,7 @@ function ProjectsListContent() {
   const userCreatedProjects = projects.filter(p =>
     p.created_by && userEmailLower && p.created_by.toLowerCase() === userEmailLower
   );
-  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isAdmin = isAdminEmail(user?.email);
   const maxProjects = getMaxProjectsForPlan(user?.plan);
   const canCreateProject = canCreateProjectByPlan(
     user?.plan,

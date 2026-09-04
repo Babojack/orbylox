@@ -130,18 +130,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
 // --- Ab hier: schreiben, nur für Administratoren ---
 header('X-Robots-Tag: noindex, nofollow');
 
-$config = ['firebase_project_id' => '', 'admin_emails' => []];
-foreach ([__DIR__ . '/blog-config.php', __DIR__ . '/invite-config.php'] as $file) {
-    if (is_file($file)) {
-        $loaded = require $file;
-        if (is_array($loaded)) $config = array_merge($config, $loaded);
-    }
-}
-$firebaseProjectId = (string)($config['firebase_project_id'] ?? '');
-$adminEmails = array_map(
-    'strtolower',
-    (array)($config['admin_emails'] ?? ['gudfransen@gmail.com', 'jey.afandiyev@gmail.com'])
-);
+$firebaseProjectId = blogFirebaseProjectId();
+$adminEmails = blogAdminEmails();
 if ($firebaseProjectId === '') {
     aboutFail(500, 'firebase_project_id fehlt in blog-config.php / invite-config.php');
 }

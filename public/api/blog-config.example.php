@@ -13,6 +13,5 @@ return [
     // Wer den Blog bearbeiten darf. Kleinschreibung.
     'admin_emails' => [
         'jey.afandiyev@gmail.com',
-        'gudfransen@gmail.com',
     ],
 ];

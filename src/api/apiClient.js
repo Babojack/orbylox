@@ -34,7 +34,7 @@ const MAX_INLINE_IMAGE_BYTES = 850000;
 
 const STORAGE_KEY_PREFIX = "orbylox_";
 const DEMO_EMAIL = "demo@orbylox.local";
-const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
+const DEFAULT_ADMIN_EMAILS = ["jey.afandiyev@gmail.com"];
 const USER_PLANS_KEY = STORAGE_KEY_PREFIX + "user_plans";
 
 const demoMemoryStore = {};
@@ -48,7 +48,7 @@ function getAdminEmails() {
   return [...merged];
 }
 
-function isAdminEmail(email) {
+export function isAdminEmail(email) {
   if (!email) return false;
   return getAdminEmails().includes(String(email).toLowerCase());
 }

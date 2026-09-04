@@ -206,3 +206,52 @@ function blogRelated(array $post, int $limit = 3): array
     }
     return array_slice(array_values($out), 0, $limit);
 }
+
+/**
+ * Admin-Adressen — eine einzige Quelle fuer alle Endpunkte.
+ *
+ * Frueher stand die Liste dreimal im Code, jeweils als
+ * `$config['admin_emails'] ?? [...]`. Das war doppelt fehleranfaellig:
+ *
+ *  - `??` greift nur bei null. Weil der Schluessel vorher schon auf `[]`
+ *    gesetzt wurde, war er nie null — die Ersatzliste wurde nie benutzt und
+ *    ohne blog-config.php kam NIEMAND durch, auch der Betreiber nicht.
+ *  - Eine Adresse an drei Stellen zu aendern geht irgendwann schief.
+ *
+ * Deshalb hier: leere Liste zaehlt als "nicht gesetzt", und der Wert steht
+ * genau einmal im Projekt.
+ */
+function blogAdminEmails(): array
+{
+    static $cache = null;
+    if ($cache !== null) return $cache;
+
+    $emails = [];
+    foreach ([__DIR__ . '/blog-config.php', __DIR__ . '/invite-config.php'] as $file) {
+        if (!is_file($file)) continue;
+        $loaded = require $file;
+        if (!is_array($loaded) || !isset($loaded['admin_emails'])) continue;
+        foreach ((array)$loaded['admin_emails'] as $e) {
+            if (!is_string($e)) continue;
+            $e = strtolower(trim($e));
+            if ($e !== '') $emails[$e] = true;
+        }
+    }
+    if (!$emails) $emails = ['jey.afandiyev@gmail.com' => true];
+
+    $cache = array_keys($emails);
+    return $cache;
+}
+
+/** Firebase-Projektkennung aus einer der beiden Konfigurationsdateien. */
+function blogFirebaseProjectId(): string
+{
+    foreach ([__DIR__ . '/blog-config.php', __DIR__ . '/invite-config.php'] as $file) {
+        if (!is_file($file)) continue;
+        $loaded = require $file;
+        if (is_array($loaded) && !empty($loaded['firebase_project_id'])) {
+            return (string)$loaded['firebase_project_id'];
+        }
+    }
+    return '';
+}

@@ -19,12 +19,8 @@ if (!$isCli) {
     header('X-Robots-Tag: noindex, nofollow');
 
     // Im Web nur mit gültigem Admin-Token
-    $config = [];
-    foreach ([__DIR__ . '/blog-config.php', __DIR__ . '/invite-config.php'] as $f) {
-        if (is_file($f)) { $c = require $f; if (is_array($c)) $config = array_merge($config, $c); }
-    }
-    $projectId = (string)($config['firebase_project_id'] ?? '');
-    $admins = array_map('strtolower', (array)($config['admin_emails'] ?? ['gudfransen@gmail.com', 'jey.afandiyev@gmail.com']));
+    $projectId = blogFirebaseProjectId();
+    $admins = blogAdminEmails();
     if ($projectId === '') { http_response_code(500); exit("firebase_project_id fehlt.\n"); }
     require_once __DIR__ . '/firebase-auth.php';
     $user = requireFirebaseUser($projectId);

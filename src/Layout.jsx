@@ -49,7 +49,7 @@ import OrbyloxMark from "@/components/OrbyloxMark";
 import MentionToast from "@/components/MentionToast";
 import { startTimer, getActiveTimer, setTrackedTimeSyncHandler } from "@/lib/projectTimer";
 
-const DEFAULT_ADMIN_EMAILS = ["gudfransen@gmail.com", "jey.afandiyev@gmail.com"];
+const DEFAULT_ADMIN_EMAILS = ["jey.afandiyev@gmail.com"];
 
 function getAdminEmails() {
   const fromEnv = (import.meta.env.VITE_ADMIN_EMAILS || "")

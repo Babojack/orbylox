@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { api } from "@/api/apiClient";
+import { api, isAdminEmail } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -40,7 +40,6 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 
-const ADMIN_EMAIL = "gudfransen@gmail.com";
 
 function IdeasHubContent() {
   const navigate = useNavigate();
@@ -110,7 +109,7 @@ function IdeasHubContent() {
       userEmailLower &&
       p.created_by.toLowerCase() === userEmailLower,
   );
-  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isAdmin = isAdminEmail(user?.email);
   const maxProjects = getMaxProjectsForPlan(user?.plan);
   const canCreateProject = canCreateProjectByPlan(
     user?.plan,
