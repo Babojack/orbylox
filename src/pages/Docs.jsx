@@ -45,6 +45,28 @@ const NOTE_TYPES = [
   { id: 'decision', label: 'Entscheidung', icon: '⚖️', prefix: 'Entscheidung' },
 ];
 
+/**
+ * Werkzeugleiste des Editors — bewusst ausserhalb der Komponente.
+ *
+ * Stand sie als Inline-Objekt im JSX, war sie bei jedem Rendern ein neues
+ * Objekt. react-quill vergleicht `modules` per Referenz und baute den Editor
+ * daraufhin komplett neu — und ein neu gebauter Editor meldet seinen Inhalt
+ * sofort als Aenderung zurueck. In dem einen Render, in dem die Notiz schon
+ * gewechselt war, der Editortext aber noch der alte, landete so der Text von
+ * Notiz A in Notiz B. Das war das "Ueberschreiben".
+ */
+const QUILL_MODULES = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'color': [] }, { 'background': [] }],
+      [{'list': 'ordered'}, {'list': 'bullet'}, {'list': 'check'}],
+      ['blockquote', 'code-block'],
+      ['link', 'image'],
+      ['clean']
+    ]
+};
+
 export default function Docs() {
     const queryClient = useQueryClient();
     const [selectedDocId, setSelectedDocId] = useState(null);
@@ -218,19 +240,27 @@ export default function Docs() {
     }
   }, [updateDocMutation]);
 
-  React.useEffect(() => {
-    // Zuerst die vorherige Notiz sichern. Vorher wurde der laufende
-    // Speicher-Timer beim Wechsel einfach ueberschrieben — der letzte
-    // Absatz der alten Notiz war damit weg.
-    flushPending();
+  /**
+   * Inhalt beim Notizwechsel SYNCHRON im Render setzen (React-Muster
+   * "state an prop anpassen"). Ein useEffect liefe erst NACH dem Rendern —
+   * dazwischen laege genau der eine Render, in dem der Editor die neue Notiz
+   * mit dem alten Text zeigt. Diesen Zustand gibt es jetzt nicht mehr.
+   */
+  const [boundDocId, setBoundDocId] = useState(null);
+  if (selectedDocId !== boundDocId) {
+    setBoundDocId(selectedDocId);
+    const content = selectedDoc?.content || "";
     activeIdRef.current = selectedDocId;
-    if (selectedDoc) {
-      const content = selectedDoc.content || "";
-      lastLoadedRef.current = content;
-      localContentRef.current = content;
-      setLocalContent(content);
-      setEditTitle(selectedDoc.title || "");
-    }
+    lastLoadedRef.current = content;
+    localContentRef.current = content;
+    setLocalContent(content);
+    setEditTitle(selectedDoc?.title || "");
+  }
+
+  React.useEffect(() => {
+    // Die vorherige Notiz sichern. `pendingRef` traegt ihre ID selbst —
+    // deshalb ist es egal, dass activeIdRef oben schon umgestellt wurde.
+    flushPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDocId]);
 
@@ -711,21 +741,12 @@ export default function Docs() {
                 <ScrollArea className="flex-1 min-h-0 basis-0">
                   <div className="p-4 sm:p-6 pt-4 min-w-0 max-w-full overflow-x-hidden">
                     <ReactQuill 
+                      key={selectedDocId}
                       theme="snow" 
                       value={localContent} 
                       onChange={handleContentChange}
                       className="docs-quill-editor h-full border-none max-w-full [&_.ql-container]:border-none [&_.ql-container]:max-w-full [&_.ql-editor]:max-w-full [&_.ql-toolbar]:flex-wrap [&_.ql-toolbar]:border-none [&_.ql-toolbar]:bg-slate-50 [&_.ql-toolbar]:rounded-lg [&_.ql-toolbar]:mb-4 [&_.ql-toolbar]:gap-0.5 [&_.ql-editor]:text-base [&_.ql-editor]:text-slate-700 [&_.ql-editor]:leading-relaxed [&_.ql-editor]:min-h-[min(36dvh,280px)] sm:[&_.ql-editor]:min-h-[min(50dvh,320px)] [&_.ql-editor]:overflow-x-hidden"
-                      modules={{
-                        toolbar: [
-                          [{ 'header': [1, 2, 3, false] }],
-                          ['bold', 'italic', 'underline', 'strike'],
-                          [{ 'color': [] }, { 'background': [] }],
-                          [{'list': 'ordered'}, {'list': 'bullet'}, {'list': 'check'}],
-                          ['blockquote', 'code-block'],
-                          ['link', 'image'],
-                          ['clean']
-                        ]
-                      }}
+                      modules={QUILL_MODULES}
                       placeholder="Schreibe deine Notiz..."
                     />
                     <div className="mt-4 text-xs text-slate-400 flex items-center gap-4">
