@@ -45,6 +45,8 @@ export const blogAdmin = {
   save: (post) => call('save', post).then((d) => d.post),
   remove: (id) => call('delete', { id }),
   diag: () => call('diag'),
+  /** Startartikel einspielen — fuegt nur hinzu, was fehlt. */
+  seed: () => call('seed'),
 };
 
 export const EMPTY_POST = {

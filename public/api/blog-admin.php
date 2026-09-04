@@ -227,6 +227,60 @@ switch ($action) {
         break;
     }
 
+    /**
+     * Startartikel einspielen — per Knopf aus der Redaktion.
+     *
+     * Ohne SSH liesse sich blog-seed.php nicht aufrufen: im Browser fehlt der
+     * Authorization-Header. Hier laeuft dieselbe Logik ueber den bereits
+     * gepruefen Admin-Zugang.
+     *
+     * Fuegt nur hinzu, was noch fehlt. Vorhandene Beitraege bleiben unberuehrt.
+     */
+    case 'seed': {
+        $seedFile = __DIR__ . '/blog-posts.seed.json';
+        if (!is_file($seedFile)) {
+            fail(404, 'blog-posts.seed.json liegt nicht in /api/ auf dem Server.');
+        }
+        $seed = json_decode((string)file_get_contents($seedFile), true);
+        if (!is_array($seed)) fail(500, 'blog-posts.seed.json ist kein gültiges JSON.');
+
+        $all = blogLoadAll();
+        $known = [];
+        foreach ($all as $p) { $known[(string)($p['slug'] ?? '')] = true; }
+
+        $added = [];
+        foreach ($seed as $p) {
+            $slug = (string)($p['slug'] ?? '');
+            if ($slug === '' || isset($known[$slug])) continue;
+            $all[] = $p;
+            $known[$slug] = true;
+            $added[] = $slug;
+        }
+
+        if (!$added) {
+            echo json_encode([
+                'added' => 0,
+                'total' => count($all),
+                'message' => 'Alle ' . count($seed) . ' Beiträge sind bereits vorhanden.',
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        if (!blogSaveAll($all)) {
+            fail(500, 'Schreiben fehlgeschlagen. Datenordner: ' . blogDataDir()
+                . ' — Schreibrechte prüfen (chmod 750).');
+        }
+
+        echo json_encode([
+            'added' => count($added),
+            'total' => count($all),
+            'published' => count(blogPublished()),
+            'slugs' => $added,
+            'message' => count($added) . ' Beiträge eingespielt.',
+        ], JSON_UNESCAPED_UNICODE);
+        break;
+    }
+
     case 'diag': {
         echo json_encode([
             'ok' => true,
@@ -235,6 +289,12 @@ switch ($action) {
             'data_writable' => is_writable(blogDataDir()),
             'posts' => count(blogLoadAll()),
             'published' => count(blogPublished()),
+            'data_file' => blogFilePath(),
+            'data_file_exists' => is_file(blogFilePath()),
+            'seed_file_present' => is_file(__DIR__ . '/blog-posts.seed.json'),
+            'seed_count' => is_file(__DIR__ . '/blog-posts.seed.json')
+                ? count((array)json_decode((string)file_get_contents(__DIR__ . '/blog-posts.seed.json'), true))
+                : 0,
         ], JSON_UNESCAPED_UNICODE);
         break;
     }

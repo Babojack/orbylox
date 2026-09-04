@@ -65,9 +65,15 @@ Pruefen: in der Redaktion erscheint bei Fehlern ein Hinweis. Oder direkt:
 -------------------------------------------------------------------------
 4. ARTIKEL EINSPIELEN
 -------------------------------------------------------------------------
-Per SSH:      php api/blog-seed.php
+Der einfachste Weg (ohne SSH):
+  /admin oeffnen -> solange noch nichts da ist, steht dort ein oranger
+  Kasten "Noch keine Beitraege" mit dem Knopf "Startartikel einspielen".
+  Ein Klick, fertig. Der Knopf "Pruefen" oben zeigt bei Problemen genau,
+  woran es liegt (Datenordner, Schreibrechte, Startdatei).
 
-Das Skript fuegt nur Beitraege hinzu, deren URL-Kennung noch nicht existiert.
+Alternativ per SSH:  php api/blog-seed.php
+
+Beide Wege fuegen nur Beitraege hinzu, deren URL-Kennung noch nicht existiert.
 Vorhandene Artikel werden NIE ueberschrieben — es laesst sich also beliebig
 oft aufrufen, auch nachdem du selbst Texte bearbeitet hast.
 
@@ -80,9 +86,8 @@ Deutsch und Englisch, gegenseitig ueber hreflang verknuepft.
   zeiterfassung-projekt-...-scheitern         <-> time-tracking-why-estimates-fail
   remote-team-fuehren-rituale-statt-kontrolle <-> leading-a-remote-team
 
-Ohne SSH: blog-posts.seed.json in den Datenordner kopieren und in
-blog-posts.json umbenennen (nur solange dort noch nichts liegt) — oder die
-Texte in der Redaktion einfuegen.
+Voraussetzung fuer den Knopf: api/blog-posts.seed.json muss mit hochgeladen
+sein (Punkt 1) und der Datenordner beschreibbar (Punkt 3).
 
 
 -------------------------------------------------------------------------

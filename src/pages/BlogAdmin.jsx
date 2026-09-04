@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Search, Trash2, Save, ExternalLink, Eye, ArrowLeft, AlertCircle, Loader2, Image as ImageIcon,
+  Download, Stethoscope,
 } from 'lucide-react';
 import { api } from '@/api/apiClient';
 import { blogAdmin, EMPTY_POST, slugify, readingMinutes } from '@/api/blogAdmin';
@@ -106,6 +107,8 @@ export default function BlogAdmin() {
   const [showPreview, setShowPreview] = useState(false);
   const [error, setError] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const [diag, setDiag] = useState(null);
 
   // Kein Index für die Redaktion — zusätzlich zum Header aus .htaccess
   useEffect(() => {
@@ -143,6 +146,23 @@ export default function BlogAdmin() {
       setEditing(saved);
       setError(null);
     },
+    onError: (e) => setError(e.message),
+  });
+
+  /** Startartikel aus blog-posts.seed.json nachziehen. */
+  const seedMutation = useMutation({
+    mutationFn: blogAdmin.seed,
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ['blogPosts'] });
+      setNotice(r.message + (r.published ? ` ${r.published} veröffentlicht.` : ''));
+      setError(null);
+    },
+    onError: (e) => setError(e.message),
+  });
+
+  const diagMutation = useMutation({
+    mutationFn: blogAdmin.diag,
+    onSuccess: (d) => { setDiag(d); setError(null); },
     onError: (e) => setError(e.message),
   });
 
@@ -469,6 +489,15 @@ export default function BlogAdmin() {
           </a>
           <button
             type="button"
+            onClick={() => diagMutation.mutate()}
+            title="Datenordner und Startdatei prüfen"
+            className="inline-flex items-center gap-2 h-10 px-3 border-2 border-black bg-white text-xs font-bold uppercase"
+          >
+            {diagMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Stethoscope className="w-4 h-4" />}
+            Prüfen
+          </button>
+          <button
+            type="button"
             onClick={() => { setEditing({ ...EMPTY_POST, author: currentUser?.full_name || 'ORBYLOX' }); setShowPreview(false); }}
             className="inline-flex items-center gap-2 h-10 px-4 bg-[#ef5a24] border-2 border-[#ef5a24] text-white text-xs font-bold uppercase"
           >
@@ -495,6 +524,58 @@ export default function BlogAdmin() {
           </button>
         ))}
       </div>
+
+      {notice && (
+        <div className="border-2 border-green-600 bg-green-50 text-green-900 px-4 py-3 text-sm mb-4">{notice}</div>
+      )}
+
+      {diag && (
+        <div className="border-2 border-black bg-[#f5f5f5] px-4 py-3 text-xs font-mono mb-4 space-y-1">
+          <p><b>Datenordner:</b> {diag.data_dir} {diag.data_writable ? '(beschreibbar)' : '— NICHT BESCHREIBBAR'}</p>
+          <p><b>Datei:</b> {diag.data_file} {diag.data_file_exists ? '(vorhanden)' : '(noch nicht angelegt)'}</p>
+          <p><b>Startdatei:</b> {diag.seed_file_present ? `vorhanden, ${diag.seed_count} Artikel` : 'FEHLT in /api/'}</p>
+          <p><b>Bestand:</b> {diag.posts} Beiträge, davon {diag.published} veröffentlicht</p>
+          <button type="button" onClick={() => setDiag(null)} className="underline mt-1">schließen</button>
+        </div>
+      )}
+
+      {/* Erstbefuellung: nur zeigen, wenn noch nichts da ist */}
+      {!isLoading && !isError && posts.length === 0 && (
+        <div className="border-2 border-[#ef5a24] bg-[#ef5a24]/8 p-5 mb-5">
+          <p className="font-bold text-black mb-1">Noch keine Beiträge</p>
+          <p className="text-sm text-slate-600 mb-4">
+            Es liegen 10 fertige Artikel bereit (5 Themen, deutsch und englisch).
+            Ein Klick spielt sie ein — vorhandene Beiträge werden dabei nie überschrieben.
+          </p>
+          <button
+            type="button"
+            disabled={seedMutation.isPending}
+            onClick={() => seedMutation.mutate()}
+            className="inline-flex items-center gap-2 h-11 px-5 bg-[#ef5a24] border-2 border-[#ef5a24] text-white text-xs font-bold uppercase disabled:opacity-60"
+          >
+            {seedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Startartikel einspielen
+          </button>
+        </div>
+      )}
+
+      {/* Spaeter: nachziehen, falls die Startdatei mehr enthaelt als der Bestand */}
+      {!isLoading && !isError && posts.length > 0 && posts.length < 10 && (
+        <div className="border-2 border-slate-200 p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm text-slate-600">
+            In der Startdatei liegen weitere Artikel bereit, die noch nicht eingespielt sind.
+          </p>
+          <button
+            type="button"
+            disabled={seedMutation.isPending}
+            onClick={() => seedMutation.mutate()}
+            className="inline-flex items-center gap-2 h-10 px-4 border-2 border-black bg-white text-xs font-bold uppercase disabled:opacity-60"
+          >
+            {seedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Fehlende nachziehen
+          </button>
+        </div>
+      )}
 
       {isError && (
         <div className="border-2 border-red-500 bg-red-50 text-red-800 px-4 py-3 text-sm mb-4">
