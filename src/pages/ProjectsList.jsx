@@ -632,6 +632,12 @@ function ProjectsListContent() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link to={createPageUrl('Contacts')} className="cursor-pointer">
+                    <Users className="w-4 h-4 mr-2" />
+                    {language === 'de' ? 'Kontaktpflege' : 'Staying in touch'}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link to={createPageUrl('Subscription')} className="cursor-pointer">
                     <CreditCard className="w-4 h-4 mr-2" />
                     {t('subscription')}

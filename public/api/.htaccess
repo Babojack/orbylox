@@ -26,3 +26,17 @@ Options -Indexes
     Deny from all
   </IfModule>
 </FilesMatch>
+
+# Der Schluessel des Dienstkontos darf niemals ausgeliefert werden. Er liegt
+# normalerweise ausserhalb von public_html; falls er doch hier landet, greift
+# zusaetzlich die Sperre fuer .json weiter oben — diese Regel macht es
+# unmissverstaendlich.
+<FilesMatch "^service-account\.json$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

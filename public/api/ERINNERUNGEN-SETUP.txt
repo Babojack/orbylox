@@ -1,0 +1,169 @@
+ORBYLOX — AUTOMATISCHE E-MAILS EINRICHTEN
+=========================================
+
+Betrifft zwei Dinge, die dieselbe Technik brauchen:
+  - Deadline-Erinnerungen (3 Tage vorher, am Tag selbst, bei Ueberfaelligkeit)
+  - Kontaktpflege: drei Vorschlaege am Tag
+
+WARUM EIN CRON-JOB NOETIG IST
+Eine Webseite laeuft nur, solange jemand sie geoeffnet hat. Eine Erinnerung
+soll aber genau dann kommen, wenn du NICHT davorsitzt. Deshalb ruft ein
+Zeitplan auf dem Server einmal taeglich ein Skript auf. Ohne diesen Schritt
+gibt es keine automatischen Mails — das ist keine Einstellung in der App,
+sondern eine Eigenschaft des Webs.
+
+
+-------------------------------------------------------------------------
+1. DATEIEN HOCHLADEN
+-------------------------------------------------------------------------
+Aus dist/ nach public_html/:
+
+  api/reminders.php
+  api/reminder-template.php
+  api/firestore-rest.php
+  api/blog-store.php          (schon vorhanden, wird mitbenutzt)
+  api/smtp-mailer.php         (schon vorhanden)
+  api/.htaccess               (aktualisiert)
+
+
+-------------------------------------------------------------------------
+2. DIENSTKONTO ANLEGEN
+-------------------------------------------------------------------------
+Der Server muss die Aufgaben und Kontakte in Firestore lesen koennen. Dort
+ist niemand angemeldet, also braucht er einen eigenen Schluessel.
+
+a) console.firebase.google.com  ->  dein Projekt
+b) Zahnrad -> Projekteinstellungen -> Dienstkonten
+c) "Neuen privaten Schluessel generieren"  ->  JSON herunterladen
+d) Datei umbenennen in:  service-account.json
+e) Hochladen nach:
+
+     /home/<nutzer>/domains/orbylox.de/orbylox-data/service-account.json
+
+   Also NEBEN blog-posts.json, eine Ebene UEBER public_html. Damit ist sie
+   per URL nicht abrufbar.
+
+WICHTIG: Diese Datei ist ein Generalschluessel fuer deine Datenbank. Niemals
+in Git, niemals in public_html, niemals per Mail verschicken. Wenn sie doch
+einmal irgendwo landet: in der Firebase-Konsole sofort widerrufen und einen
+neuen erzeugen.
+
+Das Dienstkonto braucht die Rolle "Cloud Datastore-Nutzer" — bei einem frisch
+erzeugten Firebase-Schluessel ist sie bereits gesetzt.
+
+
+-------------------------------------------------------------------------
+3. KONFIGURATION ERGAENZEN
+-------------------------------------------------------------------------
+In api/invite-config.php zwei Zeilen ergaenzen:
+
+    'cron_token' => 'HIER_EIN_LANGES_GEHEIMNIS',
+    'app_url'    => 'https://orbylox.de',
+
+Ein Geheimnis erzeugen (irgendein zufaelliger Text mit 30+ Zeichen). Ohne
+Token antwortet der Endpunkt ueber das Netz mit 403 — sonst koennte jeder
+beliebig oft Mails ausloesen.
+
+Die SMTP-Zugangsdaten stehen bereits in derselben Datei (vom Einladungs-
+versand) und werden mitbenutzt.
+
+
+-------------------------------------------------------------------------
+4. ZUERST OHNE VERSAND TESTEN
+-------------------------------------------------------------------------
+Im Browser aufrufen:
+
+  https://orbylox.de/api/reminders.php?token=DEIN_TOKEN&dry=1
+
+"dry=1" heisst: nur schauen, nichts verschicken. Die Antwort sieht so aus:
+
+  { "date": "2026-09-05", "dry_run": true,
+    "deadlines": 2, "contacts": 1, "skipped": 3, "errors": [] }
+
+  deadlines  Anzahl Personen, die eine Deadline-Mail bekaemen
+  contacts   Anzahl Personen, die Kontaktvorschlaege bekaemen
+  errors     Sollte leer sein. Steht dort etwas von service-account.json,
+             stimmt Punkt 2 nicht.
+
+Dann ohne dry=1 aufrufen — jetzt gehen die Mails wirklich raus.
+
+
+-------------------------------------------------------------------------
+5. CRON-JOB IM HPANEL
+-------------------------------------------------------------------------
+hPanel  ->  Erweitert  ->  Cron-Jobs  ->  Neuen Cron-Job erstellen
+
+  Typ:       Benutzerdefiniert
+  Zeitplan:  jeden Tag um 07:00
+  Befehl:
+
+    /usr/bin/php /home/<nutzer>/domains/orbylox.de/public_html/api/reminders.php
+
+Den genauen Pfad zeigt hPanel im Dateimanager an. Aufruf ueber die
+Kommandozeile braucht KEINEN Token — dort kommt ohnehin niemand von aussen
+heran.
+
+Alternative ohne PHP-Pfad (falls der Befehl nicht laeuft):
+
+    curl -s "https://orbylox.de/api/reminders.php?token=DEIN_TOKEN"
+
+Als Cron-Zeile (falls dein Tarif die Rohform verlangt):
+
+    0 7 * * *  /usr/bin/php /home/<nutzer>/domains/orbylox.de/public_html/api/reminders.php
+
+
+-------------------------------------------------------------------------
+6. DOPPELTE MAILS
+-------------------------------------------------------------------------
+Jede verschickte Mail wird vermerkt (orbylox-data/reminders-sent.json),
+Schluessel aus Empfaenger, Anlass und Tag. Laeuft der Cron versehentlich
+stuendlich, geht trotzdem nur eine Mail pro Tag raus. Der Vermerk wird nach
+30 Tagen automatisch geloescht.
+
+
+-------------------------------------------------------------------------
+7. WER BEKOMMT WAS
+-------------------------------------------------------------------------
+Deadline-Mail
+  An die Adresse im Feld "assignee_email" einer Aufgabe. Beruecksichtigt
+  werden Aufgaben, deren Status nicht "done" ist und deren Faelligkeit in
+  drei Tagen oder frueher liegt (auch ueberfaellige). Mehrere Aufgaben je
+  Person kommen in EINER Mail — nicht fuenf einzelne.
+
+Kontaktvorschlaege
+  An alle, die die Kontaktpflege eingeschaltet haben (Einstellungen) und
+  mindestens einen Kontakt haben. Drei Namen, dieselben wie auf /Contacts:
+  Server und Browser rechnen mit derselben Formel und demselben Tagesstempel.
+
+
+-------------------------------------------------------------------------
+8. WENN NICHTS ANKOMMT
+-------------------------------------------------------------------------
+Der Reihe nach pruefen:
+
+a) https://orbylox.de/api/reminders.php?token=…&dry=1  aufrufen.
+   403      -> cron_token stimmt nicht
+   500      -> firebase_project_id fehlt
+   errors[] -> die Meldung sagt, woran es liegt
+
+b) Steht in "deadlines" eine 0, obwohl Aufgaben faellig sind?
+   Dann fehlt den Aufgaben ein assignee_email oder ein due_date.
+
+c) Kommt die Antwort sauber, aber keine Mail an?
+   Dann liegt es am SMTP-Versand, nicht an den Erinnerungen. Test:
+   eine Projekteinladung verschicken — kommt die an, stimmt SMTP.
+
+d) Spam-Ordner pruefen. Bei eigener Domain ohne SPF/DKIM landen Mails
+   haeufig dort. Im hPanel unter E-Mails -> DNS-Eintraege pruefen.
+
+
+-------------------------------------------------------------------------
+9. WAS NOCH NICHT DRIN IST
+-------------------------------------------------------------------------
+- Die Sprache der Mails ist fest Deutsch. Die Vorlagen koennen Englisch
+  (Parameter $lang), es fehlt nur die Ablage der Sprachwahl je Person.
+- Es gibt keinen Abmeldelink in der Mail. Abschalten geht ueber die
+  Einstellungen in der Anwendung.
+- Auf diesem Rechner war kein PHP verfuegbar. Klammerbilanz und Zeichenketten
+  wurden lexikalisch geprueft, die Auswahlformel gegen die JavaScript-Fassung
+  gerechnet (identische Werte). Ein echter Durchlauf steht mit Punkt 4 aus.

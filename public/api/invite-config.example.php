@@ -27,4 +27,13 @@ return [
     // Optional legacy shared key. Leave empty — authorisation now runs through the
     // Firebase ID token plus a project access check.
     'api_key' => '',
+
+    // --- Automatische Erinnerungen (api/reminders.php) -------------------
+    // Geheimnis fuer den Cron-Aufruf. Selbst erzeugen, z. B.:
+    //   php -r "echo bin2hex(random_bytes(24));"
+    // Ohne diesen Wert antwortet reminders.php ueber das Netz mit 403.
+    'cron_token' => '',
+
+    // Basisadresse fuer die Links in den Mails.
+    'app_url' => 'https://orbylox.de',
 ];

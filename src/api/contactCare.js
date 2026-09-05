@@ -20,6 +20,10 @@ export const CONTACT_CARE_DEFAULTS = Object.freeze({
   intervalDays: 7,
   lastDoneAt: null,
   log: [],
+  // Wird mitgespeichert, damit der Cron-Job auf dem Server weiss, wohin die
+  // Vorschlags-Mail gehen soll. Firestore kennt dort keinen angemeldeten
+  // Nutzer und kommt an die Firebase-Anmeldedaten nicht heran.
+  email: '',
 });
 
 export const INTERVAL_CHOICES = [1, 2, 3, 7, 14, 30];
@@ -32,6 +36,7 @@ export function parseContactCare(raw) {
     enabled: !!d.enabled,
     intervalDays: Number.isFinite(interval) && interval >= 1 ? Math.min(interval, 365) : 7,
     lastDoneAt: typeof d.last_done_at === "string" ? d.last_done_at : null,
+    email: typeof d.email === "string" ? d.email : "",
     log: Array.isArray(d.log)
       ? d.log
           .filter((e) => e && typeof e.at === "string" && Array.isArray(e.names))
@@ -46,6 +51,7 @@ function toDoc(prefs) {
     interval_days: prefs.intervalDays,
     last_done_at: prefs.lastDoneAt,
     log: (prefs.log || []).slice(-MAX_LOG),
+    email: String(prefs.email || "").toLowerCase(),
   };
 }
 
@@ -84,7 +90,8 @@ export async function fetchContactCare(uid, email) {
 }
 
 export async function saveContactCare(uid, email, prefs) {
-  const next = parseContactCare(toDoc(prefs));
+  // E-Mail immer mitschreiben — der Server braucht sie fuer den Versand.
+  const next = parseContactCare(toDoc({ ...prefs, email: prefs.email || email || "" }));
   writeLocal(email, next);
   if (!hasFirebaseConfig || !db || !uid) return next;
   await setDoc(

@@ -51,6 +51,12 @@ export async function notifyAssignment({
     return { sent: true };
   } catch (err) {
     // Kein Abbruch: die Zuweisung selbst ist längst gespeichert.
+    //
+    // Frueher endete der Fehler hier in der Konsole — und damit im Nichts.
+    // Wer eine Zuweisung machte, ging davon aus, dass eine Mail rausging;
+    // dass der Mailserver nicht antwortete, erfuhr er nie. Deshalb wird der
+    // Fehlschlag jetzt nach oben gemeldet, damit die Oberflaeche ihn zeigen
+    // kann.
     console.error('[notifyAssignment]', err);
     return { sent: false, error: String(err?.message || err) };
   }

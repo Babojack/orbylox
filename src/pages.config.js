@@ -54,6 +54,7 @@ import AdminUsers from './pages/AdminUsers';
 import BlogAdmin from './pages/BlogAdmin';
 import Canvas from './pages/Canvas';
 import Chat from './pages/Chat';
+import Contacts from './pages/Contacts';
 import Docs from './pages/Docs';
 import FileHub from './pages/FileHub';
 import IdeasHub from './pages/IdeasHub';
@@ -83,6 +84,7 @@ export const PAGES = {
     "Dashboard": Dashboard,
     "Canvas": Canvas,
     "Chat": Chat,
+    "Contacts": Contacts,
     "Docs": Docs,
     "FileHub": FileHub,
     "IdeasHub": IdeasHub,

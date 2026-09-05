@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from "@/components/ui/use-toast";
 import { api } from "@/api/apiClient";
 import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -379,6 +380,14 @@ export default function ScrumBoard() {
           project,
           allTasks: tasks || [],
           language,
+        }).then((r) => {
+          if (r?.sent === false) {
+            toast({
+              title: language === 'de' ? 'Ticket gespeichert, Mail nicht verschickt' : 'Task saved, email not sent',
+              description: r.error,
+              variant: 'destructive',
+            });
+          }
         });
       }
     },

@@ -112,7 +112,7 @@ function teamActivityLucideIcon(entityName) {
  */
 const STANDALONE_PAGES = new Set([
   'ProjectsList', 'IdeasHub', 'index', 'Landing', 'Profile',
-  'Subscription', 'Impressum', 'AdminUsers', 'admin', 'About',
+  'Subscription', 'Impressum', 'AdminUsers', 'admin', 'About', 'Contacts',
 ]);
 
 function LayoutContent({ children, currentPageName }) {

@@ -326,6 +326,20 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
 
+    /**
+     * Kontakte gehoeren genau einer Person. Kein Projektbezug, keine
+     * Mitgliederliste — nur der Eigentuemer sieht und aendert sie.
+     * Die userId muss beim Anlegen die eigene sein, sonst koennte jemand
+     * Eintraege in fremde Adressbuecher schreiben.
+     */
+    match /Contact/{docId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+    }
+
     match /UserProjectListPrefs/{userId} {
       allow read: if isSignedIn() && request.auth.uid == userId;
       allow create, update: if isSignedIn()
