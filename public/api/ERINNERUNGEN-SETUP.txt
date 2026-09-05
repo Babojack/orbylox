@@ -24,6 +24,7 @@ Aus dist/ nach public_html/:
   api/blog-store.php          (schon vorhanden, wird mitbenutzt)
   api/smtp-mailer.php         (schon vorhanden)
   api/.htaccess               (aktualisiert)
+  api/invite-config.php       (enthaelt jetzt cron_token und app_url)
 
 
 -------------------------------------------------------------------------
@@ -53,19 +54,27 @@ erzeugten Firebase-Schluessel ist sie bereits gesetzt.
 
 
 -------------------------------------------------------------------------
-3. KONFIGURATION ERGAENZEN
+3. KONFIGURATION
 -------------------------------------------------------------------------
-In api/invite-config.php zwei Zeilen ergaenzen:
+In api/invite-config.php stehen bereits zwei neue Zeilen:
 
-    'cron_token' => 'HIER_EIN_LANGES_GEHEIMNIS',
+    'cron_token' => '<48 Zeichen, bereits erzeugt>',
     'app_url'    => 'https://orbylox.de',
 
-Ein Geheimnis erzeugen (irgendein zufaelliger Text mit 30+ Zeichen). Ohne
-Token antwortet der Endpunkt ueber das Netz mit 403 — sonst koennte jeder
-beliebig oft Mails ausloesen.
+Der Token wurde einmalig erzeugt und in die Datei geschrieben. Nachsehen:
+oeffne api/invite-config.php und kopiere den Wert hinter 'cron_token'.
+Diesen Wert brauchst du in Punkt 4 und ggf. 5.
 
-Die SMTP-Zugangsdaten stehen bereits in derselben Datei (vom Einladungs-
-versand) und werden mitbenutzt.
+Willst du einen anderen: einfach ersetzen. Er darf beliebig sein, sollte
+aber lang und zufaellig sein — ohne Token antwortet der Endpunkt ueber das
+Netz mit 403, sonst koennte jeder beliebig oft Mails ausloesen.
+
+WICHTIG: invite-config.php enthaelt SMTP-Zugangsdaten und jetzt auch diesen
+Token. Sie steht in .gitignore, ist per api/.htaccess gesperrt und gehoert
+nirgendwo hin ausser auf den Server.
+
+Die SMTP-Zugangsdaten stehen in derselben Datei (vom Einladungsversand) und
+werden mitbenutzt.
 
 
 -------------------------------------------------------------------------
