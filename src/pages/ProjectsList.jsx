@@ -32,6 +32,7 @@ import { getMaxProjectsForPlan, canCreateProject as canCreateProjectByPlan } fro
 import OrbyloxMark from "@/components/OrbyloxMark";
 import { EASE, DURATION, STAGGER } from "@/components/motion/Reveal";
 import { CardGridSkeleton } from "@/components/motion/Skeletons";
+import { askDelete } from '@/lib/confirmDelete';
 
 const MAX_MEMBERS_PER_PROJECT = 3;
 
@@ -374,18 +375,43 @@ function ProjectsListContent() {
     );
   };
 
-  const handleDeleteSelected = () => {
+  /**
+   * An einem Projekt hängt alles: Aufgaben, Notizen, Dateien, Canvas, Chat.
+   * Deshalb reicht hier kein Ja-Knopf — es muss ein erzeugter Satz abgetippt
+   * werden. Das kostet ein paar Sekunden und verhindert den Klick, den man
+   * eine Minute später bereut.
+   */
+  const handleDeleteSelected = async () => {
     if (selectedProjects.length === 0) return;
-    if (window.confirm(`Delete ${selectedProjects.length} project(s)?`)) {
-      deleteProjectsMutation.mutate(selectedProjects);
-    }
+    const names = projects
+      .filter((p) => selectedProjects.includes(p.id))
+      .map((p) => p.name)
+      .join(', ');
+    const ok = await askDelete({
+      title: language === 'de'
+        ? `${selectedProjects.length} Projekt(e) löschen?`
+        : `Delete ${selectedProjects.length} project(s)?`,
+      itemName: names,
+      body: language === 'de'
+        ? 'Alle Aufgaben, Notizen, Dateien, Canvas-Inhalte und Nachrichten dieser Projekte verschwinden mit. Das lässt sich nicht rückgängig machen.'
+        : 'Every task, note, file, canvas item and message in these projects goes with them. This cannot be undone.',
+      requirePhrase: true,
+    });
+    if (ok) deleteProjectsMutation.mutate(selectedProjects);
   };
 
-  const handleDeleteAll = () => {
+  const handleDeleteAll = async () => {
     if (projects.length === 0) return;
-    if (window.confirm(`Delete ALL ${projects.length} projects? This cannot be undone!`)) {
-      deleteProjectsMutation.mutate(projects.map(p => p.id));
-    }
+    const ok = await askDelete({
+      title: language === 'de'
+        ? `ALLE ${projects.length} Projekte löschen?`
+        : `Delete ALL ${projects.length} projects?`,
+      body: language === 'de'
+        ? 'Damit ist der gesamte Arbeitsbereich leer. Alles, was in diesen Projekten liegt, verschwindet mit.'
+        : 'This empties your entire workspace. Everything inside these projects goes with them.',
+      requirePhrase: true,
+    });
+    if (ok) deleteProjectsMutation.mutate(projects.map((p) => p.id));
   };
 
   const openProject = (project) => {

@@ -23,6 +23,7 @@ import {
   Link,
   Star
 } from 'lucide-react';
+import { askDelete } from '@/lib/confirmDelete';
 
 const AVAILABLE_INTEGRATIONS = [
   {
@@ -283,9 +284,11 @@ export default function Integrations() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-slate-400 hover:text-red-500"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          deleteIntegrationMutation.mutate(integration.id);
+                          if (await askDelete({ kind: 'integration', itemName: integration.name })) {
+                            deleteIntegrationMutation.mutate(integration.id);
+                          }
                         }}
                       >
                         <Trash2 className="w-4 h-4" />

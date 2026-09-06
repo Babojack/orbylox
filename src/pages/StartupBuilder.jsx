@@ -17,6 +17,7 @@ import JourneyCard from '@/components/startup-builder/JourneyCard';
 import JourneyDetailDialog from '@/components/startup-builder/JourneyDetailDialog';
 import { BLOCK_TYPES } from '@/components/startup-builder/BlockPalette';
 import { useLanguage } from '@/components/LanguageProvider';
+import { askDelete } from '@/lib/confirmDelete';
 
 export default function StartupBuilder() {
   const location = useLocation();
@@ -364,8 +365,8 @@ export default function StartupBuilder() {
                     journey={journey}
                     index={index}
                     onView={setViewingJourney}
-                    onDelete={(id) => {
-                      if (window.confirm('Roadmap wirklich löschen?')) {
+                    onDelete={async (id) => {
+                      if (await askDelete({ title: 'Roadmap löschen?', body: 'Alle Schritte dieser Roadmap gehen mit.' })) {
                         handleDeleteJourney(id);
                       }
                     }}

@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import OrbyloxMark from '@/components/OrbyloxMark';
 import { ListSkeleton } from '@/components/motion/Skeletons';
 import { Reveal } from '@/components/motion/Reveal';
+import { askDelete } from '@/lib/confirmDelete';
 
 /**
  * Redaktion für den Blog.
@@ -456,8 +457,8 @@ export default function BlogAdmin() {
             {editing.id && (
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm(`„${editing.title}“ endgültig löschen?`)) deleteMutation.mutate(editing.id);
+                onClick={async () => {
+                  if (await askDelete({ title: 'Beitrag endgültig löschen?', itemName: editing.title, body: 'Der Artikel verschwindet vom Blog und aus der Sitemap.' })) deleteMutation.mutate(editing.id);
                 }}
                 className="w-full h-10 border-2 border-red-500 text-red-600 text-xs font-bold uppercase inline-flex items-center justify-center gap-2 mt-4"
               >

@@ -21,6 +21,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { notifyAssignment } from "@/lib/notifyAssignment";
 import { Reveal } from "@/components/motion/Reveal";
 import { BoardSkeleton } from "@/components/motion/Skeletons";
+import { askDelete } from '@/lib/confirmDelete';
 
 /* `key` zeigt auf den Uebersetzungsschluessel — die Spaltentitel standen
    vorher fest auf Englisch, auch in der deutschen Fassung. */
@@ -740,7 +741,7 @@ export default function ScrumBoard() {
             size="sm"
             className="text-xs sm:text-sm"
             onClick={async () => {
-              if (window.confirm('Alle Aufgaben auf diesem Board löschen?')) {
+              if (await askDelete({ kind: 'boardTasks' })) {
                 const currentTasks = boardScopedTasks || [];
                 await Promise.all(currentTasks.map(t => api.entities.Task.delete(t.id)));
                 queryClient.invalidateQueries(['tasks', projectId]);
@@ -798,14 +799,16 @@ export default function ScrumBoard() {
                 type="button"
                 className="p-1 rounded hover:bg-red-50"
                 title="Board löschen"
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Dieses Board löschen? Alle Tickets darauf werden ins Hauptboard verschoben.",
-                    )
-                  ) {
-                    deleteKanbanBoardMutation.mutate(b.id);
-                  }
+                onClick={async () => {
+                  const ok = await askDelete({
+                    title: language === 'de' ? 'Board löschen?' : 'Delete board?',
+                    itemName: b.title,
+                    body: language === 'de'
+                      ? 'Alle Tickets darauf werden ins Hauptboard verschoben, keines geht verloren.'
+                      : 'Every ticket on it moves to the main board — none is lost.',
+                    confirmLabel: language === 'de' ? 'Board löschen' : 'Delete board',
+                  });
+                  if (ok) deleteKanbanBoardMutation.mutate(b.id);
                 }}
               >
                 <Trash2 className="w-3.5 h-3.5 text-red-500" />

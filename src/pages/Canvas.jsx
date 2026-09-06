@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import TaskDetailDialog from "@/components/kanban/TaskDetailDialog";
+import { askDelete } from '@/lib/confirmDelete';
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 4;
@@ -966,8 +967,12 @@ export default function MindMap() {
 
       if (selectedConnectionId && (e.key === "Backspace" || e.key === "Delete")) {
         e.preventDefault();
-        deleteConnection.mutate(selectedConnectionId);
-        setSelectedConnectionId(null);
+        const id = selectedConnectionId;
+        askDelete({ kind: 'connection' }).then((ok) => {
+          if (!ok) return;
+          deleteConnection.mutate(id);
+          setSelectedConnectionId(null);
+        });
         return;
       }
 
@@ -975,11 +980,15 @@ export default function MindMap() {
 
       if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault();
-        deleteNode.mutate(selectedNodeId);
-        setSelectedNodeId(null);
-        setNotePanel(null);
-        setCommentPanel(null);
-        setFileHubPanel(null);
+        const id = selectedNodeId;
+        askDelete({ kind: 'node' }).then((ok) => {
+          if (!ok) return;
+          deleteNode.mutate(id);
+          setSelectedNodeId(null);
+          setNotePanel(null);
+          setCommentPanel(null);
+          setFileHubPanel(null);
+        });
         return;
       }
 
@@ -1317,7 +1326,7 @@ export default function MindMap() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => deleteNode.mutate(selectedNodeId)}
+                onClick={async () => { if (await askDelete({ kind: 'node' })) deleteNode.mutate(selectedNodeId); }}
                 className="h-7 px-2 text-red-500 hover:bg-red-50"
                 title="Loeschen (Backspace)"
               >
@@ -1397,7 +1406,7 @@ export default function MindMap() {
                         </span>
                         {comment.author_email === currentUser?.email && (
                           <button
-                            onClick={() => deleteComment.mutate(comment.id)}
+                            onClick={async () => { if (await askDelete({ kind: 'comment' })) deleteComment.mutate(comment.id); }}
                             className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Kommentar löschen"
                           >
@@ -1725,10 +1734,12 @@ export default function MindMap() {
                       <path d={path} fill="none" stroke="#6366f1" strokeWidth="5" strokeLinecap="round" opacity="0.35" />
                       <g
                         className="pointer-events-auto cursor-pointer"
-                        onPointerDown={(e) => {
+                        onPointerDown={async (e) => {
                           e.stopPropagation();
-                          deleteConnection.mutate(conn.id);
-                          setSelectedConnectionId(null);
+                          if (await askDelete({ kind: 'connection' })) {
+                            deleteConnection.mutate(conn.id);
+                            setSelectedConnectionId(null);
+                          }
                         }}
                       >
                         <circle cx={midX} cy={midY + (conn.label ? 22 : 0)} r="11" fill="white" stroke="#ef4444" strokeWidth="2" />

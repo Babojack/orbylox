@@ -8,6 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { askDelete } from '@/lib/confirmDelete';
 
 const STEP_ICONS = {
   idea_validation: Lightbulb,
@@ -303,8 +304,8 @@ export default function RoadmapTimeline({ steps, onEdit, onDelete, onReorder, on
     onReorder(result.source.index, result.destination.index);
   };
 
-  const handleDelete = (stepId) => {
-    if (window.confirm('Möchtest du diesen Schritt wirklich löschen?')) {
+  const handleDelete = async (stepId) => {
+    if (await askDelete({ title: 'Schritt löschen?', body: 'Aufgaben und Notizen dieses Schritts gehen mit.' })) {
       onDelete(stepId);
     }
   };

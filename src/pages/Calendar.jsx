@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/components/LanguageProvider";
 import { Reveal } from "@/components/motion/Reveal";
+import { askDelete } from '@/lib/confirmDelete';
 
 const EVENT_COLORS = [
   { value: '#ef5a24', label: 'Orange' },
@@ -569,7 +570,7 @@ export default function Calendar() {
               <div className="flex gap-2">
                 <Button
                   variant="destructive"
-                  onClick={() => deleteEventMutation.mutate(editingEvent)}
+                  onClick={async () => { if (await askDelete({ kind: 'event', itemName: editingEvent?.title })) deleteEventMutation.mutate(editingEvent); }}
                   disabled={deleteEventMutation.isPending}
                   className="flex-1"
                 >

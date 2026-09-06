@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/components/LanguageProvider";
+import { askDelete } from '@/lib/confirmDelete';
 
 export default function FileHub() {
   const { t } = useLanguage();
@@ -429,7 +430,7 @@ export default function FileHub() {
               size="sm"
               className="text-xs sm:text-sm"
               onClick={async () => {
-                if (window.confirm(t('deleteAllFiles'))) {
+                if (await askDelete({ kind: 'allFiles' })) {
                   const currentFiles = files || [];
                   await Promise.all(currentFiles.map(f => api.entities.FileRecord.delete(f.id)));
                   queryClient.invalidateQueries(['files', projectId, currentFolderId]);
@@ -544,7 +545,7 @@ export default function FileHub() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); deleteFolderMutation.mutate(folder.id); }} className="text-red-600">
+                  <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); if (await askDelete({ kind: 'folder', itemName: folder.name })) deleteFolderMutation.mutate(folder.id); }} className="text-red-600">
                     <Trash2 className="w-3 h-3 mr-2" /> Löschen
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -591,7 +592,7 @@ export default function FileHub() {
                                     <Download className="w-3 h-3 mr-2" /> Herunterladen
                                 </a>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); deleteFileMutation.mutate(file.id); }} className="text-red-600">
+                            <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); if (await askDelete({ kind: 'file', itemName: file.name })) deleteFileMutation.mutate(file.id); }} className="text-red-600">
                                 <Trash2 className="w-3 h-3 mr-2" /> Löschen
                             </DropdownMenuItem>
                         </DropdownMenuContent>

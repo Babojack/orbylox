@@ -26,6 +26,7 @@ import {
   Trash2,
   Calendar
 } from 'lucide-react';
+import { askDelete } from '@/lib/confirmDelete';
 
 const URL_IN_TEXT = /(https?:\/\/[^\s]+)/gi;
 
@@ -538,7 +539,7 @@ export default function TaskDetailDialog({
                       {subtask.title}
                     </span>
                     <button
-                      onClick={() => deleteSubtaskMutation.mutate(subtask.id)}
+                      onClick={async () => { if (await askDelete({ kind: 'subtask', itemName: subtask.title })) deleteSubtaskMutation.mutate(subtask.id); }}
                       className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500"
                     >
                       <X className="w-4 h-4" />
@@ -617,7 +618,7 @@ export default function TaskDetailDialog({
                 variant="destructive"
                 className="w-full"
                 onClick={async () => {
-                  if (window.confirm('Sind Sie sicher, dass Sie diese Aufgabe löschen möchten?')) {
+                  if (await askDelete({ kind: 'task', itemName: task?.title })) {
                     onClose();
                     setTimeout(() => {
                       onDeleteTask?.(task.id);

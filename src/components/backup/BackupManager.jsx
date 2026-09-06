@@ -19,6 +19,7 @@ import {
   downloadBackup,
   restoreBackup,
 } from "@/lib/projectBackup";
+import { askDelete } from '@/lib/confirmDelete';
 
 const AUTO_BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -173,7 +174,7 @@ export default function BackupManager({ projectId, project, currentUser }) {
   };
 
   const handleDelete = async (backup) => {
-    if (!window.confirm('Backup wirklich löschen?')) return;
+    if (!(await askDelete({ title: 'Sicherung löschen?', body: 'Diese Sicherung lässt sich danach nicht mehr einspielen.' }))) return;
     try {
       await deleteFullBackup(projectId, backup.id);
       queryClient.invalidateQueries({ queryKey: ['backups', projectId] });

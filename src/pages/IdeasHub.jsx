@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
+import { askDelete } from '@/lib/confirmDelete';
 
 
 function IdeasHubContent() {
@@ -324,7 +325,7 @@ function IdeasHubContent() {
                           convertMutation.variables?.id === idea.id
                         }
                         onEdit={() => openEdit(idea)}
-                        onDelete={() => deleteMutation.mutate(idea.id)}
+                        onDelete={async () => { if (await askDelete({ kind: 'idea', itemName: idea.title })) deleteMutation.mutate(idea.id); }}
                         onConvert={() => convertMutation.mutate(idea)}
                       />
                     ))}
@@ -354,7 +355,7 @@ function IdeasHubContent() {
                             `?project=${idea.project_id}`,
                         )
                       }
-                      onDelete={() => deleteMutation.mutate(idea.id)}
+                      onDelete={async () => { if (await askDelete({ kind: 'idea', itemName: idea.title })) deleteMutation.mutate(idea.id); }}
                     />
                   ))}
                 </div>

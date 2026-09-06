@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import MethodologyCard, { METHODOLOGIES } from "@/components/validation/MethodologyCard";
 import RoadmapDisplay from "@/components/validation/RoadmapDisplay";
 import IdeaCard from "@/components/validation/IdeaCard";
+import { askDelete } from '@/lib/confirmDelete';
 
 export default function ProductValidation() {
   const queryClient = useQueryClient();
@@ -158,8 +159,8 @@ Show a timeline or flowchart visualization with icons. Modern tech startup aesth
     });
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Really delete this idea?')) {
+  const handleDelete = async (id) => {
+    if (await askDelete({ kind: 'ideaProduct' })) {
       deleteMutation.mutate(id);
       if (viewIdea?.id === id) setViewIdea(null);
     }

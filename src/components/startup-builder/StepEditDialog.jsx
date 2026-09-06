@@ -11,6 +11,7 @@ import { STEP_LABELS } from './StepBlock';
 import { api } from "@/api/apiClient";
 import TaskExplanationDialog from './TaskExplanationDialog';
 import { useLanguage } from '@/components/LanguageProvider';
+import { askDelete } from '@/lib/confirmDelete';
 
 const METHODOLOGIES = [
   "Lean Startup",
@@ -821,10 +822,10 @@ export default function StepEditDialog({ isOpen, onClose, step, onSave, onDelete
             <Button 
               variant="destructive" 
               size="sm"
-              onClick={() => { 
-                if (window.confirm(dialogLabels.deleteBlock)) {
-                  onDelete(step.id); 
-                  onClose(); 
+              onClick={async () => {
+                if (await askDelete({ title: dialogLabels.deleteBlock })) {
+                  onDelete(step.id);
+                  onClose();
                 }
               }}
             >

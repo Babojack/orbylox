@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import { askDelete } from '@/lib/confirmDelete';
 
 const NOTE_COLORS = [
   { name: 'Default', bg: 'bg-white', border: 'border-slate-200', text: 'text-slate-800' },
@@ -402,7 +403,7 @@ export default function Docs() {
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="text-red-600"
-                onClick={(e) => { e.stopPropagation(); deleteDocMutation.mutate(doc.id); }}
+                onClick={async (e) => { e.stopPropagation(); if (await askDelete({ kind: 'note', itemName: doc.title })) deleteDocMutation.mutate(doc.id); }}
               >
                 <Trash2 className="w-4 h-4 mr-2" /> Löschen
               </DropdownMenuItem>
@@ -544,7 +545,7 @@ export default function Docs() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                             className="text-red-600"
-                            onClick={(e) => { e.stopPropagation(); deleteDocMutation.mutate(doc.id); }}
+                            onClick={async (e) => { e.stopPropagation(); if (await askDelete({ kind: 'note', itemName: doc.title })) deleteDocMutation.mutate(doc.id); }}
                           >
                             <Trash2 className="w-4 h-4 mr-2" /> Löschen
                           </DropdownMenuItem>
@@ -730,7 +731,7 @@ export default function Docs() {
                     variant="outline" 
                     size="sm"
                     className="text-red-600 hover:text-red-700"
-                    onClick={() => deleteDocMutation.mutate(selectedDoc.id)}
+                    onClick={async () => { if (await askDelete({ kind: 'note', itemName: selectedDoc?.title })) deleteDocMutation.mutate(selectedDoc.id); }}
                   >
                     <Trash2 className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Löschen</span>
                   </Button>

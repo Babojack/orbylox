@@ -8,6 +8,7 @@ import {
   Megaphone, TrendingUp, Users, Scale, Puzzle,
   Check, Clock, Circle, ChevronDown, ChevronUp, Trash2
 } from 'lucide-react';
+import { askDelete } from '@/lib/confirmDelete';
 
 const STEP_ICONS = {
   idea_validation: Lightbulb,
@@ -224,8 +225,8 @@ export default function JourneyDetailDialog({ journey, isOpen, onClose, onDelete
         <div className="flex justify-between pt-4 border-t border-slate-100 flex-shrink-0">
           <Button
             variant="outline"
-            onClick={() => {
-              if (window.confirm('Journey wirklich löschen?')) {
+            onClick={async () => {
+              if (await askDelete({ title: 'Journey löschen?', body: 'Alle Schritte dieser Journey gehen mit.' })) {
                 onDelete(journey.id);
                 onClose();
               }

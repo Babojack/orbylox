@@ -19,6 +19,7 @@ import {
   handleFor,
 } from '@/lib/mentions';
 import { useLanguage } from '@/components/LanguageProvider';
+import { askDelete } from '@/lib/confirmDelete';
 
 export default function Chat() {
   const queryClient = useQueryClient();
@@ -254,7 +255,7 @@ export default function Chat() {
                 size="icon"
                 className="h-7 w-7 text-red-500 hover:text-red-700"
                 onClick={async () => {
-                  if (window.confirm('Chat-Verlauf löschen?')) {
+                  if (await askDelete({ kind: 'allMessages' })) {
                     const currentMessages = messages || [];
                     await Promise.all(currentMessages.map(m => api.entities.Message.delete(m.id)));
                     queryClient.invalidateQueries(['messages', projectId]);

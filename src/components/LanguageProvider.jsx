@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import LanguageSalute from '@/components/language/LanguageSalute';
 import BotStage from '@/components/bot/BotStage';
+import ConfirmDeleteHost from '@/components/common/ConfirmDeleteHost';
 
 const LanguageContext = createContext();
 
@@ -1165,6 +1166,8 @@ export function LanguageProvider({ children }) {
       {/* Bühne für die Figur: Jubel beim fertigen Ticket, Abschied beim
           Abmelden. Steht hier, weil dieser Anbieter auf jeder Seite liegt. */}
       <BotStage language={language} />
+      {/* Nachfrage vor jedem Löschen — hört auf askDelete(). */}
+      <ConfirmDeleteHost language={language} />
     </LanguageContext.Provider>
   );
 }

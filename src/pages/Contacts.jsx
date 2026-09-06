@@ -18,6 +18,7 @@ import { Reveal } from '@/components/motion/Reveal';
 import { ListSkeleton } from '@/components/motion/Skeletons';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { askDelete } from '@/lib/confirmDelete';
 
 /**
  * Kontaktpflege.
@@ -360,7 +361,7 @@ function ContactsContent() {
                   <button
                     type="button"
                     title={de ? 'Löschen' : 'Delete'}
-                    onClick={() => delOne.mutate(c.id)}
+                    onClick={async () => { if (await askDelete({ kind: 'contact', itemName: c.name })) delOne.mutate(c.id); }}
                     className="h-9 w-9 grid place-items-center border-2 border-black bg-white text-red-600 shrink-0"
                   >
                     <Trash2 className="w-4 h-4" />

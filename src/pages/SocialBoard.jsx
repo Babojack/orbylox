@@ -26,6 +26,7 @@ import { FeedSkeleton } from "@/components/motion/Skeletons";
 import { Reveal } from "@/components/motion/Reveal";
 import { AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/components/LanguageProvider";
+import { askDelete } from '@/lib/confirmDelete';
 
 function avatarSeedFromEmail(email = "") {
   // Avoid leaking raw emails in third-party avatar URLs.
@@ -497,7 +498,7 @@ export default function SocialBoard() {
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => deletePostMutation.mutate(post.id)}
+                    onClick={async () => { if (await askDelete({ kind: 'post' })) deletePostMutation.mutate(post.id); }}
                     className="text-red-600 focus:text-red-600"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
