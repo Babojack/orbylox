@@ -4,36 +4,44 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
 /**
- * Die grüßende Figur beim Sprachwechsel.
+ * Die ORBYLOX-Figur, die eine mitgegebene Bewegung einmal abspielt.
  *
- * Herkunft der Bewegung: Mixamo-Animation "Salute" (FBX, 2,2 MB). Im Bundle
- * steckt weder die FBX noch ein FBX-Loader — die Animationsspuren wurden
- * einmalig zu JSON umgerechnet (146 KB, gepackt 27 KB). Das Skelett ist
- * dasselbe wie im vorhandenen `xbot.glb`, alle 52 Knochen passen ohne
- * Umbenennung. Deshalb reicht die Bewegung; das Modell liegt schon da und
- * kommt in der Regel aus dem Browser-Zwischenspeicher.
+ * Ein Bauteil für alle Anlässe: der Gruß beim Sprachwechsel, der Tanz beim
+ * erledigten Ticket, und was später dazukommt. Unterschiedlich sind nur die
+ * Bewegungsdatei und der Bildausschnitt.
  *
- * Zwei Meldungen gehen nach außen:
- *   onPeak — der Gruß steht (gemessen: die Hand hält von 0,76 s bis 1,48 s
- *            oben, Mitte 1,12 s). Genau dann wird die Sprache umgestellt.
- *   onDone — die Bewegung ist zu Ende, die Einblendung darf verschwinden.
+ * Herkunft der Bewegungen: Mixamo-FBX-Dateien. Im Bundle liegt weder eine FBX
+ * noch ein FBX-Loader — die Spuren wurden einmalig zu JSON umgerechnet und
+ * fehlerbegrenzt ausgedünnt. Das Skelett ist dasselbe wie in `xbot.glb`, alle
+ * 52 Knochen passen ohne Umbenennung; das Modell liegt also nur einmal da und
+ * kommt beim zweiten Anlass aus dem Zwischenspeicher.
  *
- * Schlägt WebGL oder das Laden fehl, meldet die Komponente `onFail`. Ein
- * Sprachwechsel darf nie daran scheitern, dass eine Verzierung nicht lädt.
+ * Meldungen nach außen:
+ *   onPeak — der Höhepunkt der Bewegung (nur wenn die Datei einen nennt)
+ *   onDone — die Bewegung ist durch
+ *   onFail — WebGL fehlt oder etwas ließ sich nicht laden
+ *
+ * `onFail` ist keine Nebensache: Was am Ende der Bewegung passieren soll,
+ * muss auch dann passieren, wenn es die Bewegung gar nicht gibt.
  */
 
 const MODEL_URL = '/models/xbot.glb';
-const CLIP_URL = '/models/salute.clip.json';
+
+/** Bildausschnitte: Brustbild für Gesten, ganze Figur für alles mit Beinen. */
+const FRAMING = {
+  bust: { pos: [0.45, 1.5, 2.3], look: [0, 1.25, 0], fov: 30 },
+  full: { pos: [0.3, 1.35, 3.6], look: [0, 0.95, 0], fov: 34 },
+};
 
 /** Vorab holen, damit der Klick später nicht auf den Download wartet. */
-export function prefetchSaluteAssets() {
+export function prefetchClip(clipUrl) {
   if (typeof window === 'undefined') return;
-  [MODEL_URL, CLIP_URL].forEach((url) => {
+  [MODEL_URL, clipUrl].filter(Boolean).forEach((url) => {
     fetch(url, { cache: 'force-cache' }).catch(() => {});
   });
 }
 
-export default function SaluteBot({ onPeak, onDone, onFail }) {
+export default function ClipBot({ clipUrl, framing = 'bust', onPeak, onDone, onFail }) {
   const mountRef = useRef(null);
   const [ready, setReady] = useState(false);
 
@@ -63,12 +71,11 @@ export default function SaluteBot({ onPeak, onDone, onFail }) {
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
 
+    const view = FRAMING[framing] || FRAMING.bust;
     const scene = new THREE.Scene();
-    // Enger Ausschnitt auf Kopf und Hand — der Gruß ist die Aussage,
-    // die Füße sind es nicht.
-    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
-    camera.position.set(0.45, 1.5, 2.3);
-    const lookAt = new THREE.Vector3(0, 1.25, 0);
+    const camera = new THREE.PerspectiveCamera(view.fov, 1, 0.1, 50);
+    camera.position.set(...view.pos);
+    const lookAt = new THREE.Vector3(...view.look);
     camera.lookAt(lookAt);
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0xdadada, 1.15));
@@ -80,9 +87,8 @@ export default function SaluteBot({ onPeak, onDone, onFail }) {
     scene.add(rim);
 
     let mixer = null;
-    let action = null;
-    let peak = 1.12;
-    let duration = 2.833;
+    let peak = null;
+    let duration = 3;
     let firedPeak = false;
     let firedDone = false;
 
@@ -92,7 +98,7 @@ export default function SaluteBot({ onPeak, onDone, onFail }) {
     const loadModel = new Promise((resolve, reject) => {
       loader.load(MODEL_URL, resolve, undefined, reject);
     });
-    const loadClip = fetch(CLIP_URL).then((r) => {
+    const loadClip = fetch(clipUrl).then((r) => {
       if (!r.ok) throw new Error(`Clip ${r.status}`);
       return r.json();
     });
@@ -110,10 +116,10 @@ export default function SaluteBot({ onPeak, onDone, onFail }) {
 
         const clip = THREE.AnimationClip.parse(data.clip);
         duration = data.duration || clip.duration;
-        peak = typeof data.peak === 'number' ? data.peak : duration * 0.4;
+        peak = typeof data.peak === 'number' ? data.peak : null;
 
         mixer = new THREE.AnimationMixer(model);
-        action = mixer.clipAction(clip);
+        const action = mixer.clipAction(clip);
         action.setLoop(THREE.LoopOnce, 1);
         action.clampWhenFinished = true;   // stehen bleiben statt zurückschnappen
         action.play();
@@ -121,7 +127,7 @@ export default function SaluteBot({ onPeak, onDone, onFail }) {
         setReady(true);
       })
       .catch((err) => {
-        console.error('[SaluteBot] konnte nicht laden', err);
+        console.error('[ClipBot] konnte nicht laden', clipUrl, err);
         if (!disposed) cb.current.onFail?.();
       });
 
@@ -146,10 +152,7 @@ export default function SaluteBot({ onPeak, onDone, onFail }) {
       if (mixer) {
         mixer.update(dt);
         elapsed += dt;
-
-        // Der Gruß steht: jetzt die Sprache umstellen, die Bewegung
-        // läuft danach in Ruhe aus.
-        if (!firedPeak && elapsed >= peak) {
+        if (!firedPeak && peak !== null && elapsed >= peak) {
           firedPeak = true;
           cb.current.onPeak?.();
         }
@@ -175,7 +178,7 @@ export default function SaluteBot({ onPeak, onDone, onFail }) {
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [clipUrl, framing]);
 
   return (
     <div

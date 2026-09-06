@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import LanguageSalute from '@/components/language/LanguageSalute';
+import CelebrationHost from '@/components/bot/CelebrationHost';
 
 const LanguageContext = createContext();
 
@@ -1135,8 +1136,8 @@ export function LanguageProvider({ children }) {
    * greift die Reißleine und der Gruß fällt aus.
    */
   const prefetchSalute = () => {
-    import('@/components/language/SaluteBot')
-      .then((m) => m.prefetchSaluteAssets?.())
+    import('@/components/bot/ClipBot')
+      .then((m) => m.prefetchClip?.('/models/salute.clip.json'))
       .catch(() => {});
   };
 
@@ -1161,6 +1162,9 @@ export function LanguageProvider({ children }) {
           onClose={() => setSalutingTo(null)}
         />
       )}
+      {/* Hört auf celebrate() — der Jubel, wenn ein Ticket fertig wird.
+          Steht hier, weil dieser Anbieter auf jeder Seite liegt. */}
+      <CelebrationHost language={language} />
     </LanguageContext.Provider>
   );
 }

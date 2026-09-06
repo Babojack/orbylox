@@ -15,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import TaskDetailDialog from "@/components/kanban/TaskDetailDialog";
 import TimelineView from "@/components/kanban/TimelineView";
 import DustEffect from "@/components/kanban/DustEffect";
-import { indexTasks, openBlockersOf, canMoveTo } from "@/lib/taskDependencies";
+import { indexTasks, openBlockersOf, canMoveTo, DONE_STATUS } from "@/lib/taskDependencies";
+import { celebrate } from "@/lib/celebrate";
 import { useLanguage } from "@/components/LanguageProvider";
 import { notifyAssignment } from "@/lib/notifyAssignment";
 import { Reveal } from "@/components/motion/Reveal";
@@ -487,6 +488,7 @@ export default function ScrumBoard() {
     reorderTasksMutation.mutate([
       { id: task.id, patch: { status: nextStatus, board_order: maxOrder + 1 } },
     ]);
+    if (nextStatus === DONE_STATUS) celebrate();
   };
 
   const onDragStart = (start) => {
@@ -574,6 +576,11 @@ export default function ScrumBoard() {
       })),
     ];
     reorderTasksMutation.mutate(mergeTaskPatches(updates));
+
+    // Nur beim Wechsel IN die Erledigt-Spalte. Umsortieren innerhalb von
+    // "Done" ist kein Anlass zum Jubeln — dieser Zweig wird ohnehin nur
+    // erreicht, wenn Quelle und Ziel verschieden sind.
+    if (dstCol === DONE_STATUS) celebrate();
   };
 
   const columnTaskCount = (status) => getTasksForColumnFiltered(status).length;

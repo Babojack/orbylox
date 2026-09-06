@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import TaskDependencies from "@/components/kanban/TaskDependencies";
 import { notifyAssignment } from "@/lib/notifyAssignment";
 import { canMoveTo, indexTasks } from "@/lib/taskDependencies";
+import { celebrate } from "@/lib/celebrate";
 import { useLanguage } from "@/components/LanguageProvider";
 import { 
   Send, 
@@ -365,8 +366,12 @@ export default function TaskDetailDialog({
                       return;
                     }
                     setStatusBlocked(null);
+                    const warDone = editedTask.status === 'done';
                     setEditedTask({ ...editedTask, status: v });
                     updateTaskMutation.mutate({ status: v });
+                    // Nur beim Übergang nach "erledigt", nicht wenn es das
+                    // ohnehin schon war.
+                    if (v === 'done' && !warDone) celebrate();
                   }}
                 >
                   <SelectTrigger>
