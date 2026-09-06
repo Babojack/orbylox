@@ -46,3 +46,37 @@ export function writeLocalProjectListPrefs(userEmailLower, { favoriteIds, hidden
     hiddenIds,
   );
 }
+
+/**
+ * Merker: Wurde der Browser-Stand schon einmal in die Cloud uebernommen?
+ *
+ * Ohne diesen Merker laesst sich "hier steht nichts, weil es geloescht wurde"
+ * nicht von "hier steht nichts, weil noch nie etwas uebernommen wurde"
+ * unterscheiden. Genau daran scheiterte das Wiedereinblenden: der alte
+ * Browser-Stand wurde immer wieder als vermeintlich neue Information
+ * hochgeschoben.
+ */
+export function hasAdoptedLocalPrefs(userEmailLower) {
+  if (typeof window === "undefined") return false;
+  try {
+    return (
+      window.localStorage.getItem(
+        projectListPrefsStorageKey(userEmailLower, "cloud"),
+      ) === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function markLocalPrefsAdopted(userEmailLower) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      projectListPrefsStorageKey(userEmailLower, "cloud"),
+      "1",
+    );
+  } catch {
+    // Privater Modus o. Ae. — dann bleibt es beim bisherigen Verhalten.
+  }
+}

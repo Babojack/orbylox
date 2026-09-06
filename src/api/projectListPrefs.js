@@ -3,6 +3,8 @@ import { db, hasFirebaseConfig } from "@/lib/firebase";
 import {
   readLocalProjectListPrefs,
   writeLocalProjectListPrefs,
+  hasAdoptedLocalPrefs,
+  markLocalPrefsAdopted,
 } from "@/lib/projectListPrefsLocal";
 
 const COLLECTION = "UserProjectListPrefs";
@@ -39,45 +41,53 @@ export async function saveProjectListPrefs(uid, userEmailLower, prefs) {
     },
     { merge: true },
   );
+  // Ab jetzt existiert das Dokument. Der Browser-Stand ist damit uebernommen
+  // und darf nie wieder als eigene Quelle gelten.
+  markLocalPrefsAdopted(userEmailLower);
   return { favoriteIds, hiddenIds };
 }
 
-async function mergeLocalIntoCloudIfNeeded(uid, userEmailLower) {
+/**
+ * Cloud-Stand holen — und den Browser-Stand hoechstens EINMAL uebernehmen.
+ *
+ * Vorher wurden beide Listen vereinigt. Eine Vereinigung kann aber nur
+ * hinzufuegen, niemals entfernen. Wer ein Projekt wieder einblendete, hatte es
+ * damit nur so lange eingeblendet, bis irgendein Geraet mit dem alten Stand die
+ * Seite oeffnete: dessen localStorage kannte die Kennung noch, die Vereinigung
+ * hielt sie fuer eine Neuigkeit und schrieb sie zurueck. Auf allen Geraeten war
+ * das Projekt danach wieder ausgeblendet.
+ *
+ * Richtig ist eine Richtung: der Browser-Stand ist nur Startkapital fuer die
+ * erste Anmeldung. Sobald er uebernommen wurde, ist die Cloud die Wahrheit —
+ * auch dann, wenn sie leer ist. Leer heisst jetzt "nichts ausgeblendet" und
+ * nicht mehr "keine Information".
+ */
+async function loadFromCloud(uid, userEmailLower) {
   const ref = doc(db, COLLECTION, uid);
   const snap = await getDoc(ref);
+
+  if (snap.exists()) {
+    const remote = parsePrefsDoc(snap.data());
+    writeLocalProjectListPrefs(userEmailLower, remote);
+    markLocalPrefsAdopted(userEmailLower);
+    return remote;
+  }
+
+  // Kein Dokument in der Cloud. Zwei Faelle, die gleich aussehen:
+  if (hasAdoptedLocalPrefs(userEmailLower)) {
+    // Schon einmal uebernommen -> hier wurde bewusst alles geleert.
+    const empty = { favoriteIds: [], hiddenIds: [] };
+    writeLocalProjectListPrefs(userEmailLower, empty);
+    return empty;
+  }
+
+  // Erste Anmeldung auf diesem Konto -> Browser-Stand als Startkapital.
   const local = readLocalProjectListPrefs(userEmailLower);
-
-  if (!snap.exists()) {
-    if (local.favoriteIds.length || local.hiddenIds.length) {
-      await saveProjectListPrefs(uid, userEmailLower, local);
-    }
-    return local;
+  if (local.favoriteIds.length || local.hiddenIds.length) {
+    await saveProjectListPrefs(uid, userEmailLower, local);
   }
-
-  const remote = parsePrefsDoc(snap.data());
-  const merged = {
-    favoriteIds: normalizeProjectIdList([
-      ...remote.favoriteIds,
-      ...local.favoriteIds,
-    ]),
-    hiddenIds: normalizeProjectIdList([
-      ...remote.hiddenIds,
-      ...local.hiddenIds,
-    ]),
-  };
-
-  const same =
-    merged.favoriteIds.length === remote.favoriteIds.length &&
-    merged.hiddenIds.length === remote.hiddenIds.length &&
-    merged.favoriteIds.every((id) => remote.favoriteIds.includes(id)) &&
-    merged.hiddenIds.every((id) => remote.hiddenIds.includes(id));
-
-  if (!same) {
-    return saveProjectListPrefs(uid, userEmailLower, merged);
-  }
-
-  writeLocalProjectListPrefs(userEmailLower, remote);
-  return remote;
+  markLocalPrefsAdopted(userEmailLower);
+  return local;
 }
 
 export async function fetchProjectListPrefs(uid, userEmailLower) {
@@ -88,7 +98,7 @@ export async function fetchProjectListPrefs(uid, userEmailLower) {
     return readLocalProjectListPrefs(userEmailLower);
   }
   try {
-    return await mergeLocalIntoCloudIfNeeded(uid, userEmailLower);
+    return await loadFromCloud(uid, userEmailLower);
   } catch (err) {
     console.warn("[projectListPrefs] fetch failed", err?.message || err);
     return readLocalProjectListPrefs(userEmailLower);
@@ -105,6 +115,16 @@ export function subscribeProjectListPrefs(uid, userEmailLower, onChange) {
     ref,
     (snap) => {
       if (!snap.exists()) {
+        // Auch hier gilt: nach der einmaligen Uebernahme ist ein fehlendes
+        // Dokument eine Aussage ("nichts ausgeblendet") und keine Luecke, die
+        // aus dem Browser aufgefuellt werden darf. Sonst holt der Live-Abgleich
+        // zurueck, was der Ladevorgang gerade richtig geloescht hat.
+        if (hasAdoptedLocalPrefs(userEmailLower)) {
+          const empty = { favoriteIds: [], hiddenIds: [] };
+          writeLocalProjectListPrefs(userEmailLower, empty);
+          onChange(empty);
+          return;
+        }
         const local = readLocalProjectListPrefs(userEmailLower);
         onChange(local);
         if (local.favoriteIds.length || local.hiddenIds.length) {
@@ -116,6 +136,7 @@ export function subscribeProjectListPrefs(uid, userEmailLower, onChange) {
       }
       const parsed = parsePrefsDoc(snap.data());
       writeLocalProjectListPrefs(userEmailLower, parsed);
+      markLocalPrefsAdopted(userEmailLower);
       onChange(parsed);
     },
     (err) => {
