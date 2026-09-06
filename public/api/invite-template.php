@@ -16,16 +16,17 @@ function inviteTexts(string $language): array
             'subject' => 'You have been invited to %s on ORBYLOX',
             'subject_generic' => 'You have been invited to a project on ORBYLOX',
             'preheader' => 'Open the project and start collaborating.',
-            'greeting' => 'Hello!',
-            'intro_named' => '<strong>%s</strong> invited you to the project <strong>%s</strong> on ORBYLOX.',
-            'intro_plain' => 'You have been invited to the project <strong>%s</strong> on ORBYLOX.',
+            'kicker' => 'Invitation',
+            'greeting' => 'You have been invited',
+            'intro_named' => '%s invited you to the project “%s” on ORBYLOX.',
+            'intro_plain' => 'You have been invited to the project “%s” on ORBYLOX.',
             'intro_generic' => 'You have been invited to a project on ORBYLOX.',
-            'lead' => 'ORBYLOX keeps tasks, files, boards and team chat in one place.',
+            'labels' => ['project' => 'Project', 'from' => 'Invited by'],
+            'lead' => 'ORBYLOX keeps tasks, files, boards and team chat in one place:',
             'cta' => 'Open project',
             'fallback' => 'If the button does not work, copy this link into your browser:',
             'features' => ['Tasks and Kanban in real time', 'Visual canvas board', 'Team chat and project feed', 'Files and documents'],
-            'signoff' => 'See you in the project',
-            'footer_note' => 'You received this email because someone invited you to a project on ORBYLOX. If this was not intended, simply ignore this message.',
+            'footer' => 'You get this email because someone invited you to a project in ORBYLOX. If this was not intended, simply ignore it.',
         ];
     }
 
@@ -33,16 +34,17 @@ function inviteTexts(string $language): array
         'subject' => 'Einladung zum Projekt %s auf ORBYLOX',
         'subject_generic' => 'Einladung zu einem Projekt auf ORBYLOX',
         'preheader' => 'Projekt öffnen und direkt loslegen.',
-        'greeting' => 'Hallo!',
-        'intro_named' => '<strong>%s</strong> hat dich zum Projekt <strong>%s</strong> auf ORBYLOX eingeladen.',
-        'intro_plain' => 'Du wurdest zum Projekt <strong>%s</strong> auf ORBYLOX eingeladen.',
+        'kicker' => 'Einladung',
+        'greeting' => 'Du wurdest eingeladen',
+        'intro_named' => '%s hat dich zum Projekt „%s“ auf ORBYLOX eingeladen.',
+        'intro_plain' => 'Du wurdest zum Projekt „%s“ auf ORBYLOX eingeladen.',
         'intro_generic' => 'Du wurdest zu einem Projekt auf ORBYLOX eingeladen.',
-        'lead' => 'In ORBYLOX liegen Aufgaben, Dateien, Boards und Team-Chat an einem Ort.',
+        'labels' => ['project' => 'Projekt', 'from' => 'Eingeladen von'],
+        'lead' => 'In ORBYLOX liegen Aufgaben, Dateien, Boards und Team-Chat an einem Ort:',
         'cta' => 'Projekt öffnen',
         'fallback' => 'Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:',
         'features' => ['Aufgaben und Kanban in Echtzeit', 'Visuelles Canvas-Board', 'Team-Chat und Projekt-Feed', 'Dateien und Dokumente'],
-        'signoff' => 'Bis gleich im Projekt',
-        'footer_note' => 'Du erhältst diese E-Mail, weil dich jemand zu einem Projekt in ORBYLOX eingeladen hat. Falls das ein Versehen war, ignoriere die Nachricht einfach.',
+        'footer' => 'Du bekommst diese E-Mail, weil dich jemand zu einem Projekt in ORBYLOX eingeladen hat. Falls das ein Versehen war, ignoriere sie einfach.',
     ];
 }
 
@@ -62,13 +64,34 @@ function inviteHtml(string $language, string $inviteLink, string $projectName, s
     } elseif ($projectName !== '') {
         $intro = sprintf($t['intro_plain'], $e($projectName));
     } else {
-        $intro = $t['intro_generic'];
+        $intro = $e($t['intro_generic']);
     }
+
+    // Gleiche Beschriftungstabelle wie in der Zuweisungsmail: Etikett links in
+    // Versalien, Wert rechts. Leere Zeilen fallen weg, damit keine Luecken bleiben.
+    $rows = '';
+    $row = static function (string $label, string $value) use ($e): string {
+        if (trim($value) === '') return '';
+        return '<tr>'
+            . '<td style="padding:9px 0;font:600 12px/16px Helvetica,Arial,sans-serif;color:#888780;text-transform:uppercase;letter-spacing:1.2px;width:130px;vertical-align:top;">' . $e($label) . '</td>'
+            . '<td style="padding:9px 0;font:400 15px/22px Helvetica,Arial,sans-serif;color:#0a0a0a;">' . $e($value) . '</td>'
+            . '</tr>';
+    };
+    $rows .= $row($t['labels']['project'], $projectName);
+    $rows .= $row($t['labels']['from'], $inviterName);
+
+    // Ohne Projektnamen und ohne Einladenden bleibt die Tabelle leer — dann
+    // wird sie samt Trennlinie gar nicht erst ausgegeben.
+    $factsBlock = $rows !== ''
+        ? '<tr><td style="padding:18px 32px 4px 32px;">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:2px solid #0a0a0a;">'
+            . $rows . '</table></td></tr>'
+        : '';
 
     $features = '';
     foreach ($t['features'] as $feature) {
-        $features .= '<tr><td style="padding:4px 0;font:15px/22px Helvetica,Arial,sans-serif;color:#475569;">'
-            . '<span style="color:#6366f1;">&#9679;</span>&nbsp;&nbsp;' . $e($feature) . '</td></tr>';
+        $features .= '<tr><td style="padding:5px 0;font:400 15px/22px Helvetica,Arial,sans-serif;color:#5f5e5a;">'
+            . '<span style="color:#ef5a24;">&#9632;</span>&nbsp;&nbsp;' . $e($feature) . '</td></tr>';
     }
 
     $link = $e($inviteLink);
@@ -82,71 +105,68 @@ function inviteHtml(string $language, string $inviteLink, string $projectName, s
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ORBYLOX</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f1f5f9;">
+<body style="margin:0;padding:0;background-color:#f5f5f5;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{$t['preheader']}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:32px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:32px 12px;">
   <tr>
     <td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,0.08);">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background-color:#ffffff;border:2px solid #0a0a0a;">
 
         <tr>
-          <td style="background-color:#4f46e5;background-image:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);padding:32px 32px 28px 32px;">
-            <div style="font:700 26px/32px Helvetica,Arial,sans-serif;color:#ffffff;letter-spacing:2px;">ORBYLOX</div>
-            <div style="font:400 14px/20px Helvetica,Arial,sans-serif;color:#e0e7ff;margin-top:4px;">Projektmanagement für Teams</div>
+          <td style="background-color:#0a0a0a;padding:24px 32px;">
+            <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+              <td style="width:34px;vertical-align:middle;">
+                <div style="width:30px;height:30px;background:#ef5a24;border-radius:9px;text-align:center;font:800 15px/30px Helvetica,Arial,sans-serif;color:#ffffff;">O</div>
+              </td>
+              <td style="vertical-align:middle;font:800 20px/30px Helvetica,Arial,sans-serif;color:#ffffff;letter-spacing:1px;">RBYLOX</td>
+            </tr></table>
+            <div style="font:700 11px/16px Helvetica,Arial,sans-serif;color:#ef5a24;margin-top:10px;letter-spacing:2px;text-transform:uppercase;">{$t['kicker']}</div>
           </td>
         </tr>
 
         <tr>
-          <td style="padding:32px 32px 8px 32px;">
-            <p style="margin:0 0 12px 0;font:600 20px/28px Helvetica,Arial,sans-serif;color:#0f172a;">{$t['greeting']}</p>
-            <p style="margin:0 0 16px 0;font:400 16px/24px Helvetica,Arial,sans-serif;color:#334155;">{$intro}</p>
-            <p style="margin:0;font:400 15px/23px Helvetica,Arial,sans-serif;color:#64748b;">{$t['lead']}</p>
+          <td style="padding:28px 32px 4px 32px;">
+            <p style="margin:0 0 10px 0;font:800 22px/29px Helvetica,Arial,sans-serif;color:#0a0a0a;">{$t['greeting']}</p>
+            <p style="margin:0;font:400 16px/24px Helvetica,Arial,sans-serif;color:#5f5e5a;">{$intro}</p>
+          </td>
+        </tr>
+
+        {$factsBlock}
+
+        <tr>
+          <td style="padding:24px 32px 4px 32px;">
+            <a href="{$link}" style="display:inline-block;background:#ef5a24;color:#ffffff;font:700 14px/20px Helvetica,Arial,sans-serif;text-decoration:none;padding:14px 28px;letter-spacing:1px;text-transform:uppercase;">{$t['cta']}</a>
           </td>
         </tr>
 
         <tr>
-          <td align="center" style="padding:28px 32px 8px 32px;">
-            <table role="presentation" cellpadding="0" cellspacing="0">
-              <tr>
-                <td align="center" style="border-radius:10px;background-color:#4f46e5;">
-                  <a href="{$link}" style="display:inline-block;padding:15px 38px;font:600 16px/20px Helvetica,Arial,sans-serif;color:#ffffff;text-decoration:none;border-radius:10px;">{$t['cta']}</a>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding:16px 32px 24px 32px;">
-            <p style="margin:0 0 6px 0;font:400 13px/19px Helvetica,Arial,sans-serif;color:#94a3b8;">{$t['fallback']}</p>
+          <td style="padding:16px 32px 4px 32px;">
+            <p style="margin:0 0 5px 0;font:400 13px/19px Helvetica,Arial,sans-serif;color:#888780;">{$t['fallback']}</p>
             <p style="margin:0;font:400 13px/19px Helvetica,Arial,sans-serif;word-break:break-all;">
-              <a href="{$link}" style="color:#4f46e5;text-decoration:underline;">{$link}</a>
+              <a href="{$link}" style="color:#ef5a24;text-decoration:underline;">{$link}</a>
             </p>
           </td>
         </tr>
 
         <tr>
-          <td style="padding:0 32px 8px 32px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border-radius:12px;padding:18px 20px;">
+          <td style="padding:22px 32px 4px 32px;">
+            <p style="margin:0 0 8px 0;font:600 14px/21px Helvetica,Arial,sans-serif;color:#0a0a0a;">{$t['lead']}</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               {$features}
             </table>
           </td>
         </tr>
 
         <tr>
-          <td style="padding:24px 32px 32px 32px;">
-            <p style="margin:0;font:400 15px/23px Helvetica,Arial,sans-serif;color:#334155;">{$t['signoff']}<br><strong>ORBYLOX</strong></p>
-          </td>
-        </tr>
-
-        <tr>
-          <td style="background-color:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;">
-            <p style="margin:0 0 6px 0;font:400 12px/18px Helvetica,Arial,sans-serif;color:#94a3b8;">{$t['footer_note']}</p>
-            <p style="margin:0;font:400 12px/18px Helvetica,Arial,sans-serif;color:#94a3b8;">
-              <a href="{$home}" style="color:#64748b;text-decoration:none;">orbylox.de</a>
-              &nbsp;·&nbsp;
-              <a href="{$home}/impressum" style="color:#64748b;text-decoration:none;">Impressum</a>
-            </p>
+          <td style="padding:22px 32px 24px 32px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e5e5e5;"><tr><td style="padding-top:18px;">
+              <p style="margin:0;font:400 12px/18px Helvetica,Arial,sans-serif;color:#888780;">{$t['footer']}</p>
+              <p style="margin:6px 0 0 0;font:400 12px/18px Helvetica,Arial,sans-serif;color:#888780;">
+                <a href="{$home}" style="color:#ef5a24;text-decoration:none;">{$home}</a>
+                &nbsp;·&nbsp;
+                <a href="{$home}/impressum" style="color:#888780;text-decoration:none;">Impressum</a>
+              </p>
+            </td></tr></table>
           </td>
         </tr>
 
@@ -386,21 +406,25 @@ function inviteText(string $language, string $inviteLink, string $projectName, s
         $intro = $strip($t['intro_generic']);
     }
 
-    $lines = [
-        $t['greeting'],
-        '',
-        $intro,
-        $t['lead'],
-        '',
-        $t['cta'] . ': ' . $inviteLink,
-        '',
-    ];
+    // Gleiche Reihenfolge wie im HTML, damit beide Fassungen dasselbe erzaehlen.
+    $lines = [$t['greeting'], '', $intro, ''];
+
+    foreach ([
+        $t['labels']['project'] => $projectName,
+        $t['labels']['from']    => $inviterName,
+    ] as $label => $value) {
+        if (trim((string)$value) !== '') $lines[] = $label . ': ' . $value;
+    }
+
+    $lines[] = '';
+    $lines[] = $t['cta'] . ': ' . $inviteLink;
+    $lines[] = '';
+    $lines[] = $t['lead'];
     foreach ($t['features'] as $feature) {
         $lines[] = '- ' . $feature;
     }
     $lines[] = '';
-    $lines[] = $t['signoff'];
-    $lines[] = 'ORBYLOX';
+    $lines[] = $t['footer'];
 
     return implode("\n", $lines);
 }
