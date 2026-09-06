@@ -74,6 +74,49 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 sendCors($origin, $allowedOrigins);
 
+/* ------------------------------------------------------------- Diagnose */
+/**
+ * Im Browser aufrufbar: /api/upload.php?action=diag
+ *
+ * Zeigt, ob das Skript ueberhaupt laeuft, wohin es schreiben will und was die
+ * PHP-Grenzen hergeben. Antwortet absichtlich VOR der Anmeldepruefung, damit
+ * man auch dann etwas sieht, wenn gerade kein Token zur Hand ist — und gibt
+ * ausschliesslich Konfiguration heraus, keine Zugangsdaten und keine
+ * Dateinamen anderer Nutzer.
+ *
+ * Der Sinn: Ein 403 stammt nie aus diesem Skript. Wer diese Seite sieht, weiss
+ * damit sofort, dass PHP erreichbar ist und der Riegel davor liegt.
+ */
+if (($_GET['action'] ?? '') === 'diag') {
+    $dir = rtrim((string)$config['upload_dir'], '/');
+    $guard = $dir . '/.htaccess';
+    echo json_encode([
+        'ok' => true,
+        'note' => 'Diese Seite kommt aus upload.php. Wer sie sieht, hat PHP erreicht — '
+                . 'ein 403 auf denselben Pfad kommt dann vom Webserver, nicht von hier.',
+        'php_version' => PHP_VERSION,
+        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? '',
+        'upload_dir' => $dir,
+        'upload_dir_exists' => is_dir($dir),
+        'upload_dir_writable' => is_dir($dir) ? is_writable($dir) : is_writable(dirname($dir)),
+        'guard_file_exists' => is_file($guard),
+        'guard_file_has_php_flag' => is_file($guard)
+            && strpos((string)@file_get_contents($guard), 'php_flag') !== false,
+        'public_base_url' => (string)$config['public_base_url'],
+        'max_bytes' => (int)$config['max_bytes'],
+        'php_upload_max_filesize' => ini_get('upload_max_filesize'),
+        'php_post_max_size' => ini_get('post_max_size'),
+        'php_file_uploads' => (bool)ini_get('file_uploads'),
+        'firebase_project_id' => (string)$config['firebase_project_id'],
+        'allowed_origins' => array_values((array)$allowedOrigins),
+        'request_origin' => $origin,
+        'origin_allowed' => $origin === '' || in_array($origin, (array)$allowedOrigins, true),
+        'authorization_header_arrives' => isset($_SERVER['HTTP_AUTHORIZATION'])
+            || isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION']),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    exit;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     orbyloxJsonFail(405, 'Method not allowed');
 }
@@ -144,15 +187,34 @@ if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)
     orbyloxJsonFail(500, 'Could not create upload directory');
 }
 
-// Never let anything in the upload tree be executed by the web server.
+/**
+ * Nichts im Upload-Verzeichnis darf je vom Webserver ausgefuehrt werden.
+ *
+ * `php_flag` steht bewusst in einem IfModule-Block: Die Anweisung kennt nur
+ * mod_php. Laeuft PHP als FPM oder unter LiteSpeed, ist sie unbekannt — und
+ * eine unbekannte Anweisung in .htaccess beantwortet Apache mit 500 fuer das
+ * ganze Verzeichnis. Ausgerechnet die Schutzdatei haette dann jede
+ * hochgeladene Datei unerreichbar gemacht.
+ *
+ * Der eigentliche Schutz ist ohnehin `AddType text/plain`: Damit wird jedes
+ * Skript als Text ausgeliefert statt ausgefuehrt, und das versteht jeder
+ * Webserver.
+ */
+$guardBody = "AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .phar .cgi .pl .py .sh\n"
+    . "<IfModule mod_php.c>\n  php_flag engine off\n</IfModule>\n"
+    . "<IfModule mod_php7.c>\n  php_flag engine off\n</IfModule>\n"
+    . "<IfModule mod_php8.c>\n  php_flag engine off\n</IfModule>\n"
+    . "<IfModule mod_rewrite.c>\n  RewriteEngine Off\n</IfModule>\n";
+
 $guard = rtrim((string)$config['upload_dir'], '/') . '/.htaccess';
-if (!is_file($guard)) {
-    @file_put_contents(
-        $guard,
-        "php_flag engine off\n"
-        . "AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .phar .cgi .pl .py .sh\n"
-        . "<IfModule mod_rewrite.c>\n  RewriteEngine Off\n</IfModule>\n"
-    );
+$guardCurrent = is_file($guard) ? (string)@file_get_contents($guard) : null;
+// Auch bestehende Anlagen nachziehen: die erste Fassung begann mit einem
+// ungeschuetzten php_flag und konnte genau diesen 500er ausloesen.
+$guardNeedsFix = $guardCurrent !== null
+    && preg_match('/^\s*php_flag/m', $guardCurrent)
+    && strpos($guardCurrent, '<IfModule mod_php') === false;
+if ($guardCurrent === null || $guardNeedsFix) {
+    @file_put_contents($guard, $guardBody);
 }
 
 $token = bin2hex(random_bytes(8));

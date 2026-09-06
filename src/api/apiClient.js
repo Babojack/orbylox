@@ -752,9 +752,35 @@ async function uploadToOwnEndpoint(file) {
     "Datei-Upload Timeout (Server)."
   );
 
-  const payload = await response.json().catch(() => null);
+  // Erst als Text lesen, dann versuchen zu deuten.
+  //
+  // Vorher wurde bei einer nicht-JSON-Antwort nur "HTTP 403" gemeldet — und
+  // damit war unauffindbar, WER den Riegel vorgeschoben hat. Genau das ist
+  // der Unterschied zwischen einer Absage aus diesem Skript und einer Seite,
+  // die eine Schutzschicht davor ausliefert. Der Anfang der Antwort steht
+  // deshalb jetzt in der Meldung.
+  const raw = await response.text();
+  let payload = null;
+  try {
+    payload = raw ? JSON.parse(raw) : null;
+  } catch {
+    payload = null;
+  }
+
   if (!response.ok) {
-    throw new Error(payload?.error || `Upload fehlgeschlagen (HTTP ${response.status}).`);
+    if (payload?.error) throw new Error(payload.error);
+    const hint = raw
+      .replace(/<[^>]*>/g, " ")     // HTML-Fehlerseiten lesbar machen
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 180);
+    throw new Error(
+      `Upload fehlgeschlagen (HTTP ${response.status})`
+      + (hint ? ` — Antwort des Servers: „${hint}“` : " — der Server sendete keine Erklärung.")
+      + (response.status === 403
+        ? " Ein 403 kommt nicht aus diesem Skript; er stammt vom Webserver oder einer Schutzschicht davor."
+        : ""),
+    );
   }
   if (!payload?.file_url) {
     throw new Error("Server-Antwort enthaelt keine file_url.");
