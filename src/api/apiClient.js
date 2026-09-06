@@ -30,7 +30,19 @@ import {
 
 const delay = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms));
 const UPLOAD_TIMEOUT_MS = 30000;
-const MAX_INLINE_IMAGE_BYTES = 850000;
+
+/**
+ * Obergrenze für Bilder, die als data:-Adresse direkt im Datensatz landen.
+ *
+ * Die Zahl stand auf 850 000 und war zu hoch: Base64 bläht Rohdaten um ein
+ * Drittel auf, aus 850 KB werden rund 1,13 MB Zeichen. Ein Firestore-Dokument
+ * darf aber höchstens 1 MiB gross sein — solche Schreibvorgänge scheiterten,
+ * und zwar erst nach dem vermeintlich erfolgreichen Upload.
+ *
+ * 600 KB Rohdaten ergeben rund 800 KB Base64 und lassen Platz für Name,
+ * Beschreibung und Mitglieder im selben Dokument.
+ */
+const MAX_INLINE_IMAGE_BYTES = 600000;
 
 const STORAGE_KEY_PREFIX = "orbylox_";
 const DEMO_EMAIL = "demo@orbylox.local";
@@ -827,7 +839,35 @@ function loadImageElement(file) {
   });
 }
 
+/**
+ * Ist das ein GIF? Der Typ aus dem Dateiwähler ist die verlässlichere Angabe,
+ * manche Systeme liefern ihn aber leer — dann entscheidet die Endung.
+ */
+function isGif(file) {
+  return file?.type === "image/gif" || /\.gif$/i.test(file?.name || "");
+}
+
+/**
+ * GIF als data:-Adresse — mit erzwungener Typangabe.
+ *
+ * Der FileReader übernimmt den Typ, den das Betriebssystem der Datei
+ * mitgegeben hat. Fehlt er (kommt bei Downloads und manchen Dateimanagern
+ * vor), entsteht `data:application/octet-stream` — und ein <img> mit dieser
+ * Adresse zeigt schlicht nichts an. Die Endung sagt uns aber, was es ist.
+ */
+async function gifToDataUrl(file) {
+  const url = await fileToDataUrl(file);
+  if (typeof url !== "string" || url.startsWith("data:image/gif")) return url;
+  const comma = url.indexOf(",");
+  if (comma === -1) return url;
+  return `data:image/gif;base64,${url.slice(comma + 1)}`;
+}
+
 async function imageFileToOptimizedDataUrl(file, maxBytes = MAX_INLINE_IMAGE_BYTES) {
+  // Sicherheitsnetz: Ein GIF darf hier nie ankommen, sonst bleibt vom
+  // Daumenkino das erste Bild übrig.
+  if (isGif(file)) return gifToDataUrl(file);
+
   const img = await loadImageElement(file);
   let width = img.naturalWidth || img.width;
   let height = img.naturalHeight || img.height;
@@ -1505,7 +1545,24 @@ export const api = {
           }
         }
 
-        // Last resort for images: persistent inline data URL (compressed).
+        // Notweg für Bilder: als data:-Adresse direkt in den Datensatz.
+        //
+        // Für GIFs gilt das NICHT auf demselben Weg. Der Notweg zeichnet das
+        // Bild auf eine Leinwand und speichert es als JPEG — eine Leinwand
+        // kennt aber nur ein einzelnes Bild. Aus einem animierten GIF würde
+        // dabei ein Standbild, ohne dass jemand etwas merkt. Deshalb wird ein
+        // GIF unverändert übernommen, solange es klein genug ist.
+        if (isGif(file)) {
+          if (file.size <= MAX_INLINE_IMAGE_BYTES) {
+            return { file_url: await gifToDataUrl(file) };
+          }
+          throw new Error(
+            `Das GIF ist mit ${(file.size / 1048576).toFixed(1)} MB zu gross, um direkt gespeichert zu werden `
+            + `(Grenze ${Math.round(MAX_INLINE_IMAGE_BYTES / 1024)} KB). `
+            + `Der Datei-Upload zum Server hat nicht geantwortet — bitte ein kleineres GIF nehmen `
+            + `oder den Upload wieder in Gang bringen.`,
+          );
+        }
         if (file.type?.startsWith("image/")) {
           const inlineDataUrl = await imageFileToOptimizedDataUrl(file);
           return { file_url: inlineDataUrl };

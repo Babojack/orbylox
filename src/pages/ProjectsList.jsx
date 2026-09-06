@@ -419,6 +419,7 @@ function ProjectsListContent() {
 
   const handleEditCoverUpload = async (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';           // dieselbe Datei soll erneut wählbar bleiben
     if (!file || !editProjectId) return;
     setEditingCoverUpload(true);
     try {
@@ -531,14 +532,22 @@ function ProjectsListContent() {
 
   const handleCoverUpload = async (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';           // dieselbe Datei soll erneut wählbar bleiben
     if (!file) return;
-    
+
     setUploadingCover(true);
     try {
       const { file_url } = await api.integrations.Core.UploadFile({ file });
       setNewProject({ ...newProject, cover_image: file_url });
     } catch (error) {
+      // Frueher endete das nur in der Konsole: Man waehlte ein Bild, es tat
+      // sich nichts, und niemand erfuhr warum.
       console.error('Failed to upload cover:', error);
+      toast({
+        title: language === 'de' ? 'Bild konnte nicht hochgeladen werden' : 'Image could not be uploaded',
+        description: String(error?.message || error),
+        variant: 'destructive',
+      });
     } finally {
       setUploadingCover(false);
     }
@@ -881,9 +890,12 @@ function ProjectsListContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700 mb-1 block">Cover Image</label>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">
+                    {language === 'de' ? 'Projektbild' : 'Cover image'}
+                  </label>
                   {newProject.cover_image ? (
                     <div className="relative">
+                      {/* Ein GIF bewegt sich in <img> von selbst — kein Extraschritt nötig. */}
                       <img src={newProject.cover_image} alt="Cover" className="w-full h-32 object-cover rounded-lg" />
                       <button
                         onClick={() => setNewProject({ ...newProject, cover_image: "" })}
@@ -894,17 +906,22 @@ function ProjectsListContent() {
                     </div>
                   ) : (
                     <label className="cursor-pointer">
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/*"
+                        className="hidden"
                         onChange={handleCoverUpload}
                         disabled={uploadingCover}
                       />
                       <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-[#ef5a24] transition-colors flex flex-col items-center justify-center">
                         <Image className="w-8 h-8 text-slate-400 mb-2" />
                         <span className="text-sm text-slate-500">
-                          {uploadingCover ? 'Uploading...' : 'Click to upload cover'}
+                          {uploadingCover
+                            ? (language === 'de' ? 'Wird hochgeladen…' : 'Uploading…')
+                            : (language === 'de' ? 'Bild oder GIF auswählen' : 'Pick an image or GIF')}
+                        </span>
+                        <span className="text-[11px] text-slate-400 mt-1">
+                          {language === 'de' ? 'GIFs bleiben animiert' : 'GIFs stay animated'}
                         </span>
                       </div>
                     </label>
@@ -966,11 +983,22 @@ function ProjectsListContent() {
                   </div>
                 ) : (
                   <label className="cursor-pointer">
-                    <input type="file" accept="image/*" className="hidden" onChange={handleEditCoverUpload} disabled={editingCoverUpload} />
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/*"
+                      className="hidden"
+                      onChange={handleEditCoverUpload}
+                      disabled={editingCoverUpload}
+                    />
                     <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-[#ef5a24] transition-colors flex flex-col items-center justify-center">
                       <Image className="w-8 h-8 text-slate-400 mb-2" />
                       <span className="text-sm text-slate-500">
-                        {editingCoverUpload ? 'Uploading...' : 'Click to upload cover'}
+                        {editingCoverUpload
+                          ? (language === 'de' ? 'Wird hochgeladen…' : 'Uploading…')
+                          : (language === 'de' ? 'Bild oder GIF auswählen' : 'Pick an image or GIF')}
+                      </span>
+                      <span className="text-[11px] text-slate-400 mt-1">
+                        {language === 'de' ? 'GIFs bleiben animiert' : 'GIFs stay animated'}
                       </span>
                     </div>
                   </label>
