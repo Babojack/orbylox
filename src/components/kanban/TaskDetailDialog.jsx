@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import TaskDependencies from "@/components/kanban/TaskDependencies";
 import { notifyAssignment } from "@/lib/notifyAssignment";
 import { canMoveTo, indexTasks } from "@/lib/taskDependencies";
-import { celebrate } from "@/lib/celebrate";
+import { celebrate } from "@/lib/botStage";
 import { useLanguage } from "@/components/LanguageProvider";
 import { 
   Send, 

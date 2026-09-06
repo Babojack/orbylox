@@ -1,4 +1,5 @@
 import { api } from '@/api/apiClient';
+import { farewell } from '@/lib/botStage';
 
 /**
  * Vollständig abmelden und die Seite verlassen.
@@ -14,7 +15,7 @@ import { api } from '@/api/apiClient';
  *  3. replace statt href: der Zurück-Knopf soll nicht in die abgemeldete
  *     Ansicht zurückführen.
  */
-export async function signOutAndLeave(queryClient, target = '/') {
+async function leave(queryClient, target) {
   try {
     await api.auth.logout();
   } catch {
@@ -27,4 +28,25 @@ export async function signOutAndLeave(queryClient, target = '/') {
     // Zwischenspeicher ist nicht kritisch.
   }
   if (typeof window !== 'undefined') window.location.replace(target);
+}
+
+/**
+ * Abmelden mit Abschied: die Figur läuft weg und schaut zurück, danach passiert
+ * das Eigentliche.
+ *
+ * Der Ablauf hängt bewusst NICHT an der Animation. `farewell` führt die
+ * Rückmeldung in jedem Fall aus — bei Esc, beim Wegtippen, ohne WebGL, bei
+ * reduzierter Bewegung und auch dann, wenn die Bühne gar nicht eingehängt ist.
+ * Im Zweifel wird abgemeldet und die Verzierung fällt aus, nie umgekehrt.
+ *
+ * Abgemeldet wird erst NACH der Bewegung, nicht parallel: Wäre die Sitzung
+ * schon weg, während die Figur noch läuft, würde die Seite im Hintergrund
+ * bereits als "nicht angemeldet" reagieren.
+ */
+export function signOutAndLeave(queryClient, target = '/') {
+  return new Promise((resolve) => {
+    farewell(() => {
+      leave(queryClient, target).finally(resolve);
+    });
+  });
 }

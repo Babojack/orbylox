@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import LanguageSalute from '@/components/language/LanguageSalute';
-import CelebrationHost from '@/components/bot/CelebrationHost';
+import BotStage from '@/components/bot/BotStage';
 
 const LanguageContext = createContext();
 
@@ -1162,9 +1162,9 @@ export function LanguageProvider({ children }) {
           onClose={() => setSalutingTo(null)}
         />
       )}
-      {/* Hört auf celebrate() — der Jubel, wenn ein Ticket fertig wird.
-          Steht hier, weil dieser Anbieter auf jeder Seite liegt. */}
-      <CelebrationHost language={language} />
+      {/* Bühne für die Figur: Jubel beim fertigen Ticket, Abschied beim
+          Abmelden. Steht hier, weil dieser Anbieter auf jeder Seite liegt. */}
+      <BotStage language={language} />
     </LanguageContext.Provider>
   );
 }

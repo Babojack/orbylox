@@ -16,7 +16,7 @@ import TaskDetailDialog from "@/components/kanban/TaskDetailDialog";
 import TimelineView from "@/components/kanban/TimelineView";
 import DustEffect from "@/components/kanban/DustEffect";
 import { indexTasks, openBlockersOf, canMoveTo, DONE_STATUS } from "@/lib/taskDependencies";
-import { celebrate } from "@/lib/celebrate";
+import { celebrate } from "@/lib/botStage";
 import { useLanguage } from "@/components/LanguageProvider";
 import { notifyAssignment } from "@/lib/notifyAssignment";
 import { Reveal } from "@/components/motion/Reveal";

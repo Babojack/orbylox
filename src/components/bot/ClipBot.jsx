@@ -27,10 +27,19 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 
 const MODEL_URL = '/models/xbot.glb';
 
-/** Bildausschnitte: Brustbild für Gesten, ganze Figur für alles mit Beinen. */
+/**
+ * Bildausschnitte. `spin` dreht die Figur um die Hochachse.
+ *
+ * `exit` dreht sie um 180°, damit sie vom Betrachter WEG läuft statt auf ihn
+ * zu. Die Bewegung "Run Look Back" trägt sich über vier Meter nach vorn; ohne
+ * die Drehung liefe die Figur an der Kamera vorbei aus dem Bild. So läuft sie
+ * stattdessen in die Tiefe und schaut dabei über die Schulter zurück — was
+ * beim Abmelden genau die richtige Geste ist.
+ */
 const FRAMING = {
-  bust: { pos: [0.45, 1.5, 2.3], look: [0, 1.25, 0], fov: 30 },
-  full: { pos: [0.3, 1.35, 3.6], look: [0, 0.95, 0], fov: 34 },
+  bust: { pos: [0.45, 1.5, 2.3], look: [0, 1.25, 0], fov: 30, spin: -0.3 },
+  full: { pos: [0.3, 1.35, 3.6], look: [0, 0.95, 0], fov: 34, spin: -0.3 },
+  exit: { pos: [0.3, 1.45, 3.2], look: [0, 0.95, -0.9], fov: 38, spin: Math.PI - 0.3 },
 };
 
 /** Vorab holen, damit der Klick später nicht auf den Download wartet. */
@@ -108,7 +117,7 @@ export default function ClipBot({ clipUrl, framing = 'bust', onPeak, onDone, onF
         if (disposed) return;
         const model = gltf.scene;
         model.scale.setScalar(0.01);      // Mixamo liefert Zentimeter
-        model.rotation.y = -0.3;
+        model.rotation.y = view.spin ?? -0.3;
         model.traverse((o) => {
           if (o.isMesh || o.isSkinnedMesh) o.frustumCulled = false;
         });
