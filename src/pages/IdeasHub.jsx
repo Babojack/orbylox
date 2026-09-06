@@ -44,7 +44,7 @@ import { format } from "date-fns";
 function IdeasHubContent() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, requestLanguageChange, prefetchSalute, t } = useLanguage();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -253,7 +253,9 @@ function IdeasHubContent() {
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => setLanguage(language === "en" ? "de" : "en")}
+              onClick={() => requestLanguageChange(language === "en" ? "de" : "en")}
+              onPointerEnter={prefetchSalute}
+              onFocus={prefetchSalute}
             >
               <Languages className="w-5 h-5" />
             </Button>

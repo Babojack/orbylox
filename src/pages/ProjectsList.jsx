@@ -126,7 +126,7 @@ function ProjectsListContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newProject, setNewProject] = useState({ name: "", description: "", cover_image: "" });
   const [uploadingCover, setUploadingCover] = useState(false);
-  const { language, setLanguage, t } = useLanguage();
+  const { language, requestLanguageChange, prefetchSalute, t } = useLanguage();
   const [selectedProjects, setSelectedProjects] = useState([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [, forceTick] = React.useState(0);
@@ -594,7 +594,9 @@ function ProjectsListContent() {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => setLanguage(language === 'en' ? 'de' : 'en')}
+              onClick={() => requestLanguageChange(language === 'en' ? 'de' : 'en')}
+              onPointerEnter={prefetchSalute}
+              onFocus={prefetchSalute}
               title={language === 'en' ? 'Switch to German' : 'Switch to English'}
               className="text-slate-600 hover:text-slate-900"
             >

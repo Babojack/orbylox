@@ -80,7 +80,7 @@ function BulletRow({ title, text }) {
 }
 
 function LandingContent() {
-  const { language, setLanguage } = useLanguage();
+  const { language, requestLanguageChange, prefetchSalute } = useLanguage();
   const navigate = useNavigate();
   const [waitlistEmail, setWaitlistEmail] = React.useState('');
   const [waitlistLoading, setWaitlistLoading] = React.useState(false);
@@ -171,7 +171,9 @@ function LandingContent() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => setLanguage(de ? 'en' : 'de')}
+              onClick={() => requestLanguageChange(de ? 'en' : 'de')}
+              onPointerEnter={prefetchSalute}
+              onFocus={prefetchSalute}
               aria-label={de ? 'Auf Englisch umschalten' : 'Switch to German'}
               className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 border-2 border-black text-xs font-bold uppercase hover:bg-black hover:text-white transition-colors"
             >

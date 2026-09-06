@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import LanguageSalute from '@/components/language/LanguageSalute';
 
 const LanguageContext = createContext();
 
@@ -1081,9 +1082,63 @@ export function LanguageProvider({ children }) {
     return 'en';
   });
 
+  /** Zielsprache, solange die grüßende Figur läuft; sonst null. */
+  const [salutingTo, setSalutingTo] = useState(null);
+
   useEffect(() => {
-    localStorage.setItem('orbylox_language', language);
+    // Ohne try/catch reisst ein blockierter Speicher die ganze Anwendung mit:
+    // im privaten Modus mancher Browser wirft setItem. Das Lesen war bereits
+    // abgesichert, das Schreiben nicht.
+    try {
+      localStorage.setItem('orbylox_language', language);
+    } catch {
+      // Dann gilt die Sprache eben nur für diese Sitzung.
+    }
   }, [language]);
+
+  /**
+   * Sprachwechsel mit Gruß.
+   *
+   * Die Figur grüßt, und in dem Moment, in dem die Hand oben steht, springt
+   * die Sprache um. Wer weniger Bewegung eingestellt hat, bekommt den Wechsel
+   * sofort — eine Systemeinstellung wiegt schwerer als eine Verzierung.
+   *
+   * Ein zweiter Klick während des Grußes heißt "jetzt aber": die Bewegung
+   * wird übersprungen, umgeschaltet wird sofort. Umgeschaltet wird dabei auf
+   * die bereits angestoßene Zielsprache — die neu berechnete wäre falsch,
+   * denn `language` steht noch auf dem alten Wert.
+   */
+  const requestLanguageChange = (next) => {
+    if (salutingTo) {
+      setLanguage(salutingTo);
+      setSalutingTo(null);
+      return;
+    }
+
+    const target = next === 'en' ? 'en' : 'de';
+    if (target === language) return;
+
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      setLanguage(target);
+      return;
+    }
+    setSalutingTo(target);
+  };
+
+  /**
+   * Three.js, Modell und Bewegung schon beim Berühren des Knopfes holen.
+   * Ohne das würde der erste Klick auf den Download warten — und genau dann
+   * greift die Reißleine und der Gruß fällt aus.
+   */
+  const prefetchSalute = () => {
+    import('@/components/language/SaluteBot')
+      .then((m) => m.prefetchSaluteAssets?.())
+      .catch(() => {});
+  };
 
   const t = (key, vars = null) => {
     const template = translations?.[language]?.[key] || translations?.en?.[key] || key;
@@ -1095,8 +1150,17 @@ export function LanguageProvider({ children }) {
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider
+      value={{ language, setLanguage, requestLanguageChange, prefetchSalute, t }}
+    >
       {children}
+      {salutingTo && (
+        <LanguageSalute
+          to={salutingTo}
+          onApply={() => setLanguage(salutingTo)}
+          onClose={() => setSalutingTo(null)}
+        />
+      )}
     </LanguageContext.Provider>
   );
 }

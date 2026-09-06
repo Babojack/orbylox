@@ -120,7 +120,7 @@ function LayoutContent({ children, currentPageName }) {
     const queryClient = useQueryClient();
     const searchParams = new URLSearchParams(location.search);
     const projectId = searchParams.get('project');
-    const { language, setLanguage, t } = useLanguage();
+    const { language, requestLanguageChange, prefetchSalute, t } = useLanguage();
     const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
 
     // Fetch current user
@@ -612,7 +612,9 @@ function LayoutContent({ children, currentPageName }) {
              <button
                type="button"
                className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-accent hidden sm:flex transition-colors duration-200 ease-out motion-reduce:transition-none"
-               onClick={() => setLanguage(language === 'en' ? 'de' : 'en')}
+               onClick={() => requestLanguageChange(language === 'en' ? 'de' : 'en')}
+              onPointerEnter={prefetchSalute}
+              onFocus={prefetchSalute}
                title={language === 'en' ? 'Switch to German' : 'Switch to English'}
              >
                <Languages className="w-5 h-5" />
