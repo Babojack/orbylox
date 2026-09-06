@@ -17,6 +17,7 @@ Disallow: /Canvas
 Disallow: /Chat
 Disallow: /Docs
 Disallow: /FileHub
+Disallow: /Contacts
 Disallow: /Calendar
 Disallow: /Meeting
 Disallow: /IdeasHub

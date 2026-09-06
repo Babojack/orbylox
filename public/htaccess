@@ -7,6 +7,12 @@
   # Muss VOR der SPA-Regel stehen. Diese Seiten liefern fertiges HTML,
   # damit Suchmaschinen den Text ohne JavaScript lesen koennen.
   RewriteRule ^sitemap\.xml$            /api/sitemap.php [L]
+
+  # Englische Uebersicht. Muss VOR der deutschen Regel stehen, sonst greift
+  # diese zuerst und /en/blog landet in der Einzelseiten-App.
+  RewriteRule ^en/blog/?$               /api/blog.php?p=en/blog [L,QSA]
+  RewriteRule ^en/blog/(.+?)/?$         /api/blog.php?p=en/blog/$1 [L,QSA]
+
   RewriteRule ^blog/?$                  /api/blog.php?p=blog [L,QSA]
   RewriteRule ^blog/(.+?)/?$            /api/blog.php?p=blog/$1 [L,QSA]
 

@@ -178,8 +178,11 @@ function LandingContent() {
               <Languages className="w-4 h-4" />
               <span className="hidden xs:inline">{de ? 'EN' : 'DE'}</span>
             </button>
+            {/* Sprachgleicher Blog: interne Verweise sind der stärkste Hinweis
+                für Suchmaschinen. Steht die Seite auf Englisch, soll auch der
+                Blog-Knopf in die englische Übersicht führen. */}
             <a
-              href="/blog"
+              href={de ? '/blog' : '/en/blog'}
               className="hidden sm:inline-flex items-center px-3 py-2 border-2 border-black text-xs font-bold uppercase tracking-wide hover:bg-black hover:text-white transition-colors"
             >
               Blog
@@ -530,7 +533,7 @@ function LandingContent() {
             <p className="font-bold uppercase text-xs tracking-wide mb-3">{de ? 'Mehr' : 'More'}</p>
             <ul className="space-y-2 text-sm text-slate-600">
               <li><a href="/About" className="hover:text-[#ef5a24]">{de ? 'Über uns' : 'About us'}</a></li>
-              <li><a href="/blog" className="hover:text-[#ef5a24]">Blog</a></li>
+              <li><a href={de ? '/blog' : '/en/blog'} className="hover:text-[#ef5a24]">Blog</a></li>
               <li><a href="/Impressum" className="hover:text-[#ef5a24]">{de ? 'Impressum' : 'Imprint'}</a></li>
             </ul>
           </div>

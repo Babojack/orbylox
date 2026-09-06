@@ -29,14 +29,35 @@ function w3c(string $iso): string
     return date('c', $ts !== false ? $ts : time());
 }
 
+const SITEMAP_PER_PAGE = 9;   // muss zu BLOG_PER_PAGE in blog.php passen
+
 $urls = [];
+
+/** Wegmarken je Sprache: /blog/kategorie/… gegenueber /en/blog/category/… */
+function hubBase(string $loc): string
+{
+    global $SITE;
+    return $SITE . ($loc === 'en' ? '/en/blog' : '/blog');
+}
+function catWord(string $loc): string { return $loc === 'en' ? 'category' : 'kategorie'; }
+function pageWord(string $loc): string { return $loc === 'en' ? 'page' : 'seite'; }
+
+// Die beiden Uebersichten verweisen wechselseitig aufeinander. x-default zeigt
+// auf die deutsche Fassung — sie ist die aeltere und vollstaendigere.
+$hubAlternates = [
+    'de' => hubBase('de'),
+    'en' => hubBase('en'),
+    'x-default' => hubBase('de'),
+];
 
 // Feste Seiten
 $urls[] = ['loc' => $SITE . '/',           'changefreq' => 'weekly',  'priority' => '1.0'];
-$urls[] = ['loc' => $SITE . '/blog',       'changefreq' => 'daily',   'priority' => '0.9'];
+$urls[] = ['loc' => $SITE . '/blog',       'changefreq' => 'daily',   'priority' => '0.9', 'alternates' => $hubAlternates];
+$urls[] = ['loc' => $SITE . '/en/blog',    'changefreq' => 'daily',   'priority' => '0.9', 'alternates' => $hubAlternates];
+$urls[] = ['loc' => $SITE . '/About',      'changefreq' => 'monthly', 'priority' => '0.5'];
 $urls[] = ['loc' => $SITE . '/Impressum',  'changefreq' => 'yearly',  'priority' => '0.2'];
 
-// Beiträge
+// Beiträge — beide Sprachen, jeder Beitrag behaelt seine Adresse unter /blog/
 $posts = blogPublished();
 foreach ($posts as $p) {
     $entry = [
@@ -53,27 +74,36 @@ foreach ($posts as $p) {
     // Übersetzung als hreflang-Alternative
     $twin = ($p['translation_of'] ?? '') !== '' ? blogFindBySlug((string)$p['translation_of']) : null;
     if ($twin) {
+        $selfLoc = (string)($p['locale'] ?? 'de');
+        $twinLoc = (string)($twin['locale'] ?? 'en');
+        $selfUrl = $SITE . '/blog/' . (string)$p['slug'];
+        $twinUrl = $SITE . '/blog/' . (string)$twin['slug'];
         $entry['alternates'] = [
-            (string)($p['locale'] ?? 'de') => $SITE . '/blog/' . (string)$p['slug'],
-            (string)($twin['locale'] ?? 'en') => $SITE . '/blog/' . (string)$twin['slug'],
+            $selfLoc => $selfUrl,
+            $twinLoc => $twinUrl,
+            'x-default' => $selfLoc === 'de' ? $selfUrl : $twinUrl,
         ];
     }
     $urls[] = $entry;
 }
 
-// Kategorien
-foreach (array_keys(blogCategories()) as $cat) {
-    $urls[] = [
-        'loc' => $SITE . '/blog/kategorie/' . blogSlugify((string)$cat),
-        'changefreq' => 'weekly',
-        'priority' => '0.6',
-    ];
-}
+// Kategorien und Seitenblätterung — je Sprache getrennt, denn die Uebersicht
+// zeigt jetzt nur noch Beitraege der jeweiligen Sprache.
+foreach (['de', 'en'] as $loc) {
+    $base = hubBase($loc);
 
-// Seitenblätterung der Übersicht
-$pages = (int)ceil(count($posts) / 9);
-for ($i = 2; $i <= $pages; $i++) {
-    $urls[] = ['loc' => $SITE . '/blog/seite/' . $i, 'changefreq' => 'weekly', 'priority' => '0.4'];
+    foreach (array_keys(blogCategories($loc)) as $cat) {
+        $urls[] = [
+            'loc' => $base . '/' . catWord($loc) . '/' . blogSlugify((string)$cat),
+            'changefreq' => 'weekly',
+            'priority' => '0.6',
+        ];
+    }
+
+    $pages = (int)ceil(count(blogPublished($loc)) / SITEMAP_PER_PAGE);
+    for ($i = 2; $i <= $pages; $i++) {
+        $urls[] = ['loc' => $base . '/' . pageWord($loc) . '/' . $i, 'changefreq' => 'weekly', 'priority' => '0.4'];
+    }
 }
 
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";

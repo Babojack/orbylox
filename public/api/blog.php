@@ -36,6 +36,22 @@ $BRAND = 'ORBYLOX';
 $path = (string)($_GET['p'] ?? '');
 $path = trim(parse_url($path, PHP_URL_PATH) ?? '', '/');
 $parts = $path === '' ? [] : explode('/', $path);
+
+/**
+ * Sprache der Uebersichtsseiten.
+ *
+ * /blog     -> deutsche Uebersicht, nur deutsche Beitraege
+ * /en/blog  -> englische Uebersicht, nur englische Beitraege
+ *
+ * Vorher lagen beide Sprachen in EINER Liste auf einer Seite, die sich als
+ * deutsch auswies. Fuer eine Suchmaschine ist das eine deutsche Seite mit
+ * englischen Fremdkoerpern — die englischen Artikel hatten keinen
+ * Einstiegspunkt in ihrer eigenen Sprache. Die Artikel selbst behalten ihre
+ * Adresse unter /blog/<slug>; sie sind bereits richtig ausgezeichnet, und ein
+ * Umzug wuerde nur die bestehende Indexierung wegwerfen.
+ */
+$UI = 'de';
+if (($parts[0] ?? '') === 'en') { $UI = 'en'; array_shift($parts); }
 if (($parts[0] ?? '') === 'blog') array_shift($parts);
 
 $route = ['type' => 'index', 'page' => 1, 'value' => ''];
@@ -55,11 +71,35 @@ if (count($parts) === 0) {
 
 function e(string $s): string { return blogEsc($s); }
 
+/** Adresse eines Beitrags — immer ohne Sprachpraefix, eine Adresse je Artikel. */
 function blogUrl(string $suffix = ''): string
 {
     global $SITE;
     return $SITE . '/blog' . ($suffix !== '' ? '/' . ltrim($suffix, '/') : '');
 }
+
+/**
+ * Adresse einer Uebersichtsseite (Startseite des Blogs, Kategorie, Schlagwort,
+ * Blaetterung) in der jeweiligen Sprache.
+ */
+function hubUrl(string $suffix = '', ?string $locale = null): string
+{
+    global $SITE, $UI;
+    $loc = $locale ?? $UI;
+    return $SITE . ($loc === 'en' ? '/en/blog' : '/blog')
+         . ($suffix !== '' ? '/' . ltrim($suffix, '/') : '');
+}
+
+/** Kurzform fuer die zweisprachigen Oberflaechentexte. */
+function tr(string $de, string $en): string
+{
+    global $UI;
+    return $UI === 'en' ? $en : $de;
+}
+
+/** Wegmarken in der Adresse: /blog/seite/2 gegenueber /en/blog/page/2 */
+function wPage(): string { return tr('seite', 'page'); }
+function wCat(): string { return tr('kategorie', 'category'); }
 
 function fmtDate(string $iso, string $locale = 'de'): string
 {
@@ -202,6 +242,19 @@ CSS;
     $nextTag = $next !== '' ? '<link rel="next" href="' . e($next) . '">' : '';
     $jsonldTag = $jsonld !== '' ? '<script type="application/ld+json">' . $jsonld . '</script>' : '';
 
+    // Kopf- und Fusszeile folgen der Sprache der Seite, nicht der des Servers.
+    $isEn      = $lang === 'en';
+    $hub       = $SITE . ($isEn ? '/en/blog' : '/blog');
+    $navBlog   = $isEn ? 'Blog' : 'Blog';
+    $navCta    = $isEn ? 'Start for free' : 'Kostenlos starten';
+    $footHome  = $isEn ? 'Home' : 'Startseite';
+    $footAbout = $isEn ? 'About us' : '&Uuml;ber uns';
+    // Sprachumschalter: fuehrt immer auf die Uebersicht der anderen Sprache.
+    // Ein Artikel hat nicht zwingend eine Uebersetzung; die Uebersicht schon.
+    $switchUrl = $SITE . ($isEn ? '/blog' : '/en/blog');
+    $switchTxt = $isEn ? 'Deutsch' : 'English';
+    $switchHl  = $isEn ? 'de' : 'en';
+
     return <<<HTML
 <!doctype html>
 <html lang="{$lang}">
@@ -233,13 +286,15 @@ CSS;
 <header class="top"><div class="wrap">
   <a class="brand" href="{$SITE}/">{$mark}<b>RBYLOX</b></a>
   <nav class="nav">
-    <a class="btn hide-sm" href="{$SITE}/blog">Blog</a>
-    <a class="btn solid" href="{$SITE}/login">Kostenlos starten</a>
+    <a class="btn hide-sm" href="{$hub}">{$navBlog}</a>
+    <a class="btn hide-sm" href="{$switchUrl}" hreflang="{$switchHl}" rel="alternate">{$switchTxt}</a>
+    <a class="btn solid" href="{$SITE}/login">{$navCta}</a>
   </nav>
 </div></header>
 {$body}
 <footer class="bot"><div class="wrap">
-  <a href="{$SITE}/">Startseite</a><a href="{$SITE}/blog">Blog</a><a href="{$SITE}/About">&Uuml;ber uns</a><a href="{$SITE}/Impressum">Impressum</a>
+  <a href="{$SITE}/">{$footHome}</a><a href="{$hub}">{$navBlog}</a><a href="{$SITE}/About">{$footAbout}</a><a href="{$SITE}/Impressum">Impressum</a>
+  <a href="{$switchUrl}" hreflang="{$switchHl}" rel="alternate">{$switchTxt}</a>
   <span>© 2026 {$BRAND}</span>
 </div></footer>
 </body>
@@ -257,14 +312,16 @@ function blogCard(array $p, string $heading = 'h3'): string
         : '';
     $cat = (string)($p['category'] ?? '');
     $catHtml = $cat !== '' ? '<span class="cat">' . e($cat) . '</span>' : '';
+    $loc = (string)($p['locale'] ?? 'de');
     $mins = blogReadingMinutes((string)($p['content'] ?? ''));
-    $date = fmtDate((string)($p['published_at'] ?? ''), (string)($p['locale'] ?? 'de'));
+    $date = fmtDate((string)($p['published_at'] ?? ''), $loc);
+    $minLabel = $loc === 'en' ? ' min' : ' Min.';
 
     return '<a class="card" href="' . e($url) . '">' . $thumb
         . '<div class="body">' . $catHtml
         . "<{$heading}>" . e((string)$p['title']) . "</{$heading}>"
         . '<p>' . e((string)($p['excerpt'] ?? '')) . '</p>'
-        . '<div class="meta"><span>' . e($date) . '</span><span>' . $mins . ' Min.</span></div>'
+        . '<div class="meta"><span>' . e($date) . '</span><span>' . $mins . $minLabel . '</span></div>'
         . '</div></a>';
 }
 
@@ -297,29 +354,38 @@ if ($route['type'] === 'post') {
     $post = blogFindBySlug((string)$route['value']);
     if (!$post) {
         http_response_code(404);
-        $body = '<main class="wrap notfound"><h1>404</h1><p>Diesen Beitrag gibt es nicht (mehr).</p>'
-              . '<p style="margin-top:24px"><a class="btn solid" href="' . $SITE . '/blog">Zur Blog-Übersicht</a></p></main>';
+        $body = '<main class="wrap notfound"><h1>404</h1><p>'
+              . tr('Diesen Beitrag gibt es nicht (mehr).', 'This article does not exist (any more).') . '</p>'
+              . '<p style="margin-top:24px"><a class="btn solid" href="' . e(hubUrl()) . '">'
+              . tr('Zur Blog-Übersicht', 'All articles') . '</a></p></main>';
         echo blogLayout([
-            'title' => 'Nicht gefunden — ' . $BRAND,
-            'description' => 'Diese Seite existiert nicht.',
-            'canonical' => blogUrl(),
+            'lang' => $UI,
+            'title' => tr('Nicht gefunden', 'Not found') . ' — ' . $BRAND,
+            'description' => tr('Diese Seite existiert nicht.', 'This page does not exist.'),
+            'canonical' => hubUrl(),
             'robots' => 'noindex, follow',
         ], $body);
         exit;
     }
 
     $locale = (string)($post['locale'] ?? 'de');
+
+    // Ab hier zaehlt die Sprache des Artikels, nicht die der aufgerufenen
+    // Adresse: ein englischer Beitrag bekommt englische Brotkrumen und
+    // verweist auf die englische Uebersicht, auch wenn er unter /blog liegt.
+    $UI = $locale;
+
     $rendered = blogRenderMarkdown((string)$post['content']);
     $url = ($post['canonical_url'] ?? '') !== '' ? (string)$post['canonical_url'] : blogUrl($post['slug']);
     $mins = blogReadingMinutes((string)$post['content']);
     $related = blogRelated($post, 3);
 
     $crumbItems = [
-        ['name' => 'Startseite', 'url' => $SITE . '/'],
-        ['name' => 'Blog', 'url' => blogUrl()],
+        ['name' => tr('Startseite', 'Home'), 'url' => $SITE . '/'],
+        ['name' => 'Blog', 'url' => hubUrl()],
     ];
     if (($post['category'] ?? '') !== '') {
-        $crumbItems[] = ['name' => (string)$post['category'], 'url' => blogUrl('kategorie/' . blogSlugify((string)$post['category']))];
+        $crumbItems[] = ['name' => (string)$post['category'], 'url' => hubUrl(wCat() . '/' . blogSlugify((string)$post['category']))];
     }
     $crumbItems[] = ['name' => (string)$post['title'], 'url' => $url];
 
@@ -347,13 +413,20 @@ if ($route['type'] === 'post') {
 
     $jsonld = json_encode([$article, crumbsJsonLd($crumbItems)], $jsonFlags);
 
-    // Übersetzung verlinken, falls vorhanden
+    // Übersetzung verlinken, falls vorhanden.
+    // x-default gehoert dazu: es sagt der Suchmaschine, welche Fassung sie
+    // jemandem zeigen soll, dessen Sprache zu keiner der beiden passt. Ohne
+    // die Angabe entscheidet sie selbst — meist zugunsten der zuerst
+    // gefundenen Seite, also fast immer der deutschen.
     $alternate = '';
     $twin = ($post['translation_of'] ?? '') !== '' ? blogFindBySlug((string)$post['translation_of']) : null;
     if ($twin) {
         $other = (string)($twin['locale'] ?? 'en');
-        $alternate = '<link rel="alternate" hreflang="' . e($other) . '" href="' . e(blogUrl($twin['slug'])) . '">'
-                   . '<link rel="alternate" hreflang="' . e($locale) . '" href="' . e($url) . '">';
+        $twinUrl = blogUrl($twin['slug']);
+        $deUrl = $locale === 'de' ? $url : $twinUrl;
+        $alternate = '<link rel="alternate" hreflang="' . e($other) . '" href="' . e($twinUrl) . '">'
+                   . '<link rel="alternate" hreflang="' . e($locale) . '" href="' . e($url) . '">'
+                   . '<link rel="alternate" hreflang="x-default" href="' . e($deUrl) . '">';
     }
 
     $toc = '';
@@ -436,11 +509,20 @@ if ($route['type'] === 'post') {
 
 /* ---------------------------------------------------- Übersicht / Filter */
 
-$all = blogPublished();
+// Nur die Beitraege der angezeigten Sprache. Genau hier lag der Kern des
+// Problems: ohne Filter stand jeder englische Artikel in der deutschen Liste
+// und hatte selbst keine eigene Uebersicht.
+$all = blogPublished($UI);
 $title = 'Blog';
-$intro = 'Praxiswissen zu Projektmanagement, Kanban und Zusammenarbeit — von den Leuten hinter ORBYLOX.';
-$crumbItems = [['name' => 'Startseite', 'url' => $SITE . '/'], ['name' => 'Blog', 'url' => blogUrl()]];
-$baseUrl = blogUrl();
+$intro = tr(
+    'Praxiswissen zu Projektmanagement, Kanban und Zusammenarbeit — von den Leuten hinter ORBYLOX.',
+    'Practical knowledge on project management, Kanban and collaboration — from the people behind ORBYLOX.'
+);
+$crumbItems = [
+    ['name' => tr('Startseite', 'Home'), 'url' => $SITE . '/'],
+    ['name' => 'Blog', 'url' => hubUrl()],
+];
+$baseUrl = hubUrl();
 $robots = 'index, follow, max-image-preview:large';
 
 if ($route['type'] === 'category') {
@@ -448,15 +530,20 @@ if ($route['type'] === 'category') {
     $all = array_values(array_filter($all, fn ($p) => blogSlugify((string)($p['category'] ?? '')) === $slugWanted));
     if (!$all) {
         http_response_code(404);
-        echo blogLayout(['title' => 'Kategorie nicht gefunden — ' . $BRAND, 'robots' => 'noindex, follow', 'canonical' => blogUrl()],
-            '<main class="wrap notfound"><h1>404</h1><p>Diese Kategorie gibt es nicht.</p>'
-            . '<p style="margin-top:24px"><a class="btn solid" href="' . $SITE . '/blog">Zur Übersicht</a></p></main>');
+        echo blogLayout([
+            'lang' => $UI,
+            'title' => tr('Kategorie nicht gefunden', 'Category not found') . ' — ' . $BRAND,
+            'robots' => 'noindex, follow',
+            'canonical' => hubUrl(),
+        ],
+            '<main class="wrap notfound"><h1>404</h1><p>' . tr('Diese Kategorie gibt es nicht.', 'This category does not exist.') . '</p>'
+            . '<p style="margin-top:24px"><a class="btn solid" href="' . e(hubUrl()) . '">' . tr('Zur Übersicht', 'All articles') . '</a></p></main>');
         exit;
     }
     $title = (string)($all[0]['category'] ?? $route['value']);
-    $intro = 'Alle Beiträge aus der Kategorie „' . $title . '“.';
-    $crumbItems[] = ['name' => $title, 'url' => blogUrl('kategorie/' . $slugWanted)];
-    $baseUrl = blogUrl('kategorie/' . $slugWanted);
+    $intro = tr('Alle Beiträge aus der Kategorie „' . $title . '“.', 'All articles in the category “' . $title . '”.');
+    $crumbItems[] = ['name' => $title, 'url' => hubUrl(wCat() . '/' . $slugWanted)];
+    $baseUrl = hubUrl(wCat() . '/' . $slugWanted);
 } elseif ($route['type'] === 'tag') {
     $slugWanted = blogSlugify((string)$route['value']);
     $all = array_values(array_filter($all, function ($p) use ($slugWanted) {
@@ -465,15 +552,29 @@ if ($route['type'] === 'category') {
     }));
     if (!$all) {
         http_response_code(404);
-        echo blogLayout(['title' => 'Schlagwort nicht gefunden — ' . $BRAND, 'robots' => 'noindex, follow', 'canonical' => blogUrl()],
-            '<main class="wrap notfound"><h1>404</h1><p>Zu diesem Schlagwort gibt es keine Beiträge.</p>'
-            . '<p style="margin-top:24px"><a class="btn solid" href="' . $SITE . '/blog">Zur Übersicht</a></p></main>');
+        echo blogLayout([
+            'lang' => $UI,
+            'title' => tr('Schlagwort nicht gefunden', 'Tag not found') . ' — ' . $BRAND,
+            'robots' => 'noindex, follow',
+            'canonical' => hubUrl(),
+        ],
+            '<main class="wrap notfound"><h1>404</h1><p>' . tr('Zu diesem Schlagwort gibt es keine Beiträge.', 'There are no articles with this tag.') . '</p>'
+            . '<p style="margin-top:24px"><a class="btn solid" href="' . e(hubUrl()) . '">' . tr('Zur Übersicht', 'All articles') . '</a></p></main>');
         exit;
     }
     $title = '#' . $route['value'];
-    $intro = 'Beiträge mit dem Schlagwort „' . (string)$route['value'] . '“.';
-    $crumbItems[] = ['name' => $title, 'url' => blogUrl('tag/' . $slugWanted)];
-    $baseUrl = blogUrl('tag/' . $slugWanted);
+    $intro = tr(
+        'Beiträge mit dem Schlagwort „' . (string)$route['value'] . '“.',
+        'Articles tagged “' . (string)$route['value'] . '”.'
+    );
+    $crumbItems[] = ['name' => $title, 'url' => hubUrl('tag/' . $slugWanted)];
+    $baseUrl = hubUrl('tag/' . $slugWanted);
+}
+
+// Keine Beitraege in dieser Sprache: die Seite soll trotzdem antworten, aber
+// nicht in den Index — eine leere Uebersicht ist kein Suchergebnis wert.
+if (!$all && $route['type'] === 'index') {
+    $robots = 'noindex, follow';
 }
 
 $total = count($all);
@@ -487,9 +588,10 @@ if ($route['type'] === 'index' && $page === 1 && $slice) {
     $featured = array_shift($slice);
 }
 
-$canonical = $page > 1 ? rtrim($baseUrl, '/') . '/seite/' . $page : $baseUrl;
-$prev = $page > 1 ? ($page - 1 === 1 ? $baseUrl : rtrim($baseUrl, '/') . '/seite/' . ($page - 1)) : '';
-$next = $page < $pages ? rtrim($baseUrl, '/') . '/seite/' . ($page + 1) : '';
+$pageWord = wPage();
+$canonical = $page > 1 ? rtrim($baseUrl, '/') . '/' . $pageWord . '/' . $page : $baseUrl;
+$prev = $page > 1 ? ($page - 1 === 1 ? $baseUrl : rtrim($baseUrl, '/') . '/' . $pageWord . '/' . ($page - 1)) : '';
+$next = $page < $pages ? rtrim($baseUrl, '/') . '/' . $pageWord . '/' . ($page + 1) : '';
 
 $featuredHtml = '';
 if ($featured) {
@@ -504,40 +606,41 @@ if ($featured) {
         . '<h2>' . e((string)$featured['title']) . '</h2>'
         . '<p style="color:#5f5e5a;margin:0 0 14px">' . e((string)($featured['excerpt'] ?? '')) . '</p>'
         . '<div class="meta"><span>' . e(fmtDate((string)$featured['published_at'], (string)($featured['locale'] ?? 'de'))) . '</span>'
-        . '<span>' . blogReadingMinutes((string)$featured['content']) . ' Min.</span></div></div></a></div></section>';
+        . '<span>' . blogReadingMinutes((string)$featured['content']) . tr(' Min.', ' min') . '</span></div></div></a></div></section>';
 }
 
 $cardsHtml = '';
 foreach ($slice as $p) $cardsHtml .= blogCard($p, 'h2');
 if ($cardsHtml === '' && !$featured) {
-    $cardsHtml = '<p style="color:#5f5e5a">Noch keine Beiträge.</p>';
+    $cardsHtml = '<p style="color:#5f5e5a">' . tr('Noch keine Beiträge.', 'No articles yet.') . '</p>';
 }
 
 $catChips = '';
-$cats = blogCategories();
+$cats = blogCategories($UI);
 if ($cats) {
     foreach ($cats as $name => $count) {
-        $cUrl = blogUrl('kategorie/' . blogSlugify((string)$name));
+        $cUrl = hubUrl(wCat() . '/' . blogSlugify((string)$name));
         $current = ($route['type'] === 'category' && blogSlugify((string)$name) === blogSlugify((string)$route['value']))
             ? ' aria-current="page"' : '';
         $catChips .= '<a class="chip" href="' . e($cUrl) . '"' . $current . '>' . e((string)$name) . ' (' . (int)$count . ')</a>';
     }
     $catChips = '<div class="chips" style="margin-top:22px">'
-        . '<a class="chip" href="' . e(blogUrl()) . '"' . ($route['type'] === 'index' ? ' aria-current="page"' : '') . '>Alle</a>'
+        . '<a class="chip" href="' . e(hubUrl()) . '"' . ($route['type'] === 'index' ? ' aria-current="page"' : '') . '>'
+        . tr('Alle', 'All') . '</a>'
         . $catChips . '</div>';
 }
 
 $pagerHtml = '';
 if ($pages > 1) {
-    $pagerHtml = '<nav class="pager" aria-label="Seiten">';
-    if ($prev !== '') $pagerHtml .= '<a class="btn" href="' . e($prev) . '" rel="prev">Zurück</a>';
+    $pagerHtml = '<nav class="pager" aria-label="' . tr('Seiten', 'Pages') . '">';
+    if ($prev !== '') $pagerHtml .= '<a class="btn" href="' . e($prev) . '" rel="prev">' . tr('Zurück', 'Previous') . '</a>';
     for ($i = 1; $i <= $pages; $i++) {
-        $u = $i === 1 ? $baseUrl : rtrim($baseUrl, '/') . '/seite/' . $i;
+        $u = $i === 1 ? $baseUrl : rtrim($baseUrl, '/') . '/' . $pageWord . '/' . $i;
         $pagerHtml .= $i === $page
             ? '<span aria-current="page">' . $i . '</span>'
             : '<a class="btn" href="' . e($u) . '">' . $i . '</a>';
     }
-    if ($next !== '') $pagerHtml .= '<a class="btn" href="' . e($next) . '" rel="next">Weiter</a>';
+    if ($next !== '') $pagerHtml .= '<a class="btn" href="' . e($next) . '" rel="next">' . tr('Weiter', 'Next') . '</a>';
     $pagerHtml .= '</nav>';
 }
 
@@ -547,29 +650,50 @@ foreach (array_slice($all, 0, 20) as $i => $p) {
 }
 $jsonld = json_encode([
     ['@context' => 'https://schema.org', '@type' => 'Blog', 'name' => $BRAND . ' Blog',
-     'url' => blogUrl(), 'description' => $intro,
+     'url' => hubUrl(), 'description' => $intro, 'inLanguage' => $UI,
      'publisher' => ['@type' => 'Organization', 'name' => $BRAND, 'url' => $SITE]],
     ['@context' => 'https://schema.org', '@type' => 'ItemList', 'itemListElement' => $itemList],
     crumbsJsonLd($crumbItems),
 ], $jsonFlags);
 
+/**
+ * hreflang der Uebersicht.
+ *
+ * Nur auf der ungefilterten Uebersicht: Kategorien und Schlagworte heissen in
+ * beiden Sprachen anders, eine automatische Zuordnung waere geraten. Eine
+ * falsche hreflang-Angabe ist schlechter als gar keine.
+ */
+$alternate = '';
+if ($route['type'] === 'index') {
+    $deUrl = hubUrl($page > 1 ? 'seite/' . $page : '', 'de');
+    $enUrl = hubUrl($page > 1 ? 'page/' . $page : '', 'en');
+    $alternate = '<link rel="alternate" hreflang="de" href="' . e($deUrl) . '">'
+               . '<link rel="alternate" hreflang="en" href="' . e($enUrl) . '">'
+               . '<link rel="alternate" hreflang="x-default" href="' . e($deUrl) . '">';
+}
+
 $body = crumbs($crumbItems)
     . '<section class="hero"><div class="wrap"><span class="kicker">Blog</span>'
-    . '<h1>' . e($title === 'Blog' ? 'Projekte, die laufen.' : $title) . '</h1>'
+    . '<h1>' . e($title === 'Blog' ? tr('Projekte, die laufen.', 'Projects that actually move.') : $title) . '</h1>'
     . '<p>' . e($intro) . '</p>' . $catChips . '</div></section>'
     . $featuredHtml
     . '<section class="section"><div class="wrap"><div class="grid">' . $cardsHtml . '</div>' . $pagerHtml . '</div></section>'
-    . '<section class="cta"><div class="wrap"><h2>Projekte an einem Ort führen.</h2>'
-    . '<p>Aufgaben, Notizen, Canvas, Chat und Video — kostenlos starten.</p>'
-    . '<a class="btn solid" href="' . $SITE . '/login">Kostenlos starten</a></div></section>';
+    . '<section class="cta"><div class="wrap"><h2>'
+    . tr('Projekte an einem Ort führen.', 'Run your projects in one place.') . '</h2>'
+    . '<p>' . tr('Aufgaben, Notizen, Canvas, Chat und Video — kostenlos starten.',
+                 'Tasks, notes, canvas, chat and video — free to start.') . '</p>'
+    . '<a class="btn solid" href="' . $SITE . '/login">'
+    . tr('Kostenlos starten', 'Start for free') . '</a></div></section>';
 
 blogSendCacheHeaders();
 echo blogLayout([
-    'title' => ($page > 1 ? $title . ' — Seite ' . $page : $title) . ' — ' . $BRAND,
+    'lang' => $UI,
+    'title' => ($page > 1 ? $title . tr(' — Seite ', ' — Page ') . $page : $title) . ' — ' . $BRAND,
     'description' => mb_substr($intro, 0, 160, 'UTF-8'),
     'canonical' => $canonical,
     'jsonld' => $jsonld,
     'robots' => $robots,
+    'alternate' => $alternate,
     'prev' => $prev,
     'next' => $next,
 ], $body);
