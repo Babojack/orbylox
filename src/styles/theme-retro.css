@@ -1,0 +1,173 @@
+/* ===========================================================================
+   Retro — 16-Bit-Rollenspiel
+
+   Kein Nintendo-Material: Der Look ist die Bildsprache jener Zeit (begrenzte
+   Palette, harte Kanten, Kachelrahmen, Pixelschrift), keine geschuetzten
+   Zeichen, Wappen oder Schriftzuege.
+
+   AUFBAU
+   Die Regeln deuten die vorhandenen Tailwind-Klassen um, statt 1.600
+   Farbangaben in 75 Dateien zu ersetzen. `[data-theme="retro"] .theme-scope`
+   hat hoehere Spezifitaet als eine einzelne Utility-Klasse, deshalb kommt
+   dieser Block ohne !important aus — bis auf die Faelle, in denen Tailwind
+   selbst mit hoeherer Spezifitaet arbeitet.
+
+   Zum Ausweiten: `theme-scope` an eine weitere Seite haengen, oder einmal an
+   die Wurzel der Anwendung. Der Rest passiert von allein.
+
+   BEWEGUNG bleibt unangetastet: Uebergaenge und Transformationen sind
+   ausdruecklich nicht Teil dieses Blocks.
+   =========================================================================== */
+
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('/fonts/press-start-2p-latin-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;   /* nie unsichtbarer Text, solange die Schrift laedt */
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+                 U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('/fonts/press-start-2p-latin-ext-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB,
+                 U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+[data-theme='retro'] {
+  --r-night:    #16102b;   /* Hintergrund, tiefe Nacht */
+  --r-panel:    #241a44;   /* Fenster und Karten */
+  --r-panel-2:  #2f2356;   /* leicht erhoehte Flaeche */
+  --r-ink:      #f6ecd0;   /* Pergament, Text */
+  --r-ink-dim:  #b3a0da;   /* zurueckgenommener Text */
+  --r-gold:     #f2b03d;   /* Akzent, Rahmen */
+  --r-flame:    #ef5a24;   /* die Marke bleibt die Marke */
+  --r-blood:    #d94a4a;
+  --r-moss:     #5fbf6a;
+}
+
+/* --- Grundflaeche ------------------------------------------------------- */
+
+[data-theme='retro'] body,
+[data-theme='retro'] .theme-scope {
+  background-color: var(--r-night);
+  color: var(--r-ink);
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  letter-spacing: 0.01em;
+}
+
+/* Ueberschriften, Knopfbeschriftungen und Etiketten in Pixelschrift.
+   Fliesstext bleibt schmal-monospaced: 'Press Start 2P' ist bei 14 Pixeln
+   sehr breit und ab drei Zeilen kaum noch lesbar. */
+[data-theme='retro'] .theme-scope h1,
+[data-theme='retro'] .theme-scope h2,
+[data-theme='retro'] .theme-scope h3,
+[data-theme='retro'] .theme-scope button,
+[data-theme='retro'] .theme-scope .uppercase {
+  font-family: 'Press Start 2P', ui-monospace, monospace;
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+[data-theme='retro'] .theme-scope h1 { font-size: 1.35rem; }
+[data-theme='retro'] .theme-scope h2 { font-size: 1.05rem; }
+[data-theme='retro'] .theme-scope h3 { font-size: 0.85rem; }
+[data-theme='retro'] .theme-scope button { font-size: 0.62rem; }
+
+/* --- Flaechen ----------------------------------------------------------- */
+
+[data-theme='retro'] .theme-scope .bg-white,
+[data-theme='retro'] .theme-scope .bg-card,
+[data-theme='retro'] .theme-scope [class*='bg-slate-50'],
+[data-theme='retro'] .theme-scope [class*='bg-slate-100'] {
+  background-color: var(--r-panel);
+}
+[data-theme='retro'] .theme-scope [class*='bg-slate-200'],
+[data-theme='retro'] .theme-scope [class*='bg-slate-300'] {
+  background-color: var(--r-panel-2);
+}
+[data-theme='retro'] .theme-scope .bg-\[\#f5f5f5\] { background-color: var(--r-panel-2); }
+[data-theme='retro'] .theme-scope .bg-black        { background-color: var(--r-ink); color: var(--r-night); }
+[data-theme='retro'] .theme-scope .bg-\[\#ef5a24\] { background-color: var(--r-flame); }
+
+/* --- Schrift ------------------------------------------------------------ */
+
+[data-theme='retro'] .theme-scope [class*='text-slate-9'],
+[data-theme='retro'] .theme-scope [class*='text-slate-8'],
+[data-theme='retro'] .theme-scope [class*='text-slate-7'],
+[data-theme='retro'] .theme-scope .text-black { color: var(--r-ink); }
+
+[data-theme='retro'] .theme-scope [class*='text-slate-6'],
+[data-theme='retro'] .theme-scope [class*='text-slate-5'],
+[data-theme='retro'] .theme-scope [class*='text-slate-4'],
+[data-theme='retro'] .theme-scope [class*='text-slate-3'] { color: var(--r-ink-dim); }
+
+[data-theme='retro'] .theme-scope .text-\[\#ef5a24\] { color: var(--r-gold); }
+[data-theme='retro'] .theme-scope .text-white        { color: var(--r-ink); }
+
+/* --- Rahmen: das Fenster des Genres ------------------------------------- */
+
+[data-theme='retro'] .theme-scope .border-black,
+[data-theme='retro'] .theme-scope .border-2,
+[data-theme='retro'] .theme-scope [class*='border-slate-'] {
+  border-color: var(--r-gold);
+}
+[data-theme='retro'] .theme-scope .border-\[\#ef5a24\] { border-color: var(--r-flame); }
+
+/* Alles eckig. Runde Ecken gab es auf diesen Bildschirmen nicht — ausser bei
+   Dingen, die rund SEIN sollen (Avatare, der Roboterknopf). */
+[data-theme='retro'] .theme-scope [class*='rounded']:not(.rounded-full) {
+  border-radius: 0;
+}
+
+/* Weiche Schatten durch harte Versaetze ersetzen. */
+[data-theme='retro'] .theme-scope [class*='shadow'] {
+  box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+/* --- Eingaben ----------------------------------------------------------- */
+
+[data-theme='retro'] .theme-scope input,
+[data-theme='retro'] .theme-scope textarea,
+[data-theme='retro'] .theme-scope select {
+  background-color: var(--r-night);
+  color: var(--r-ink);
+  border-color: var(--r-gold);
+  border-radius: 0;
+}
+[data-theme='retro'] .theme-scope input::placeholder,
+[data-theme='retro'] .theme-scope textarea::placeholder { color: var(--r-ink-dim); }
+
+/* --- Bilder ------------------------------------------------------------- */
+
+/* Harte Kanten statt weichem Skalieren — das ist der halbe Retro-Eindruck. */
+[data-theme='retro'] .theme-scope img {
+  image-rendering: pixelated;
+}
+
+/* --- Kleine Zutaten ----------------------------------------------------- */
+
+/* Ein Hauch Rasterzeilen ueber der Flaeche, sehr zurueckhaltend. */
+[data-theme='retro'] .theme-scope::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.14) 0px,
+    rgba(0, 0, 0, 0.14) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.5;
+}
+/* Wer weniger Bewegung will, will meist auch weniger Flimmern. */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme='retro'] .theme-scope::before { display: none; }
+}

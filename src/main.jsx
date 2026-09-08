@@ -2,6 +2,11 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
+import '@/styles/theme-retro.css'
+import { initTheme } from '@/lib/theme';
+
+// Vor dem ersten Rendern, sonst blitzt das falsche Kleid kurz auf.
+initTheme();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   // <React.StrictMode>

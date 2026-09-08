@@ -34,6 +34,7 @@ import { EASE, DURATION, STAGGER } from "@/components/motion/Reveal";
 import { CardGridSkeleton } from "@/components/motion/Skeletons";
 import { askDelete } from '@/lib/confirmDelete';
 import FocusMode from '@/components/projects/FocusMode';
+import ThemeSwitch from '@/components/common/ThemeSwitch';
 
 const MAX_MEMBERS_PER_PROJECT = 3;
 
@@ -594,7 +595,7 @@ function ProjectsListContent() {
 
   if (isLoading || userLoading || !user) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5]">
+      <div className="theme-scope min-h-screen bg-[#f5f5f5]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
           <div className="h-5 w-40 bg-slate-200/80 animate-pulse mb-6" />
           <CardGridSkeleton count={6} withMedia />
@@ -669,6 +670,7 @@ function ProjectsListContent() {
                     {user?.full_name || user?.email?.split('@')[0]}
                   </span>
                 </button>
+            <ThemeSwitch de={language === 'de'} />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60">
                 <div className="px-2 py-2 border-b border-slate-100 mb-1">
