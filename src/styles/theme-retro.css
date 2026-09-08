@@ -1,19 +1,23 @@
 /* ===========================================================================
-   Retro — 16-Bit-Rollenspiel
+   Retro — 16-Bit-Oberwelt
 
-   Kein Nintendo-Material: Der Look ist die Bildsprache jener Zeit (begrenzte
-   Palette, harte Kanten, Kachelrahmen, Pixelschrift), keine geschuetzten
-   Zeichen, Wappen oder Schriftzuege.
+   Die Palette folgt der Bildsprache der Zeit: Wiese, Trampelpfad, Pergament,
+   Gold. Kein geschuetztes Material — keine fremden Zeichen, Wappen,
+   Schriftzuege oder Figuren, nur die Farbwelt und die harte Kante.
 
    AUFBAU
    Die Regeln deuten die vorhandenen Tailwind-Klassen um, statt 1.600
    Farbangaben in 75 Dateien zu ersetzen. `[data-theme="retro"] .theme-scope`
    hat hoehere Spezifitaet als eine einzelne Utility-Klasse, deshalb kommt
-   dieser Block ohne !important aus — bis auf die Faelle, in denen Tailwind
-   selbst mit hoeherer Spezifitaet arbeitet.
+   dieser Block fast ohne !important aus.
 
-   Zum Ausweiten: `theme-scope` an eine weitere Seite haengen, oder einmal an
+   ZUM AUSWEITEN: `theme-scope` an eine weitere Seite haengen, oder einmal an
    die Wurzel der Anwendung. Der Rest passiert von allein.
+
+   ACHTUNG, DIESELBE FALLE ZWEIMAL: `theme-scope` muss an dem Element haengen,
+   das den sichtbaren Inhalt umschliesst. Stand es versehentlich nur an der
+   Ladeansicht, aenderte sich sichtbar bloss die Schrift — die erbt ueber
+   `body`, alles Klassenbasierte lief ins Leere.
 
    BEWEGUNG bleibt unangetastet: Uebergaenge und Transformationen sind
    ausdruecklich nicht Teil dieses Blocks.
@@ -40,22 +44,33 @@
 }
 
 [data-theme='retro'] {
-  --r-night:    #16102b;   /* Hintergrund, tiefe Nacht */
-  --r-panel:    #241a44;   /* Fenster und Karten */
-  --r-panel-2:  #2f2356;   /* leicht erhoehte Flaeche */
-  --r-ink:      #f6ecd0;   /* Pergament, Text */
-  --r-ink-dim:  #b3a0da;   /* zurueckgenommener Text */
-  --r-gold:     #f2b03d;   /* Akzent, Rahmen */
+  --r-grass:    #6ea043;   /* Wiese — die Flaeche, auf der alles liegt */
+  --r-grass-2:  #5b8a36;   /* Schattenwiese */
+  --r-path:     #c9a86b;   /* Trampelpfad */
+  --r-parch:    #f4e5bf;   /* Pergament — Karten und Fenster */
+  --r-parch-2:  #e6d3a5;   /* Pergament, leicht vertieft */
+  --r-wood:     #6b4a2a;   /* Holz und Stein */
+  --r-edge:     #3a2716;   /* Rahmen, fast schwarz */
+  --r-ink:      #3a2716;   /* Text auf Pergament */
+  --r-ink-dim:  #7a6142;   /* zurueckgenommener Text */
+  --r-gold:     #f0b429;   /* Akzent, Muenzen, Rahmen */
   --r-flame:    #ef5a24;   /* die Marke bleibt die Marke */
-  --r-blood:    #d94a4a;
-  --r-moss:     #5fbf6a;
+  --r-blood:    #d2402f;
+  --r-moss:     #3f8f3a;
+  --r-sky:      #2f6fd0;
 }
 
-/* --- Grundflaeche ------------------------------------------------------- */
+/* --- Grundflaeche: die Wiese, gekachelt ---------------------------------- */
 
 [data-theme='retro'] body,
 [data-theme='retro'] .theme-scope {
-  background-color: var(--r-night);
+  background-color: var(--r-grass);
+  /* Ein feines Raster statt einer Bilddatei: kostet nichts und macht aus der
+     Flaeche eine Karte aus Kacheln. */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.055) 1px, transparent 1px);
+  background-size: 16px 16px, 16px 16px;
   color: var(--r-ink);
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   letter-spacing: 0.01em;
@@ -73,26 +88,48 @@
   letter-spacing: 0;
   line-height: 1.5;
 }
-[data-theme='retro'] .theme-scope h1 { font-size: 1.35rem; }
-[data-theme='retro'] .theme-scope h2 { font-size: 1.05rem; }
-[data-theme='retro'] .theme-scope h3 { font-size: 0.85rem; }
-[data-theme='retro'] .theme-scope button { font-size: 0.62rem; }
+[data-theme='retro'] .theme-scope h1 { font-size: 1.3rem; }
+[data-theme='retro'] .theme-scope h2 { font-size: 1rem; }
+[data-theme='retro'] .theme-scope h3 { font-size: 0.82rem; }
+[data-theme='retro'] .theme-scope button { font-size: 0.6rem; }
 
-/* --- Flaechen ----------------------------------------------------------- */
+/* --- Flaechen: Pergamentfenster ----------------------------------------- */
 
 [data-theme='retro'] .theme-scope .bg-white,
 [data-theme='retro'] .theme-scope .bg-card,
 [data-theme='retro'] .theme-scope [class*='bg-slate-50'],
 [data-theme='retro'] .theme-scope [class*='bg-slate-100'] {
-  background-color: var(--r-panel);
+  background-color: var(--r-parch);
+  color: var(--r-ink);
 }
 [data-theme='retro'] .theme-scope [class*='bg-slate-200'],
 [data-theme='retro'] .theme-scope [class*='bg-slate-300'] {
-  background-color: var(--r-panel-2);
+  background-color: var(--r-parch-2);
 }
-[data-theme='retro'] .theme-scope .bg-\[\#f5f5f5\] { background-color: var(--r-panel-2); }
-[data-theme='retro'] .theme-scope .bg-black        { background-color: var(--r-ink); color: var(--r-night); }
-[data-theme='retro'] .theme-scope .bg-\[\#ef5a24\] { background-color: var(--r-flame); }
+[data-theme='retro'] .theme-scope .bg-\[\#f5f5f5\] { background-color: transparent; }
+[data-theme='retro'] .theme-scope .bg-black        { background-color: var(--r-edge); color: var(--r-parch); }
+[data-theme='retro'] .theme-scope .bg-\[\#ef5a24\] { background-color: var(--r-flame); color: #fff; }
+[data-theme='retro'] .theme-scope [class*='bg-amber-'],
+[data-theme='retro'] .theme-scope [class*='bg-yellow-'] { background-color: var(--r-gold); color: var(--r-edge); }
+[data-theme='retro'] .theme-scope [class*='bg-green-'],
+[data-theme='retro'] .theme-scope [class*='bg-emerald-'] { background-color: var(--r-moss); color: var(--r-parch); }
+[data-theme='retro'] .theme-scope [class*='bg-red-'],
+[data-theme='retro'] .theme-scope [class*='bg-rose-']    { background-color: var(--r-blood); color: var(--r-parch); }
+[data-theme='retro'] .theme-scope [class*='bg-blue-'],
+[data-theme='retro'] .theme-scope [class*='bg-indigo-'],
+[data-theme='retro'] .theme-scope [class*='bg-sky-']     { background-color: var(--r-sky); color: var(--r-parch); }
+
+/* Die Kopfzeile ist Holz, nicht Pergament — sie traegt die Seite. */
+[data-theme='retro'] .theme-scope .sticky.bg-white,
+[data-theme='retro'] .theme-scope .bg-white.sticky {
+  background-color: var(--r-wood);
+  color: var(--r-parch);
+  border-bottom: 3px solid var(--r-edge);
+}
+[data-theme='retro'] .theme-scope .sticky.bg-white [class*='text-slate-'],
+[data-theme='retro'] .theme-scope .bg-white.sticky [class*='text-slate-'] {
+  color: var(--r-parch);
+}
 
 /* --- Schrift ------------------------------------------------------------ */
 
@@ -106,16 +143,22 @@
 [data-theme='retro'] .theme-scope [class*='text-slate-4'],
 [data-theme='retro'] .theme-scope [class*='text-slate-3'] { color: var(--r-ink-dim); }
 
-[data-theme='retro'] .theme-scope .text-\[\#ef5a24\] { color: var(--r-gold); }
-[data-theme='retro'] .theme-scope .text-white        { color: var(--r-ink); }
+[data-theme='retro'] .theme-scope .text-\[\#ef5a24\] { color: var(--r-flame); }
+[data-theme='retro'] .theme-scope [class*='text-amber-'] { color: #a97612; }
+[data-theme='retro'] .theme-scope [class*='text-green-'],
+[data-theme='retro'] .theme-scope [class*='text-emerald-'] { color: #2c6b28; }
+[data-theme='retro'] .theme-scope [class*='text-red-'] { color: #a8291b; }
 
 /* --- Rahmen: das Fenster des Genres ------------------------------------- */
 
 [data-theme='retro'] .theme-scope .border-black,
-[data-theme='retro'] .theme-scope .border-2,
-[data-theme='retro'] .theme-scope [class*='border-slate-'] {
-  border-color: var(--r-gold);
+[data-theme='retro'] .theme-scope [class*='border-slate-'],
+[data-theme='retro'] .theme-scope [class*='border-amber-'],
+[data-theme='retro'] .theme-scope [class*='border-gray-'] {
+  border-color: var(--r-edge);
 }
+[data-theme='retro'] .theme-scope .border,
+[data-theme='retro'] .theme-scope .border-2 { border-width: 2px; }
 [data-theme='retro'] .theme-scope .border-\[\#ef5a24\] { border-color: var(--r-flame); }
 
 /* Alles eckig. Runde Ecken gab es auf diesen Bildschirmen nicht — ausser bei
@@ -126,7 +169,7 @@
 
 /* Weiche Schatten durch harte Versaetze ersetzen. */
 [data-theme='retro'] .theme-scope [class*='shadow'] {
-  box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.55);
+  box-shadow: 4px 4px 0 0 var(--r-edge);
 }
 
 /* --- Eingaben ----------------------------------------------------------- */
@@ -134,9 +177,9 @@
 [data-theme='retro'] .theme-scope input,
 [data-theme='retro'] .theme-scope textarea,
 [data-theme='retro'] .theme-scope select {
-  background-color: var(--r-night);
+  background-color: var(--r-parch);
   color: var(--r-ink);
-  border-color: var(--r-gold);
+  border-color: var(--r-edge);
   border-radius: 0;
 }
 [data-theme='retro'] .theme-scope input::placeholder,
@@ -147,6 +190,29 @@
 /* Harte Kanten statt weichem Skalieren — das ist der halbe Retro-Eindruck. */
 [data-theme='retro'] .theme-scope img {
   image-rendering: pixelated;
+}
+
+/* --- Menues und Dialoge ------------------------------------------------- */
+
+/* Radix haengt beides per Portal an den Body, also ausserhalb von
+   `.theme-scope`. Ohne diese Regeln blieben Menue und Dialog weiss, waehrend
+   die Seite dahinter im Pergament steht. */
+[data-theme='retro'] [data-radix-popper-content-wrapper] > *,
+[data-theme='retro'] [role='menu'],
+[data-theme='retro'] [role='dialog'] {
+  background-color: var(--r-parch) !important;
+  color: var(--r-ink) !important;
+  border: 2px solid var(--r-edge) !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 0 var(--r-edge) !important;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+[data-theme='retro'] [role='dialog'] h2,
+[data-theme='retro'] [role='dialog'] h3,
+[data-theme='retro'] [role='dialog'] button {
+  font-family: 'Press Start 2P', ui-monospace, monospace;
+  font-size: 0.62rem;
+  line-height: 1.6;
 }
 
 /* --- Kleine Zutaten ----------------------------------------------------- */
@@ -160,12 +226,12 @@
   z-index: 1;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.14) 0px,
-    rgba(0, 0, 0, 0.14) 1px,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
     transparent 1px,
     transparent 3px
   );
-  opacity: 0.5;
+  opacity: 0.45;
 }
 /* Wer weniger Bewegung will, will meist auch weniger Flimmern. */
 @media (prefers-reduced-motion: reduce) {

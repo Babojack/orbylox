@@ -1,3 +1,5 @@
+import { normalizeFocusLock } from "@/lib/focusDay";
+
 const STORAGE_PREFIX = "orbylox_projects_v1:";
 
 function safeJsonParse(raw, fallback) {
@@ -54,12 +56,15 @@ export function readLocalProjectListPrefs(userEmailLower) {
     hiddenIds: readStringArray(hiddenKey),
     focusLog: focusLog && typeof focusLog === "object" ? focusLog : {},
     focusSeen: readJson(projectListPrefsStorageKey(userEmailLower, "focusseen"), false) === true,
+    focusLock: normalizeFocusLock(
+      readJson(projectListPrefsStorageKey(userEmailLower, "focuslock"), null),
+    ),
   };
 }
 
 export function writeLocalProjectListPrefs(
   userEmailLower,
-  { favoriteIds, hiddenIds, focusLog, focusSeen },
+  { favoriteIds, hiddenIds, focusLog, focusSeen, focusLock },
 ) {
   writeStringArray(
     projectListPrefsStorageKey(userEmailLower, "favorites"),
@@ -71,6 +76,10 @@ export function writeLocalProjectListPrefs(
   );
   writeJson(projectListPrefsStorageKey(userEmailLower, "focuslog"), focusLog || {});
   writeJson(projectListPrefsStorageKey(userEmailLower, "focusseen"), focusSeen === true);
+  writeJson(
+    projectListPrefsStorageKey(userEmailLower, "focuslock"),
+    normalizeFocusLock(focusLock),
+  );
 }
 
 /**

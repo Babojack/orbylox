@@ -6,6 +6,7 @@ import {
   saveProjectListPrefs,
   subscribeProjectListPrefs,
 } from "@/api/projectListPrefs";
+import { normalizeFocusLock, todayKey } from "@/lib/focusDay";
 
 function uniq(arr) {
   return [...new Set(arr)];
@@ -38,9 +39,17 @@ export function useProjectListPrefs(user) {
   const [focusLog, setFocusLog] = useState({});
   /** Wurde der Fokus schon einmal benutzt? Steuert den Neu-Hinweis. */
   const [focusSeen, setFocusSeen] = useState(false);
+  /** Auf welches Projekt ist der heutige Tag gesperrt? `{ id, day }` oder null. */
+  const [focusLock, setFocusLockState] = useState(null);
 
   /** Einzige Wahrheit für das, was als Nächstes gespeichert wird. */
-  const stateRef = useRef({ favoriteIds: [], hiddenIds: [], focusLog: {}, focusSeen: false });
+  const stateRef = useRef({
+    favoriteIds: [],
+    hiddenIds: [],
+    focusLog: {},
+    focusSeen: false,
+    focusLock: null,
+  });
 
   const adopt = useCallback((prefs) => {
     const next = {
@@ -48,12 +57,14 @@ export function useProjectListPrefs(user) {
       hiddenIds: uniq(prefs.hiddenIds || []),
       focusLog: prefs.focusLog && typeof prefs.focusLog === 'object' ? prefs.focusLog : {},
       focusSeen: prefs.focusSeen === true,
+      focusLock: normalizeFocusLock(prefs.focusLock),
     };
     stateRef.current = next;
     setFavoriteIds(next.favoriteIds);
     setHiddenIds(next.hiddenIds);
     setFocusLog(next.focusLog);
     setFocusSeen(next.focusSeen);
+    setFocusLockState(next.focusLock);
   }, []);
 
   useEffect(() => {
@@ -94,12 +105,17 @@ export function useProjectListPrefs(user) {
         hiddenIds: uniq(patch.hiddenIds ?? stateRef.current.hiddenIds),
         focusLog: patch.focusLog ?? stateRef.current.focusLog,
         focusSeen: patch.focusSeen ?? stateRef.current.focusSeen,
+        // Bewusst `undefined` als "unverändert" und `null` als "Sperre lösen".
+        focusLock: normalizeFocusLock(
+          patch.focusLock === undefined ? stateRef.current.focusLock : patch.focusLock,
+        ),
       };
       stateRef.current = next;
       setFavoriteIds(next.favoriteIds);
       setHiddenIds(next.hiddenIds);
       setFocusLog(next.focusLog);
       setFocusSeen(next.focusSeen);
+      setFocusLockState(next.focusLock);
 
       saveProjectListPrefs(uid, userEmailLower, next).catch((err) => {
         console.warn("[useProjectListPrefs] save", err?.message || err);
@@ -133,13 +149,37 @@ export function useProjectListPrefs(user) {
     [applyAndSave],
   );
 
+  /**
+   * Fokus für heute setzen oder lösen.
+   *
+   * Der Tag wird beim Setzen festgehalten, nicht beim Lesen. Sonst wäre die
+   * Sperre nach Mitternacht immer noch "heute" — sie soll aber genau mit dem
+   * Arbeitstag enden, an dem sie gesetzt wurde.
+   */
+  const setFocusLock = useCallback(
+    (projectId) => {
+      if (!projectId) {
+        applyAndSave({ focusLock: null });
+        return;
+      }
+      applyAndSave({
+        focusLock: { id: projectId, day: todayKey() },
+        focusLog: { ...stateRef.current.focusLog, [projectId]: new Date().toISOString() },
+        focusSeen: true,
+      });
+    },
+    [applyAndSave],
+  );
+
   return {
     favoriteIds,
     hiddenIds,
     focusLog,
     focusSeen,
+    focusLock,
     persistFavorites,
     persistHidden,
     markFocused,
+    setFocusLock,
   };
 }

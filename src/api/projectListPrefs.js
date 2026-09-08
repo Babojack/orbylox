@@ -6,6 +6,7 @@ import {
   hasAdoptedLocalPrefs,
   markLocalPrefsAdopted,
 } from "@/lib/projectListPrefsLocal";
+import { normalizeFocusLock } from "@/lib/focusDay";
 
 const COLLECTION = "UserProjectListPrefs";
 
@@ -41,18 +42,34 @@ export function parsePrefsDoc(data) {
     focusLog: normalizeFocusLog(data?.focus_log),
     // Solange falsch, pulsiert der Hinweis am Fokus-Knopf.
     focusSeen: data?.focus_seen === true,
+    /**
+     * Die Tagessperre. Sie steht mit im Dokument, damit der Fokus auf allen
+     * Geraeten derselbe ist: Wer am Rechner ein Projekt fuer heute waehlt,
+     * findet am Telefon nicht wieder die volle Liste vor.
+     */
+    focusLock: normalizeFocusLock(data?.focus_lock),
   };
 }
+
+const EMPTY_PREFS = {
+  favoriteIds: [],
+  hiddenIds: [],
+  focusLog: {},
+  focusSeen: false,
+  focusLock: null,
+};
 
 export async function saveProjectListPrefs(uid, userEmailLower, prefs) {
   const favoriteIds = normalizeProjectIdList(prefs.favoriteIds);
   const hiddenIds = normalizeProjectIdList(prefs.hiddenIds);
   const focusLog = normalizeFocusLog(prefs.focusLog);
   const focusSeen = prefs.focusSeen === true;
-  writeLocalProjectListPrefs(userEmailLower, { favoriteIds, hiddenIds, focusLog, focusSeen });
+  const focusLock = normalizeFocusLock(prefs.focusLock);
+  const next = { favoriteIds, hiddenIds, focusLog, focusSeen, focusLock };
+  writeLocalProjectListPrefs(userEmailLower, next);
 
   if (!hasFirebaseConfig || !db || !uid) {
-    return { favoriteIds, hiddenIds, focusLog, focusSeen };
+    return next;
   }
 
   const ref = doc(db, COLLECTION, uid);
@@ -64,6 +81,7 @@ export async function saveProjectListPrefs(uid, userEmailLower, prefs) {
       hidden_project_ids: hiddenIds,
       focus_log: focusLog,
       focus_seen: focusSeen,
+      focus_lock: focusLock,
       updated_date: new Date().toISOString(),
     },
     { merge: true },
@@ -71,7 +89,7 @@ export async function saveProjectListPrefs(uid, userEmailLower, prefs) {
   // Ab jetzt existiert das Dokument. Der Browser-Stand ist damit uebernommen
   // und darf nie wieder als eigene Quelle gelten.
   markLocalPrefsAdopted(userEmailLower);
-  return { favoriteIds, hiddenIds, focusLog, focusSeen };
+  return next;
 }
 
 /**
@@ -103,9 +121,8 @@ async function loadFromCloud(uid, userEmailLower) {
   // Kein Dokument in der Cloud. Zwei Faelle, die gleich aussehen:
   if (hasAdoptedLocalPrefs(userEmailLower)) {
     // Schon einmal uebernommen -> hier wurde bewusst alles geleert.
-    const empty = { favoriteIds: [], hiddenIds: [], focusLog: {}, focusSeen: false };
-    writeLocalProjectListPrefs(userEmailLower, empty);
-    return empty;
+    writeLocalProjectListPrefs(userEmailLower, EMPTY_PREFS);
+    return EMPTY_PREFS;
   }
 
   // Erste Anmeldung auf diesem Konto -> Browser-Stand als Startkapital.
@@ -119,7 +136,7 @@ async function loadFromCloud(uid, userEmailLower) {
 
 export async function fetchProjectListPrefs(uid, userEmailLower) {
   if (!userEmailLower) {
-    return { favoriteIds: [], hiddenIds: [], focusLog: {}, focusSeen: false };
+    return EMPTY_PREFS;
   }
   if (!hasFirebaseConfig || !db || !uid) {
     return readLocalProjectListPrefs(userEmailLower);
@@ -147,9 +164,8 @@ export function subscribeProjectListPrefs(uid, userEmailLower, onChange) {
         // aus dem Browser aufgefuellt werden darf. Sonst holt der Live-Abgleich
         // zurueck, was der Ladevorgang gerade richtig geloescht hat.
         if (hasAdoptedLocalPrefs(userEmailLower)) {
-          const empty = { favoriteIds: [], hiddenIds: [], focusLog: {}, focusSeen: false };
-          writeLocalProjectListPrefs(userEmailLower, empty);
-          onChange(empty);
+          writeLocalProjectListPrefs(userEmailLower, EMPTY_PREFS);
+          onChange(EMPTY_PREFS);
           return;
         }
         const local = readLocalProjectListPrefs(userEmailLower);

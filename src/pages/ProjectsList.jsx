@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { signOutAndLeave } from '@/lib/signOut';
 import { api, isAdminEmail } from '@/api/apiClient';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,7 +33,8 @@ import OrbyloxMark from "@/components/OrbyloxMark";
 import { EASE, DURATION, STAGGER } from "@/components/motion/Reveal";
 import { CardGridSkeleton } from "@/components/motion/Skeletons";
 import { askDelete } from '@/lib/confirmDelete';
-import FocusMode from '@/components/projects/FocusMode';
+import FocusToday from '@/components/projects/FocusToday';
+import { activeFocusId, msUntilMidnight } from '@/lib/focusDay';
 import ThemeSwitch from '@/components/common/ThemeSwitch';
 
 const MAX_MEMBERS_PER_PROJECT = 3;
@@ -186,19 +187,44 @@ function ProjectsListContent() {
     hiddenIds,
     focusLog,
     focusSeen,
+    focusLock,
     persistFavorites,
     persistHidden,
-    markFocused,
+    setFocusLock,
   } = useProjectListPrefs(user);
 
-  /** Projekt im Fokus — null heisst: normale Liste. */
-  const [focusProject, setFocusProject] = useState(null);
   const prefersReducedMotion = useReducedMotion();
 
+  /**
+   * Die Sperre gilt fuer den Tag, an dem sie gesetzt wurde. Damit ein Fenster,
+   * das ueber Mitternacht offen bleibt, nicht bis zum naechsten Klick im
+   * gestrigen Fokus haengt, wird zum Tageswechsel einmal neu gerechnet.
+   */
+  const [dayTick, setDayTick] = useState(0);
+  useEffect(() => {
+    const t = window.setTimeout(() => setDayTick((v) => v + 1), msUntilMidnight());
+    return () => window.clearTimeout(t);
+  }, [dayTick, focusLock]);
+
+  // `dayTick` steht bewusst in den Abhaengigkeiten: Es aendert nichts an der
+  // Rechnung, aber es loest sie um Mitternacht erneut aus.
+  const focusedId = useMemo(() => activeFocusId(focusLock), [focusLock, dayTick]);
+
+  /**
+   * Zeigt die Sperre auf ein Projekt, das es nicht mehr gibt (geloescht,
+   * verlassen, Zugriff entzogen), faellt die Liste zurueck in den Normalfall.
+   * Eine leere Fokus-Ansicht waere eine Sackgasse.
+   */
+  const focusedProject = useMemo(
+    () => (focusedId ? projects.find((p) => p.id === focusedId) || null : null),
+    [focusedId, projects],
+  );
+
   const enterFocus = (project) => {
-    setFocusProject(project);
-    markFocused(project.id);   // Zeitstempel und Neu-Hinweis in einem Zug
+    setFocusLock(project.id);   // Sperre, Zeitstempel und Neu-Hinweis in einem Zug
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
   };
+  const leaveFocus = () => setFocusLock(null);
 
   // Ask only once after login (per user).
   React.useEffect(() => {
@@ -605,7 +631,7 @@ function ProjectsListContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="theme-scope min-h-screen bg-[#f5f5f5]">
       {/* Header */}
       <div className="border-b border-slate-200 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-3">
@@ -822,6 +848,29 @@ function ProjectsListContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-12">
+        {/* Fokus heisst: die Liste ist weg, nicht ueberdeckt. `mode="wait"`
+            laesst das eine erst verschwinden, bevor das andere kommt —
+            gleichzeitig waere es ein Durcheinander statt eines Wechsels. */}
+        <AnimatePresence mode="wait" initial={false}>
+        {focusedProject ? (
+          <FocusToday
+            key="focus"
+            project={focusedProject}
+            since={focusLog[focusedProject.id]}
+            stats={projectStats?.[focusedProject.id]}
+            onOpen={openProject}
+            onLeave={leaveFocus}
+            de={language === 'de'}
+            reduceMotion={!!prefersReducedMotion}
+          />
+        ) : (
+        <motion.div
+          key="list"
+          initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, filter: 'blur(4px)' }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}
+        >
         {user && !user.uid && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
             {language === 'de'
@@ -1452,18 +1501,10 @@ function ProjectsListContent() {
             )}
           </>
         )}
+        </motion.div>
+        )}
+        </AnimatePresence>
       </div>
-
-      {/* Der Fokus haengt per Portal am Body, steht hier aber im Baum, damit
-          er Zustand und Sprache der Liste kennt. */}
-      <FocusMode
-        project={focusProject}
-        lastFocus={focusProject ? focusLog[focusProject.id] : null}
-        onClose={() => setFocusProject(null)}
-        onOpen={(p) => { setFocusProject(null); openProject(p); }}
-        de={language === 'de'}
-        reduceMotion={!!prefersReducedMotion}
-      />
     </div>
   );
 }
