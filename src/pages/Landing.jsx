@@ -158,7 +158,7 @@ function LandingContent() {
     : ['Free to start', 'No credit card', 'Data in the EU', 'Video meetings included', 'German and English', 'Full backups'];
 
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div data-landing="" className="min-h-screen bg-white text-black">
       {/* Kopfzeile */}
       <header className="border-b-2 border-black">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-2">

@@ -3,11 +3,19 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { idleFor, modelFor } from '@/lib/botClips';
+import { useTheme } from '@/lib/useTheme';
 
 /**
  * Die animierte Figur auf der Startseite.
  *
- * Herkunft: Mixamo "X Bot" mit der Animation "Happy Idle", aus zwei FBX-Dateien
+ * ZWEI FIGUREN: im normalen Design der Roboter, im Retro die Figur mit Umhang.
+ * Woher die Ruhebewegung kommt, ist dabei verschieden — der Roboter bringt sie
+ * in seiner Datei mit, bei ihr wird die Kopfgeste geladen und geschleift.
+ * `modelFor` und `idleFor` wissen, was gilt; beide hängen am selben Theme und
+ * werden nie einzeln gewählt.
+ *
+ * Herkunft des Roboters: Mixamo "X Bot" mit der Animation "Happy Idle", aus zwei FBX-Dateien
  * (3,7 MB) in eine GLB (325 KB) gewandelt — Dreiecke halbiert, Koordinaten
  * quantisiert, Meshopt-komprimiert. Die Farben sind eingebrannt: Koerper hell,
  * Gelenke im Markenorange.
@@ -21,7 +29,6 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
  * Aufrufer) — Three.js kostet sonst 600 KB beim ersten Seitenaufruf.
  */
 
-const MODEL_URL = '/models/xbot.glb';
 const ORANGE = 0xef5a24;
 
 function buildTablet() {
@@ -49,8 +56,12 @@ export default function HeroBot({ className = '' }) {
   const mountRef = useRef(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Beim Themewechsel steht eine andere Figur da — die Szene wird neu gebaut.
+  const theme = useTheme();
 
   useEffect(() => {
+    setReady(false);
+    setFailed(false);
     const mount = mountRef.current;
     if (!mount) return undefined;
 
@@ -124,9 +135,14 @@ export default function HeroBot({ className = '' }) {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
 
-    loader.load(
-      MODEL_URL,
-      (gltf) => {
+    const ruheUrl = idleFor(theme);
+    const ladeModell = new Promise((res, rej) => loader.load(modelFor(theme), res, undefined, rej));
+    const ladeRuhe = ruheUrl
+      ? fetch(ruheUrl).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Clip ${r.status}`))))
+      : Promise.resolve(null);
+
+    Promise.all([ladeModell, ladeRuhe])
+      .then(([gltf, ruhe]) => {
         if (disposed) return;
         const model = gltf.scene;
         // Mixamo liefert Zentimeter
@@ -142,9 +158,13 @@ export default function HeroBot({ className = '' }) {
         model.rotation.y = -0.35;
         scene.add(model);
 
-        if (gltf.animations?.length) {
+        const clip = ruhe
+          ? THREE.AnimationClip.parse(ruhe.clip)
+          : gltf.animations?.[0];        // beim Roboter in der Datei eingebacken
+        if (clip) {
           mixer = new THREE.AnimationMixer(model);
-          const action = mixer.clipAction(gltf.animations[0]);
+          const action = mixer.clipAction(clip);
+          action.setLoop(THREE.LoopRepeat, Infinity);
           action.play();
           if (reduceMotion) {
             // Eine ruhige Pose statt Dauerbewegung
@@ -154,13 +174,11 @@ export default function HeroBot({ className = '' }) {
         }
         tablet.visible = !!hand;
         setReady(true);
-      },
-      undefined,
-      (err) => {
-        console.error('[HeroBot] Modell konnte nicht geladen werden', err);
+      })
+      .catch((err) => {
+        console.error('[HeroBot] konnte nicht laden', err);
         setFailed(true);
-      },
-    );
+      });
 
     // --- Groesse ---
     const resize = () => {
@@ -235,7 +253,7 @@ export default function HeroBot({ className = '' }) {
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [theme]);
 
   if (failed) return null;
 

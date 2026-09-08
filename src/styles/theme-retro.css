@@ -110,6 +110,37 @@
 [data-theme='retro'] .theme-scope [class*='bg-slate-300'] {
   background-color: var(--r-parch-2);
 }
+/**
+ * Die Wiesenbaender — nur auf der Startseite.
+ *
+ * Die Startseite wechselt zwischen Abschnitten ohne Hintergrund und solchen
+ * mit `bg-[#f5f5f5]`. Im normalen Design ist das ein Hauch Grau, im Retro wird
+ * daraus die Wiese — und damit bekommt die Seite den Wechsel aus Weg und
+ * Wiese, von dem die ganze Bildsprache lebt. Die Karten darin bleiben
+ * Pergament und liegen dann wie Tafeln im Gras.
+ *
+ * WARUM DARIN ALLE SCHRIFT DUNKEL WIRD
+ * Die Wiese liegt in der Mitte der Helligkeitsskala, und das ist der
+ * ungünstigste Ort für Text: Tinte darauf ergibt 4,57:1 — gerade genug —,
+ * gedämpftes Grau aber nur 1,87:1 und Pergament 2,48:1. Es gibt also keine
+ * zweite, hellere Textfarbe, die hier noch trägt. Statt eine Abstufung zu
+ * behalten, die man nicht mehr lesen kann, wird auf dem Gras alles zu Tinte;
+ * die Hierarchie trägt dort Größe und Schnitt, nicht die Farbe.
+ *
+ * WARUM AN `[data-landing]` GEBUNDEN UND NICHT AN DIE KLASSE
+ * `bg-[#f5f5f5]` steht auch anderswo — unter anderem hinter oranger Schrift in
+ * einem Dialog des Startup-Builders. Als Wiese ergab das 1,86:1. Die Klasse
+ * bedeutet "ein Hauch Grau", nicht "hier gehört eine Wiese hin"; das Band ist
+ * eine Idee DIESER Seite und wird deshalb auch dort angebunden.
+ */
+[data-theme='retro'] .theme-scope [data-landing] .bg-\[\#f5f5f5\] {
+  background-color: var(--r-grass);
+}
+[data-theme='retro'] .theme-scope [data-landing] .bg-\[\#f5f5f5\] [class*='text-slate-'],
+[data-theme='retro'] .theme-scope [data-landing] .bg-\[\#f5f5f5\] .text-black {
+  color: var(--r-ink);
+}
+/* Ausserhalb der Startseite bleibt es, wie es war: der Grund scheint durch. */
 [data-theme='retro'] .theme-scope .bg-\[\#f5f5f5\] { background-color: transparent; }
 [data-theme='retro'] .theme-scope .bg-black        { background-color: var(--r-edge); color: var(--r-parch); }
 [data-theme='retro'] .theme-scope .bg-\[\#ef5a24\] { background-color: var(--r-flame); color: #fff; }

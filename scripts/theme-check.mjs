@@ -137,6 +137,14 @@ const MARKUP = `
       <img src="/screens/hero-devices.webp" data-screenshot="" id="aufnahme" />
       <img src="/covers/projekt.png" id="normalesbild" />
       <div class="bg-slate-50" id="hell"></div>
+      <div data-landing="">
+      <section class="bg-[#f5f5f5]" id="wiese">
+        <h2 class="text-slate-900" id="wiesentitel">Module</h2>
+        <p class="text-slate-500" id="wiesentext">Beschreibung</p>
+        <div class="bg-white" id="wiesenkarte"><p class="text-slate-600" id="karteninhalt">Text</p></div>
+      </section>
+      </div>
+      <section class="bg-[#f5f5f5]" id="woanders"><span class="text-[#ef5a24]" id="markentext">x</span></section>
     </div>
   </main>
   <div role="dialog" class="bg-white rounded-2xl shadow-2xl" id="dialog">
@@ -321,6 +329,14 @@ const faelle = [
     // WEBP: 'VP8L' oder ein 'ALPH'-Abschnitt zeigen Transparenz an.
     return b.includes(Buffer.from('ALPH')) || b.includes(Buffer.from('VP8L'));
   }],
+
+  // Wiesenbaender auf der Startseite — Gruen traegt nur dunkle Schrift.
+  ['Band wird Wiese', () => w(R, '#wiese', 'background-color') === 'var(--r-grass)'],
+  ['Titel auf Gras wird Tinte', () => w(R, '#wiesentitel', 'color') === 'var(--r-ink)'],
+  ['auch Nebentext wird Tinte', () => w(R, '#wiesentext', 'color') === 'var(--r-ink)'],
+  ['Karte im Gras bleibt Pergament', () => w(R, '#wiesenkarte', 'background-color') === 'var(--r-parch)'],
+  ['ohne Theme bleibt das Band grau', () => /245/.test(w(N, '#wiese', 'background-color') || '')],
+  ['Wiese nur auf der Startseite', () => w(R, '#woanders', 'background-color') === 'transparent'],
 
   // Der Kontrast-Rundgang
   [`${kombis.size} Klassenpaare über ${SCHWELLE}:1`, () => schwach.length === 0],
