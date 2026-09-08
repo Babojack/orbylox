@@ -44,7 +44,23 @@ $defaults = [
 ];
 
 $config = $defaults;
-foreach ([__DIR__ . '/invite-config.php', __DIR__ . '/blog-config.php'] as $f) {
+/**
+ * Konfiguration an denselben drei Orten suchen wie send-invite.php.
+ *
+ * Vorher stand hier nur __DIR__: In der Anleitung zu send-invite.php wird
+ * empfohlen, die Datei EINE EBENE UEBER public_html zu legen, weil ein Deploy
+ * public_html/api ersetzt und eine Konfiguration darin mitloescht. Wer dieser
+ * Empfehlung folgt, haette hier auf einmal keine Einstellungen mehr — ohne
+ * dass irgendetwas darauf hindeutet. Drei Endpunkte duerfen nicht an drei
+ * verschiedenen Orten suchen.
+ */
+$configCandidates = [
+    dirname(dirname(__DIR__)) . '/invite-config.php',
+    dirname(__DIR__) . '/invite-config.php',
+    __DIR__ . '/invite-config.php',
+    __DIR__ . '/blog-config.php',
+];
+foreach ($configCandidates as $f) {
     if (is_file($f)) {
         $c = require $f;
         if (is_array($c)) $config = array_merge($config, $c);
