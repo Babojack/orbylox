@@ -18,8 +18,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, Eye, EyeOff, Pencil, LayoutGrid, List, CheckCircle2, Share2, LogOut, User as UserIcon, CreditCard, Home, ShieldCheck } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, FolderOpen, Users, Calendar, ArrowRight, Languages, Trash2, CheckSquare, Square, Image, X, Lightbulb, Play, Pause, Star, Eye, EyeOff, Pencil, LayoutGrid, List, CheckCircle2, Share2, LogOut, User as UserIcon, CreditCard, Home, ShieldCheck, Crosshair } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { createPageUrl } from "@/utils";
 import { useNavigate, Link } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
@@ -33,6 +33,7 @@ import OrbyloxMark from "@/components/OrbyloxMark";
 import { EASE, DURATION, STAGGER } from "@/components/motion/Reveal";
 import { CardGridSkeleton } from "@/components/motion/Skeletons";
 import { askDelete } from '@/lib/confirmDelete';
+import FocusMode from '@/components/projects/FocusMode';
 
 const MAX_MEMBERS_PER_PROJECT = 3;
 
@@ -182,9 +183,21 @@ function ProjectsListContent() {
   const {
     favoriteIds,
     hiddenIds,
+    focusLog,
+    focusSeen,
     persistFavorites,
     persistHidden,
+    markFocused,
   } = useProjectListPrefs(user);
+
+  /** Projekt im Fokus — null heisst: normale Liste. */
+  const [focusProject, setFocusProject] = useState(null);
+  const prefersReducedMotion = useReducedMotion();
+
+  const enterFocus = (project) => {
+    setFocusProject(project);
+    markFocused(project.id);   // Zeitstempel und Neu-Hinweis in einem Zug
+  };
 
   // Ask only once after login (per user).
   React.useEffect(() => {
@@ -1211,6 +1224,8 @@ function ProjectsListContent() {
                               formatDuration={formatDuration}
                               onToggleFavorite={toggleFavorite}
                               onToggleHidden={toggleHidden}
+                              onFocus={enterFocus}
+                              isFocusNew={!focusSeen}
                           isHidden={hiddenIds.includes(project.id)}
                               onEdit={openEditProject}
                               onToggleDone={toggleProjectDone}
@@ -1251,6 +1266,8 @@ function ProjectsListContent() {
                           formatDuration={formatDuration}
                           onToggleFavorite={toggleFavorite}
                           onToggleHidden={toggleHidden}
+                          onFocus={enterFocus}
+                          isFocusNew={!focusSeen}
                           isHidden={hiddenIds.includes(project.id)}
                           onEdit={openEditProject}
                           onToggleDone={toggleProjectDone}
@@ -1281,6 +1298,8 @@ function ProjectsListContent() {
                           formatDuration={formatDuration}
                           onToggleFavorite={toggleFavorite}
                           onToggleHidden={toggleHidden}
+                          onFocus={enterFocus}
+                          isFocusNew={!focusSeen}
                           isHidden={hiddenIds.includes(project.id)}
                           onEdit={openEditProject}
                           onToggleDone={toggleProjectDone}
@@ -1338,6 +1357,8 @@ function ProjectsListContent() {
                             formatDuration={formatDuration}
                             onToggleFavorite={toggleFavorite}
                             onToggleHidden={toggleHidden}
+                            onFocus={enterFocus}
+                            isFocusNew={!focusSeen}
                           isHidden={hiddenIds.includes(project.id)}
                             onEdit={openEditProject}
                             onToggleDone={toggleProjectDone}
@@ -1379,6 +1400,8 @@ function ProjectsListContent() {
                         formatDuration={formatDuration}
                         onToggleFavorite={toggleFavorite}
                         onToggleHidden={toggleHidden}
+                        onFocus={enterFocus}
+                        isFocusNew={!focusSeen}
                           isHidden={hiddenIds.includes(project.id)}
                         onEdit={openEditProject}
                         onToggleDone={toggleProjectDone}
@@ -1410,6 +1433,8 @@ function ProjectsListContent() {
                         formatDuration={formatDuration}
                         onToggleFavorite={toggleFavorite}
                         onToggleHidden={toggleHidden}
+                        onFocus={enterFocus}
+                        isFocusNew={!focusSeen}
                           isHidden={hiddenIds.includes(project.id)}
                         onEdit={openEditProject}
                         onToggleDone={toggleProjectDone}
@@ -1426,6 +1451,17 @@ function ProjectsListContent() {
           </>
         )}
       </div>
+
+      {/* Der Fokus haengt per Portal am Body, steht hier aber im Baum, damit
+          er Zustand und Sprache der Liste kennt. */}
+      <FocusMode
+        project={focusProject}
+        lastFocus={focusProject ? focusLog[focusProject.id] : null}
+        onClose={() => setFocusProject(null)}
+        onOpen={(p) => { setFocusProject(null); openProject(p); }}
+        de={language === 'de'}
+        reduceMotion={!!prefersReducedMotion}
+      />
     </div>
   );
 }
@@ -1454,6 +1490,8 @@ function ProjectCard({
   stats,
   compact = false,
   index = 0,
+  onFocus,
+  isFocusNew = false,
 }) {
   const timer = getProjectTimer(project.id, project);
   const running = timer.isRunning;
@@ -1538,6 +1576,33 @@ function ProjectCard({
                   <CheckCircle2 className="w-4 h-4" />
                 </motion.button>
               )}
+              {/* Fokus. Der Hinweis pulsiert nur, solange die Funktion noch
+                  nie benutzt wurde — danach nie wieder, auf keinem Geraet. */}
+              <motion.button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onFocus?.(project);
+                }}
+                title={language === 'de' ? 'Fokus' : 'Focus'}
+                aria-label={language === 'de' ? 'Fokus' : 'Focus'}
+                data-testid={`focus-btn-${project.id}`}
+                className="relative h-8 w-8 rounded-full border flex items-center justify-center transition-colors bg-white border-slate-200 text-slate-400 hover:text-[#ef5a24] hover:border-[#ef5a24]"
+                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.06 }}
+              >
+                <Crosshair className="w-4 h-4" />
+                {isFocusNew && (
+                  <span
+                    className="absolute -top-1 -right-1 flex h-3 w-3"
+                    data-testid="focus-new-badge"
+                  >
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-[#ef5a24] opacity-70 motion-safe:animate-ping" />
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-[#ef5a24] border border-white" />
+                  </span>
+                )}
+              </motion.button>
               <motion.button
                 type="button"
                 onClick={(e) => {

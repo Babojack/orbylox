@@ -34,18 +34,26 @@ export function useProjectListPrefs(user) {
 
   const [favoriteIds, setFavoriteIds] = useState([]);
   const [hiddenIds, setHiddenIds] = useState([]);
+  /** Projektkennung -> Zeitpunkt des letzten Fokus. */
+  const [focusLog, setFocusLog] = useState({});
+  /** Wurde der Fokus schon einmal benutzt? Steuert den Neu-Hinweis. */
+  const [focusSeen, setFocusSeen] = useState(false);
 
   /** Einzige Wahrheit für das, was als Nächstes gespeichert wird. */
-  const stateRef = useRef({ favoriteIds: [], hiddenIds: [] });
+  const stateRef = useRef({ favoriteIds: [], hiddenIds: [], focusLog: {}, focusSeen: false });
 
   const adopt = useCallback((prefs) => {
     const next = {
       favoriteIds: uniq(prefs.favoriteIds || []),
       hiddenIds: uniq(prefs.hiddenIds || []),
+      focusLog: prefs.focusLog && typeof prefs.focusLog === 'object' ? prefs.focusLog : {},
+      focusSeen: prefs.focusSeen === true,
     };
     stateRef.current = next;
     setFavoriteIds(next.favoriteIds);
     setHiddenIds(next.hiddenIds);
+    setFocusLog(next.focusLog);
+    setFocusSeen(next.focusSeen);
   }, []);
 
   useEffect(() => {
@@ -84,10 +92,14 @@ export function useProjectListPrefs(user) {
       const next = {
         favoriteIds: uniq(patch.favoriteIds ?? stateRef.current.favoriteIds),
         hiddenIds: uniq(patch.hiddenIds ?? stateRef.current.hiddenIds),
+        focusLog: patch.focusLog ?? stateRef.current.focusLog,
+        focusSeen: patch.focusSeen ?? stateRef.current.focusSeen,
       };
       stateRef.current = next;
       setFavoriteIds(next.favoriteIds);
       setHiddenIds(next.hiddenIds);
+      setFocusLog(next.focusLog);
+      setFocusSeen(next.focusSeen);
 
       saveProjectListPrefs(uid, userEmailLower, next).catch((err) => {
         console.warn("[useProjectListPrefs] save", err?.message || err);
@@ -106,10 +118,28 @@ export function useProjectListPrefs(user) {
     [applyAndSave],
   );
 
+  /**
+   * Fokus vermerken. Beim ersten Mal verschwindet damit auch der Neu-Hinweis
+   * — zwei Angaben, ein Schreibvorgang, weil beide im selben Dokument liegen.
+   */
+  const markFocused = useCallback(
+    (projectId) => {
+      if (!projectId) return;
+      applyAndSave({
+        focusLog: { ...stateRef.current.focusLog, [projectId]: new Date().toISOString() },
+        focusSeen: true,
+      });
+    },
+    [applyAndSave],
+  );
+
   return {
     favoriteIds,
     hiddenIds,
+    focusLog,
+    focusSeen,
     persistFavorites,
     persistHidden,
+    markFocused,
   };
 }

@@ -27,16 +27,40 @@ function writeStringArray(key, arr) {
   );
 }
 
+function readJson(key, fallback) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    return safeJsonParse(window.localStorage.getItem(key), fallback);
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJson(key, value) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Privater Modus: dann gilt es eben nur fuer diese Sitzung.
+  }
+}
+
 export function readLocalProjectListPrefs(userEmailLower) {
   const favoritesKey = projectListPrefsStorageKey(userEmailLower, "favorites");
   const hiddenKey = projectListPrefsStorageKey(userEmailLower, "hidden");
+  const focusLog = readJson(projectListPrefsStorageKey(userEmailLower, "focuslog"), {});
   return {
     favoriteIds: readStringArray(favoritesKey),
     hiddenIds: readStringArray(hiddenKey),
+    focusLog: focusLog && typeof focusLog === "object" ? focusLog : {},
+    focusSeen: readJson(projectListPrefsStorageKey(userEmailLower, "focusseen"), false) === true,
   };
 }
 
-export function writeLocalProjectListPrefs(userEmailLower, { favoriteIds, hiddenIds }) {
+export function writeLocalProjectListPrefs(
+  userEmailLower,
+  { favoriteIds, hiddenIds, focusLog, focusSeen },
+) {
   writeStringArray(
     projectListPrefsStorageKey(userEmailLower, "favorites"),
     favoriteIds,
@@ -45,6 +69,8 @@ export function writeLocalProjectListPrefs(userEmailLower, { favoriteIds, hidden
     projectListPrefsStorageKey(userEmailLower, "hidden"),
     hiddenIds,
   );
+  writeJson(projectListPrefsStorageKey(userEmailLower, "focuslog"), focusLog || {});
+  writeJson(projectListPrefsStorageKey(userEmailLower, "focusseen"), focusSeen === true);
 }
 
 /**

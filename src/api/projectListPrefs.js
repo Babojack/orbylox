@@ -14,20 +14,45 @@ export function normalizeProjectIdList(arr) {
   return [...new Set(arr.filter((x) => typeof x === "string" && x))];
 }
 
+/**
+ * Wann war jemand zuletzt im Fokus auf einem Projekt?
+ *
+ * Eine Zuordnung Projektkennung -> Zeitpunkt. Bewusst hier und nicht am
+ * Projekt selbst: Es ist eine persoenliche Angabe. Ob ein Kollege gestern
+ * konzentriert an demselben Projekt sass, geht niemanden etwas an — und am
+ * Projekt gespeichert wuerde jeder Fokus einen Schreibvorgang ausloesen, den
+ * alle anderen mitbekommen.
+ */
+function normalizeFocusLog(raw) {
+  if (!raw || typeof raw !== "object") return {};
+  const out = {};
+  for (const [id, when] of Object.entries(raw)) {
+    if (typeof id === "string" && id && typeof when === "string" && when) {
+      out[id] = when;
+    }
+  }
+  return out;
+}
+
 export function parsePrefsDoc(data) {
   return {
     favoriteIds: normalizeProjectIdList(data?.favorite_project_ids),
     hiddenIds: normalizeProjectIdList(data?.hidden_project_ids),
+    focusLog: normalizeFocusLog(data?.focus_log),
+    // Solange falsch, pulsiert der Hinweis am Fokus-Knopf.
+    focusSeen: data?.focus_seen === true,
   };
 }
 
 export async function saveProjectListPrefs(uid, userEmailLower, prefs) {
   const favoriteIds = normalizeProjectIdList(prefs.favoriteIds);
   const hiddenIds = normalizeProjectIdList(prefs.hiddenIds);
-  writeLocalProjectListPrefs(userEmailLower, { favoriteIds, hiddenIds });
+  const focusLog = normalizeFocusLog(prefs.focusLog);
+  const focusSeen = prefs.focusSeen === true;
+  writeLocalProjectListPrefs(userEmailLower, { favoriteIds, hiddenIds, focusLog, focusSeen });
 
   if (!hasFirebaseConfig || !db || !uid) {
-    return { favoriteIds, hiddenIds };
+    return { favoriteIds, hiddenIds, focusLog, focusSeen };
   }
 
   const ref = doc(db, COLLECTION, uid);
@@ -37,6 +62,8 @@ export async function saveProjectListPrefs(uid, userEmailLower, prefs) {
       userId: uid,
       favorite_project_ids: favoriteIds,
       hidden_project_ids: hiddenIds,
+      focus_log: focusLog,
+      focus_seen: focusSeen,
       updated_date: new Date().toISOString(),
     },
     { merge: true },
@@ -44,7 +71,7 @@ export async function saveProjectListPrefs(uid, userEmailLower, prefs) {
   // Ab jetzt existiert das Dokument. Der Browser-Stand ist damit uebernommen
   // und darf nie wieder als eigene Quelle gelten.
   markLocalPrefsAdopted(userEmailLower);
-  return { favoriteIds, hiddenIds };
+  return { favoriteIds, hiddenIds, focusLog, focusSeen };
 }
 
 /**
@@ -76,7 +103,7 @@ async function loadFromCloud(uid, userEmailLower) {
   // Kein Dokument in der Cloud. Zwei Faelle, die gleich aussehen:
   if (hasAdoptedLocalPrefs(userEmailLower)) {
     // Schon einmal uebernommen -> hier wurde bewusst alles geleert.
-    const empty = { favoriteIds: [], hiddenIds: [] };
+    const empty = { favoriteIds: [], hiddenIds: [], focusLog: {}, focusSeen: false };
     writeLocalProjectListPrefs(userEmailLower, empty);
     return empty;
   }
@@ -92,7 +119,7 @@ async function loadFromCloud(uid, userEmailLower) {
 
 export async function fetchProjectListPrefs(uid, userEmailLower) {
   if (!userEmailLower) {
-    return { favoriteIds: [], hiddenIds: [] };
+    return { favoriteIds: [], hiddenIds: [], focusLog: {}, focusSeen: false };
   }
   if (!hasFirebaseConfig || !db || !uid) {
     return readLocalProjectListPrefs(userEmailLower);
@@ -120,7 +147,7 @@ export function subscribeProjectListPrefs(uid, userEmailLower, onChange) {
         // aus dem Browser aufgefuellt werden darf. Sonst holt der Live-Abgleich
         // zurueck, was der Ladevorgang gerade richtig geloescht hat.
         if (hasAdoptedLocalPrefs(userEmailLower)) {
-          const empty = { favoriteIds: [], hiddenIds: [] };
+          const empty = { favoriteIds: [], hiddenIds: [], focusLog: {}, focusSeen: false };
           writeLocalProjectListPrefs(userEmailLower, empty);
           onChange(empty);
           return;
