@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const ClipBot = lazy(() => import('./ClipBot'));
 
@@ -65,9 +66,13 @@ export default function BotOverlay({
     };
   }, [finish, failsafeMs]);
 
-  return (
+  // Portal und ausdrückliche Zeigerereignisse: Ein offener Radix-Dialog setzt
+  // `pointer-events: none` auf den Body. Wird ein Ticket aus der Ticketansicht
+  // heraus fertig, tanzt die Figur sonst hinter einer toten Fläche.
+  return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/70 backdrop-blur-sm"
+      style={{ pointerEvents: 'auto' }}
       role="status"
       aria-live="polite"
       onPointerDown={finish}          // Wegtippen: irgendwo daneben reicht
@@ -109,6 +114,7 @@ export default function BotOverlay({
           Esc
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

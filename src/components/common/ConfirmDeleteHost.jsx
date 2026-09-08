@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle } from 'lucide-react';
 import { onAskDelete, makeDeletePhrase } from '@/lib/confirmDelete';
 
@@ -111,9 +112,20 @@ export default function ConfirmDeleteHost({ language = 'de' }) {
     ? 'Das lässt sich nicht rückgängig machen.'
     : 'This cannot be undone.'));
 
-  return (
+  /**
+   * In den Body gehängt, mit ausdrücklich erlaubten Zeigerereignissen.
+   *
+   * Ein offener Radix-Dialog (Ticketansicht, Termin, Startup-Baustein) setzt
+   * `pointer-events: none` auf den Body und nimmt sie nur seinem eigenen
+   * Portal zurück. Diese Nachfrage lag im normalen Baum — sichtbar, aber
+   * nicht anklickbar: Beim Löschen einer Teilaufgabe erschien eine Tafel,
+   * die sich nicht schliessen liess. Deshalb eigenes Portal, und
+   * `pointerEvents` ausdrücklich wieder an.
+   */
+  return createPortal(
     <div
       className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4"
+      style={{ pointerEvents: 'auto' }}
       onPointerDown={() => close(false)}
       role="dialog"
       aria-modal="true"
@@ -186,6 +198,7 @@ export default function ConfirmDeleteHost({ language = 'de' }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
