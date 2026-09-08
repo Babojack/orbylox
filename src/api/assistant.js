@@ -1,4 +1,7 @@
-import { firebaseAuth } from '@/lib/firebase';
+// Der Export heisst `auth`; `firebaseAuth` ist nur der Name, unter dem ihn der
+// Rest der Anwendung fuehrt. Ohne das Umbenennen bricht der Build ab — Lint
+// merkt es nicht, weil es Modulexporte nicht aufloest.
+import { auth as firebaseAuth } from '@/lib/firebase';
 
 /**
  * Anbindung an den Projekt-Assistenten.
