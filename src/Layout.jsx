@@ -47,6 +47,7 @@ import TextToTicketPopup from "@/components/TextToTicketPopup";
 import { PageTransition } from "@/components/PageTransition";
 import OrbyloxMark from "@/components/OrbyloxMark";
 import ThemeSwitch from "@/components/common/ThemeSwitch";
+import SoundSwitch from "@/components/common/SoundSwitch";
 import MentionToast from "@/components/MentionToast";
 import { startTimer, getActiveTimer, setTrackedTimeSyncHandler } from "@/lib/projectTimer";
 
@@ -624,6 +625,7 @@ function LayoutContent({ children, currentPageName }) {
              {/* Bewusst neben der Sprache und ausserhalb jedes Menue-Ausloesers:
                  Ein zweites Kind in einem `asChild`-Trigger wirft React um. */}
              <ThemeSwitch de={language === 'de'} />
+             <SoundSwitch de={language === 'de'} />
              <DropdownMenu open={showNotifications} onOpenChange={handleNotificationsOpenChange}>
                <DropdownMenuTrigger asChild>
                  <button type="button" className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-accent relative transition-colors duration-200 ease-out motion-reduce:transition-none" aria-label={t('notifications')}>

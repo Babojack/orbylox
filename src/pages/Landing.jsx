@@ -7,6 +7,7 @@ import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion
 import ModuleShowcase from "@/components/landing/ModuleShowcase";
 import BotSection from "@/components/landing/BotSection";
 import ThemeSwitch from '@/components/common/ThemeSwitch';
+import SoundSwitch from '@/components/common/SoundSwitch';
 import { cn } from '@/lib/utils';
 /**
  * Freigestelltes Hauptbild — bewusst aus `src/`, nicht aus `public/`.
@@ -238,6 +239,7 @@ function LandingContent() {
               <span className="hidden xs:inline">{de ? 'EN' : 'DE'}</span>
             </button>
             <ThemeSwitch de={de} />
+            <SoundSwitch de={de} />
             {/* Sprachgleicher Blog: interne Verweise sind der stärkste Hinweis
                 für Suchmaschinen. Steht die Seite auf Englisch, soll auch der
                 Blog-Knopf in die englische Übersicht führen. */}

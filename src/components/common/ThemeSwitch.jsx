@@ -2,6 +2,7 @@ import { Palette } from 'lucide-react';
 import { applyTheme } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { nod } from '@/lib/botStage';
+import { musikStarten, musikStoppen } from '@/lib/retroSound';
 
 /**
  * Umschalter fürs Erscheinungsbild.
@@ -27,11 +28,17 @@ export default function ThemeSwitch({ de = true }) {
    * Zurück auf das normale Design geschieht wortlos: `nod` gibt es nur im
    * Retro, und ein Abschiedsnicken für ein Design, das man gerade verlässt,
    * wäre eine Geste zu viel.
+   *
+   * Die Musik hängt am selben Klick — und nur an ihm. Browser lassen Ton erst
+   * nach einer Nutzerhandlung zu; dieser Klick ist die Erlaubnis. Beim Laden
+   * der Seite fängt nichts von selbst an zu spielen, auch wenn das Retro noch
+   * eingestellt ist.
    */
   const toggle = () => {
     const next = theme === 'retro' ? 'default' : 'retro';
     applyTheme(next);            // meldet den Wechsel, der Hook zieht nach
-    if (next === 'retro') nod();
+    if (next === 'retro') { nod(); musikStarten(); }
+    else musikStoppen();
   };
 
   /**

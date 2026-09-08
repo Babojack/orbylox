@@ -36,6 +36,7 @@ import { askDelete } from '@/lib/confirmDelete';
 import FocusToday from '@/components/projects/FocusToday';
 import { activeFocusId, msUntilMidnight } from '@/lib/focusDay';
 import ThemeSwitch from '@/components/common/ThemeSwitch';
+import SoundSwitch from '@/components/common/SoundSwitch';
 
 const MAX_MEMBERS_PER_PROJECT = 3;
 
@@ -687,6 +688,7 @@ function ProjectsListContent() {
               <Languages className="w-5 h-5" />
             </Button>
             <ThemeSwitch de={language === 'de'} />
+            <SoundSwitch de={language === 'de'} />
             {/* Profilbild mit Menue: Profil, Abo, Startseite, Abmelden */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
