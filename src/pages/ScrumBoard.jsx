@@ -5,7 +5,7 @@ import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Draggable } from '@hello-pangea/dnd';
 import { StrictModeDroppable as Droppable } from "@/components/StrictModeDroppable";
-import { Plus, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, LayoutPanelLeft, Pencil, Trash2, Lock } from 'lucide-react';
+import { Plus, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, LayoutPanelLeft, Pencil, Trash2, Lock, Network } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import TaskDetailDialog from "@/components/kanban/TaskDetailDialog";
 import TimelineView from "@/components/kanban/TimelineView";
 import DustEffect from "@/components/kanban/DustEffect";
-import { indexTasks, openBlockersOf, canMoveTo, DONE_STATUS, storyPointsOf, sumStoryPoints } from "@/lib/taskDependencies";
+import DependencyGraph from "@/components/kanban/DependencyGraph";
+import { indexTasks, indexSubtasks, openBlockersOf, canMoveTo, DONE_STATUS, storyPointsOf, sumStoryPoints } from "@/lib/taskDependencies";
 import { celebrate } from "@/lib/botStage";
 import { useLanguage } from "@/components/LanguageProvider";
 import { notifyAssignment } from "@/lib/notifyAssignment";
@@ -179,6 +180,25 @@ export default function ScrumBoard() {
     initialData: [],
     enabled: !!projectId,
   });
+
+  /**
+   * Teilaufgaben des ganzen Projekts.
+   *
+   * Nur fuer das Organigramm noetig, und nur dann geladen: Eine Abfrage mehr
+   * bei jedem Boardaufruf waere ein schlechter Tausch fuer eine Ansicht, die
+   * man selten oeffnet.
+   */
+  const { data: projectSubtasks = [] } = useQuery({
+    queryKey: ['projectSubtasks', projectId],
+    queryFn: async () => {
+      const all = await api.entities.Subtask.list('-created_date', 500);
+      return all.filter((s) => s.project_id === projectId);
+    },
+    initialData: [],
+    enabled: !!projectId && viewMode === 'graph',
+  });
+  const subtasksById = React.useMemo(
+    () => indexSubtasks(projectSubtasks), [projectSubtasks]);
 
   const boardScopedTasks = React.useMemo(() => {
     if (!tasks) return [];
@@ -632,6 +652,13 @@ export default function ScrumBoard() {
               <GanttChart className="w-4 h-4" />
             </button>
             <button
+              onClick={() => setViewMode('graph')}
+              className={`p-1.5 rounded ${viewMode === 'graph' ? 'bg-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              title={language === 'de' ? 'Abhängigkeiten' : 'Dependencies'}
+            >
+              <Network className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => setViewMode('people')}
               className={`p-1.5 rounded ${viewMode === 'people' ? 'bg-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               title="Personen Ansicht"
@@ -926,7 +953,13 @@ export default function ScrumBoard() {
         </div>
       )}
 
-      {viewMode === 'timeline' ? (
+      {viewMode === 'graph' ? (
+        <DependencyGraph
+          tasks={boardScopedTasks}
+          subtasksById={subtasksById}
+          onOpenTask={setSelectedTask}
+        />
+      ) : viewMode === 'timeline' ? (
         <TimelineView 
           tasks={boardScopedTasks} 
           onTaskClick={setSelectedTask} 
