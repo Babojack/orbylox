@@ -39,13 +39,17 @@ export default function ThemeSwitch({ de = true }) {
    * Als dynamischer Import, nicht als Zeile oben: `ClipBot` bringt three.js
    * mit. Stünde der Import statisch hier, läge die ganze 3D-Bibliothek im
    * Hauptbündel jeder Seite — nur weil daneben ein Umschalter sitzt.
+   *
+   * Das `'retro'` ist kein Schreibfehler: Geholt wird, was NACH dem Klick
+   * gebraucht wird. Beim Überfahren steht noch das alte Theme, und der
+   * Roboter ist genau das, was gleich nicht mehr auftritt.
    */
   const vorwaermen = () => {
     if (theme === 'retro') return;              // zurück braucht keine Figur
     Promise.all([
       import('@/components/bot/ClipBot'),
       import('@/lib/botClips'),
-    ]).then(([bot, clips]) => bot.prefetchClip?.(clips.clipFor('nod', 'retro')))
+    ]).then(([bot, clips]) => bot.prefetchClip?.(clips.clipFor('nod', 'retro'), 'retro'))
       .catch(() => {});
   };
 

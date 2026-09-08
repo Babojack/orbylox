@@ -19,6 +19,8 @@ const ClipBot = lazy(() => import('./ClipBot'));
 
 export default function BotOverlay({
   clipUrl,
+  /** Wer auftritt. Ohne Angabe entscheidet ClipBot nach dem Theme. */
+  modelUrl,
   framing = 'bust',
   caption = '',
   /** Läuft genau einmal: beim Höhepunkt, am Ende, bei Abbruch oder Fehler. */
@@ -85,6 +87,7 @@ export default function BotOverlay({
           <Suspense fallback={null}>
             <ClipBot
               clipUrl={clipUrl}
+              modelUrl={modelUrl}
               framing={framing}
               onPeak={handlePeak}
               onDone={finish}

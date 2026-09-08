@@ -20,6 +20,33 @@ import { currentTheme } from '@/lib/theme';
  * hat im normalen Design keinen Anlass.
  */
 
+/**
+ * Wer auftritt.
+ *
+ * Im Retro nicht der Roboter, sondern die Figur mit Umhang. Sie steckte in
+ * denselben Mixamo-Dateien wie die Bewegungen: vier Meshes, ein Material,
+ * rund 9.000 Dreiecke.
+ *
+ * Zwei Dinge daran waren nicht selbstverständlich:
+ *
+ *   Die Datei brachte VIER Kopien desselben Skeletts mit, eine je Mesh. Die
+ *   Bewegungsspuren sprechen Knochen über ihren Namen an, und der Mischer
+ *   nimmt den ersten Treffer — ohne Zusammenlegen hätte der Körper getanzt,
+ *   während Rock, Umhang und Waffen in der T-Pose stehen bleiben.
+ *
+ *   Ihr Skelett hat sieben Knochen mehr als der Roboter (`Neck1`, `Cloak1`–`6`).
+ *   Modell und Bewegung gehören deshalb zusammen und werden nie einzeln
+ *   gewählt: beides hängt am selben Theme.
+ */
+const MODELLE = {
+  default: '/models/xbot.glb',
+  retro: '/models/retro-figure.glb',
+};
+
+export function modelFor(theme = currentTheme()) {
+  return MODELLE[theme] || MODELLE.default;
+}
+
 const SAETZE = {
   default: {
     celebrate: '/models/dance.clip.json',

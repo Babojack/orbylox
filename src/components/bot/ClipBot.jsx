@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { modelFor } from '@/lib/botClips';
 
 /**
  * Die ORBYLOX-Figur, die eine mitgegebene Bewegung einmal abspielt.
@@ -12,9 +13,13 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
  *
  * Herkunft der Bewegungen: Mixamo-FBX-Dateien. Im Bundle liegt weder eine FBX
  * noch ein FBX-Loader — die Spuren wurden einmalig zu JSON umgerechnet und
- * fehlerbegrenzt ausgedünnt. Das Skelett ist dasselbe wie in `xbot.glb`, alle
- * 52 Knochen passen ohne Umbenennung; das Modell liegt also nur einmal da und
- * kommt beim zweiten Anlass aus dem Zwischenspeicher.
+ * fehlerbegrenzt ausgedünnt.
+ *
+ * ZWEI FIGUREN: Im normalen Design tritt der Roboter auf, im Retro die Figur
+ * mit Umhang. Welche, entscheidet `modelFor` — und WICHTIG: Bewegung und
+ * Modell müssen zusammenpassen. Die Retro-Bewegungen sprechen 60 Knochen an,
+ * darunter sieben, die es im Roboter nicht gibt. Beide Zuordnungen hängen
+ * deshalb am selben Theme und werden nie einzeln gewählt.
  *
  * Meldungen nach außen:
  *   onPeak — der Höhepunkt der Bewegung (nur wenn die Datei einen nennt)
@@ -24,8 +29,6 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
  * `onFail` ist keine Nebensache: Was am Ende der Bewegung passieren soll,
  * muss auch dann passieren, wenn es die Bewegung gar nicht gibt.
  */
-
-const MODEL_URL = '/models/xbot.glb';
 
 /**
  * Bildausschnitte. `spin` dreht die Figur um die Hochachse.
@@ -43,14 +46,16 @@ const FRAMING = {
 };
 
 /** Vorab holen, damit der Klick später nicht auf den Download wartet. */
-export function prefetchClip(clipUrl) {
+export function prefetchClip(clipUrl, theme) {
   if (typeof window === 'undefined') return;
-  [MODEL_URL, clipUrl].filter(Boolean).forEach((url) => {
+  [modelFor(theme), clipUrl].filter(Boolean).forEach((url) => {
     fetch(url, { cache: 'force-cache' }).catch(() => {});
   });
 }
 
-export default function ClipBot({ clipUrl, framing = 'bust', onPeak, onDone, onFail }) {
+export default function ClipBot({ clipUrl, modelUrl, framing = 'bust', onPeak, onDone, onFail }) {
+  // Ohne ausdrückliche Angabe die Figur des aktuellen Themes.
+  const figur = modelUrl || modelFor();
   const mountRef = useRef(null);
   const [ready, setReady] = useState(false);
 
@@ -105,7 +110,7 @@ export default function ClipBot({ clipUrl, framing = 'bust', onPeak, onDone, onF
     loader.setMeshoptDecoder(MeshoptDecoder);
 
     const loadModel = new Promise((resolve, reject) => {
-      loader.load(MODEL_URL, resolve, undefined, reject);
+      loader.load(figur, resolve, undefined, reject);
     });
     const loadClip = fetch(clipUrl).then((r) => {
       if (!r.ok) throw new Error(`Clip ${r.status}`);
@@ -136,7 +141,7 @@ export default function ClipBot({ clipUrl, framing = 'bust', onPeak, onDone, onF
         setReady(true);
       })
       .catch((err) => {
-        console.error('[ClipBot] konnte nicht laden', clipUrl, err);
+        console.error('[ClipBot] konnte nicht laden', figur, clipUrl, err);
         if (!disposed) cb.current.onFail?.();
       });
 
@@ -187,7 +192,7 @@ export default function ClipBot({ clipUrl, framing = 'bust', onPeak, onDone, onF
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
-  }, [clipUrl, framing]);
+  }, [clipUrl, figur, framing]);
 
   return (
     <div
