@@ -1,0 +1,84 @@
+# Bauen, prüfen, ausliefern — bei jedem Push auf main.
+#
+# Der Ablauf ersetzt genau das, was bisher von Hand passierte: `npm run build`,
+# die beiden Prüfungen, und das Hochladen von `dist/` nach `public_html`.
+#
+# WAS ER NICHT ANFASST
+# Es wird ausschliesslich in `public_html` geschrieben. Die Zugangsdaten
+# (`invite-config.php`) und die Daten des Blogs (`orbylox-data/`) liegen EINE
+# EBENE DARÜBER und sind damit ausser Reichweite — das war beim Aufräumen
+# nach dem versehentlichen Löschen die Absicht, und hier zahlt es sich aus.
+#
+# WARUM OHNE `--delete`
+# In `public_html/uploads` liegen die Dateien, die Nutzerinnen hochgeladen
+# haben (siehe `api/upload.php`). Ein Abgleich mit Löschen würde sie beim
+# ersten Lauf restlos entfernen: Sie stehen in keinem Build. Stattdessen wird
+# nur überschrieben und ergänzt; alte Bündel räumt ein eigener Schritt nach
+# 30 Tagen weg, wenn niemand mehr eine Seite von damals offen hat.
+
+name: Ausliefern
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:       # zusätzlich von Hand anstossbar
+
+concurrency:
+  group: auslieferung
+  cancel-in-progress: false   # eine laufende Übertragung nie abbrechen
+
+jobs:
+  ausliefern:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci
+
+      - name: Bauen
+        run: npm run build
+
+      # Die Prüfungen laufen NACH dem Bauen und VOR dem Hochladen: Beide lesen
+      # das gebaute CSS beziehungsweise die Modelle. Schlägt eine fehl, endet
+      # der Ablauf hier — auf dem Server bleibt der vorige Stand stehen.
+      - name: Theme prüfen
+        run: npm run check:theme
+
+      - name: Bewegungen prüfen
+        run: npm run check:clips
+
+      - name: Schlüssel einrichten
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "${{ secrets.SSH_PORT }}" -H "${{ secrets.SSH_HOST }}" \
+            >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Hochladen
+        run: |
+          rsync -rlptz --omit-dir-times \
+            --exclude '.DS_Store' \
+            --exclude 'htaccess' \
+            -e "ssh -p ${{ secrets.SSH_PORT }} -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes" \
+            dist/ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+
+      # Alte Bündel aufräumen. Sie tragen einen Inhaltsstempel im Namen, sind
+      # also nach einer Auslieferung unerreichbar — bis auf Seiten, die schon
+      # offen sind. 30 Tage Schonfrist ist dafür reichlich.
+      - name: Alte Bündel wegräumen
+        run: |
+          ssh -p "${{ secrets.SSH_PORT }}" -i ~/.ssh/id_deploy \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "find '${{ secrets.DEPLOY_PATH }}/assets' -type f -mtime +30 -delete" || true
+
+      - name: Nachsehen, was live ist
+        run: |
+          echo "Ausgeliefert wurde:"
+          grep -o 'assets/index-[^\"]*' dist/index.html
