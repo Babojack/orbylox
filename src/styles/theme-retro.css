@@ -1357,6 +1357,43 @@
   line-height: 1.6;
 }
 
+/* --- Der Zeiger --------------------------------------------------------- */
+
+/**
+ * Ein eigener Mauszeiger fürs Retro.
+ *
+ * Als PNG, nicht als `.cur`: Windows-Cursordateien werden von Safari nur
+ * unzuverlässig angenommen, ein PNG von allen. Die `0 5` sind der heiße Punkt
+ * aus der Originaldatei — die Spitze sitzt nicht in der Ecke, sondern fünf
+ * Pixel darunter. Ohne diese Angabe zeigt der Zeiger woanders hin, als er
+ * aussieht, und jeder Klick geht daneben.
+ *
+ * Das `auto` dahinter ist Pflicht: Lädt das Bild nicht, gäbe es sonst gar
+ * keinen Zeiger mehr.
+ */
+[data-theme='retro'] .theme-scope {
+  cursor: url('../assets/retro-cursor.png') 0 5, auto;
+}
+
+/**
+ * Auch auf Knöpfen und Verweisen — WELCHE Zeiger ersetzt werden und welche
+ * nicht, ist hier die eigentliche Entscheidung.
+ *
+ * ERSETZT wird die zeigende Hand. Sie sagt nur "hier kann man klicken", und
+ * das sagt in diesem Design ohnehin schon die Fläche, die beim Überfahren
+ * schwarz wird. Eine Systemhand neben einem gepixelten Zeiger sähe aus wie
+ * ein Fehler.
+ *
+ * BLEIBEN dürfen die Zeiger, die sagen, was PASSIERT: der Balken im
+ * Textfeld, die Hand zum Greifen auf dem Canvas, die Pfeile zum
+ * Größenändern. Die ersetzt niemand, weil sie Information tragen und nicht
+ * bloß Stimmung. Um sie muss man sich nicht kümmern: Ein Element mit eigener
+ * `cursor`-Angabe erbt nichts, und die Regel oben vererbt nur.
+ */
+[data-theme='retro'] .theme-scope :is(a, button, label, summary, [role='button'], .cursor-pointer) {
+  cursor: url('../assets/retro-cursor.png') 0 5, auto;
+}
+
 /* --- Kleine Zutaten ----------------------------------------------------- */
 
 /* Auswahl, Tastaturfokus und Bildlaufleiste — die drei Stellen, an denen sonst

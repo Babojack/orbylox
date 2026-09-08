@@ -144,6 +144,8 @@ const MARKUP = `
         <div class="bg-white" id="wiesenkarte"><p class="text-slate-600" id="karteninhalt">Text</p></div>
       </section>
       </div>
+      <input type="text" id="textfeld" />
+      <div class="cursor-grab" id="greifen"></div>
       <section class="bg-[#f5f5f5]" id="woanders"><span class="text-[#ef5a24]" id="markentext">x</span></section>
     </div>
   </main>
@@ -349,6 +351,24 @@ const faelle = [
   ['Karte im Gras bleibt Pergament', () => w(R, '#wiesenkarte', 'background-color') === 'var(--r-parch)'],
   ['ohne Theme bleibt das Band grau', () => /245/.test(w(N, '#wiese', 'background-color') || '')],
   ['Wiese nur auf der Startseite', () => w(R, '#woanders', 'background-color') === 'transparent'],
+
+  /**
+   * Der eigene Mauszeiger — und was von ihm verschont bleibt.
+   *
+   * Gesucht wird nicht der Dateiname: Das PNG ist nur 1,5 KB und landet
+   * deshalb als data-URL direkt im Stylesheet. Geprüft wird also das, worauf
+   * es ankommt — ein eingebettetes Bild MIT heißem Punkt und mit Rückfall.
+   */
+  ['Zeiger wird ersetzt', () => /^url\(data:image\/png[^)]*\)\s*0 5,\s*auto$/.test(w(R, 'body', 'cursor') || '')],
+  ['auch auf Knöpfen', () => /data:image\/png/.test(w(R, '#cta', 'cursor') || '')],
+  ['heißer Punkt sitzt bei 0 5', () => /\)\s*0 5,/.test(w(R, 'body', 'cursor') || '')],
+  ['Greifen bleibt Greifen', () => {
+    // Ein eigener Wert am Element schlägt jede Vererbung — hier darf das Theme
+    // nichts anfassen, der Zeiger trägt Information.
+    const g = w(R, '#greifen', 'cursor');
+    return g === null || !/data:image/.test(g);
+  }],
+  ['ohne Theme kein eigener Zeiger', () => !/data:image/.test(w(N, 'body', 'cursor') || '')],
 
   // Der Kontrast-Rundgang
   [`${kombis.size} Klassenpaare über ${SCHWELLE}:1`, () => schwach.length === 0],
