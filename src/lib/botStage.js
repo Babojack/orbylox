@@ -15,6 +15,8 @@
  * hängen bleiben, weil eine Verzierung klemmt.
  */
 
+import { clipFor } from '@/lib/botClips';
+
 const EVENT = 'orbylox:bot';
 
 function dispatch(detail) {
@@ -26,6 +28,18 @@ function dispatch(detail) {
 /** Jubel: ein Ticket ist fertig. */
 export function celebrate() {
   dispatch({ act: 'celebrate' });
+}
+
+/**
+ * Nicken: das neue Aussehen ist gewählt.
+ *
+ * Nur im Retro — dort gibt es eine Bewegung dafür. Ohne die Prüfung hier
+ * würde im normalen Design ein Ereignis losgehen, das die Bühne stumm
+ * verwirft; besser, es entsteht gar nicht erst.
+ */
+export function nod() {
+  if (!clipFor('nod')) return;
+  dispatch({ act: 'nod' });
 }
 
 /**

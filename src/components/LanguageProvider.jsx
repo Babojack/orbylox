@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { clipFor } from '@/lib/botClips';
 import LanguageSalute from '@/components/language/LanguageSalute';
 import BotStage from '@/components/bot/BotStage';
 import ConfirmDeleteHost from '@/components/common/ConfirmDeleteHost';
@@ -1138,7 +1139,7 @@ export function LanguageProvider({ children }) {
    */
   const prefetchSalute = () => {
     import('@/components/bot/ClipBot')
-      .then((m) => m.prefetchClip?.('/models/salute.clip.json'))
+      .then((m) => m.prefetchClip?.(clipFor('salute')))
       .catch(() => {});
   };
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Palette } from 'lucide-react';
 import { applyTheme, readTheme } from '@/lib/theme';
+import { nod } from '@/lib/botStage';
 
 /**
  * Umschalter fürs Erscheinungsbild.
@@ -13,9 +14,39 @@ export default function ThemeSwitch({ de = true }) {
 
   useEffect(() => { setTheme(readTheme()); }, []);
 
+  /**
+   * Erst umschalten, dann nicken.
+   *
+   * Die Reihenfolge ist Absicht und das Gegenteil vom Sprachwechsel: Dort
+   * grüßt die Figur und die Sprache springt in der Mitte der Geste um, weil
+   * man sonst nicht sähe, wofür der Gruß war. Hier ist das neue Aussehen
+   * selbst der Anlass — die Figur soll es begrüßen, nicht ankündigen. Also
+   * steht die Retro-Welt schon, wenn sie auftritt.
+   *
+   * Zurück auf das normale Design geschieht wortlos: `nod` gibt es nur im
+   * Retro, und ein Abschiedsnicken für ein Design, das man gerade verlässt,
+   * wäre eine Geste zu viel.
+   */
   const toggle = () => {
     const next = theme === 'retro' ? 'default' : 'retro';
     setTheme(applyTheme(next));
+    if (next === 'retro') nod();
+  };
+
+  /**
+   * Beim Berühren des Knopfes schon holen, was gleich gebraucht wird.
+   *
+   * Als dynamischer Import, nicht als Zeile oben: `ClipBot` bringt three.js
+   * mit. Stünde der Import statisch hier, läge die ganze 3D-Bibliothek im
+   * Hauptbündel jeder Seite — nur weil daneben ein Umschalter sitzt.
+   */
+  const vorwaermen = () => {
+    if (theme === 'retro') return;              // zurück braucht keine Figur
+    Promise.all([
+      import('@/components/bot/ClipBot'),
+      import('@/lib/botClips'),
+    ]).then(([bot, clips]) => bot.prefetchClip?.(clips.clipFor('nod', 'retro')))
+      .catch(() => {});
   };
 
   const retro = theme === 'retro';
@@ -23,6 +54,8 @@ export default function ThemeSwitch({ de = true }) {
     <button
       type="button"
       onClick={toggle}
+      onPointerEnter={vorwaermen}
+      onFocus={vorwaermen}
       data-testid="theme-switch"
       title={retro
         ? (de ? 'Zurück zum normalen Design' : 'Back to the normal look')

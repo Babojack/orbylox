@@ -4,13 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "build": "vite build",
+    "check:clips": "node scripts/clips-check.mjs",
+    "check:theme": "node scripts/theme-check.mjs",
+    "dev": "vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
-    "check:theme": "node scripts/theme-check.mjs"
+    "typecheck": "tsc -p ./jsconfig.json"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",

@@ -31,6 +31,19 @@ export function readTheme() {
   }
 }
 
+/**
+ * Was gerade tatsächlich gilt — abgelesen am Dokument, nicht am Speicher.
+ *
+ * Der Unterschied zu `readTheme` ist der Zeitpunkt: `readTheme` sagt, was beim
+ * nächsten Start gelten wird, `currentTheme` sagt, was der Betrachter in
+ * diesem Moment sieht. Für die Figur zählt das Zweite.
+ */
+export function currentTheme() {
+  if (typeof document === 'undefined') return readTheme();
+  const t = document.documentElement.getAttribute('data-theme');
+  return THEMES.includes(t) ? t : 'default';
+}
+
 export function applyTheme(theme) {
   const t = THEMES.includes(theme) ? theme : 'default';
   if (typeof document !== 'undefined') {

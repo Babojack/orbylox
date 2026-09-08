@@ -1,6 +1,5 @@
 import BotOverlay from '@/components/bot/BotOverlay';
-
-const SALUTE_URL = '/models/salute.clip.json';
+import { clipFor } from '@/lib/botClips';
 
 /**
  * Sprachwechsel mit Gruß.
@@ -13,11 +12,15 @@ const SALUTE_URL = '/models/salute.clip.json';
  * Fehlerfall münden alle in `onFinish`, und vor dem Schließen wird `onPeak`
  * nachgeholt, falls es nicht schon lief. Damit gilt ausnahmslos: Wer den
  * Sprachknopf drückt, bekommt die neue Sprache.
+ *
+ * Im Retro grüßt eine andere Figur — dieselbe Geste, andere Aufnahme. Der
+ * Zeitpunkt der Hand steht in beiden Dateien und wird von dort gelesen, hier
+ * ist also nichts fest verdrahtet.
  */
 export default function LanguageSalute({ to, onApply, onClose }) {
   return (
     <BotOverlay
-      clipUrl={SALUTE_URL}
+      clipUrl={clipFor('salute')}
       framing="bust"
       caption={to === 'en' ? 'Switching to English' : 'Wechsle auf Deutsch'}
       failsafeMs={3200}

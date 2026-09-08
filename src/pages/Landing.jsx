@@ -6,6 +6,7 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import ModuleShowcase from "@/components/landing/ModuleShowcase";
 import BotSection from "@/components/landing/BotSection";
+import ThemeSwitch from '@/components/common/ThemeSwitch';
 import OrbyloxMark from "@/components/OrbyloxMark";
 import {
   ArrowRight,
@@ -180,6 +181,7 @@ function LandingContent() {
               <Languages className="w-4 h-4" />
               <span className="hidden xs:inline">{de ? 'EN' : 'DE'}</span>
             </button>
+            <ThemeSwitch de={de} />
             {/* Sprachgleicher Blog: interne Verweise sind der stärkste Hinweis
                 für Suchmaschinen. Steht die Seite auf Englisch, soll auch der
                 Blog-Knopf in die englische Übersicht führen. */}
