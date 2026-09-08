@@ -6,10 +6,17 @@
  * rund 1.600 fest verdrahteten Farbangaben in 75 Dateien ist das der einzige
  * Weg, der nicht Wochen dauert und dabei Fluechtigkeitsfehler streut.
  *
- * Die Regeln greifen zusaetzlich nur innerhalb von `.theme-scope`. So laesst
- * sich ein Theme auf einer Seite ausprobieren, bevor es die ganze Anwendung
- * betrifft: Die Klasse an eine weitere Seite haengen, und sie zieht mit.
+ * Die Regeln greifen zusaetzlich nur innerhalb von `.theme-scope`. Diese Klasse
+ * setzt jetzt das Theme selbst an den <body> — nicht mehr jede Seite einzeln.
+ *
+ * Der Umweg ueber eine Klasse statt direkt ueber `[data-theme]` lohnt trotzdem:
+ * Waehrend der Erprobung hing sie an genau einer Seite, und sie kann jederzeit
+ * wieder enger gezogen werden, ohne dass eine einzige Regel sich aendert. Am
+ * Body sitzend erwischt sie ausserdem die Dialoge und Menues, die Radix per
+ * Portal dorthin haengt — die lagen ausserhalb jeder Seite und blieben weiss.
  */
+
+const SCOPE_CLASS = 'theme-scope';
 
 const KEY = 'orbylox_theme';
 export const THEMES = ['default', 'retro'];
@@ -31,6 +38,9 @@ export function applyTheme(theme) {
     // gewohnte Aussehen kostet nichts.
     if (t === 'default') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', t);
+    // Der Body kann beim ersten Aufruf noch fehlen, wenn das Skript im Kopf
+    // laeuft. Dann traegt ihn `initTheme` nach, sobald das Dokument steht.
+    if (document.body) document.body.classList.toggle(SCOPE_CLASS, t !== 'default');
   }
   try {
     window.localStorage.setItem(KEY, t);
@@ -42,5 +52,9 @@ export function applyTheme(theme) {
 
 /** Beim Start anwenden, damit die Seite nicht kurz im falschen Kleid steht. */
 export function initTheme() {
-  return applyTheme(readTheme());
+  const t = applyTheme(readTheme());
+  if (typeof document !== 'undefined' && !document.body) {
+    document.addEventListener('DOMContentLoaded', () => applyTheme(t), { once: true });
+  }
+  return t;
 }

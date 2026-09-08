@@ -11,13 +11,16 @@
    hat hoehere Spezifitaet als eine einzelne Utility-Klasse, deshalb kommt
    dieser Block fast ohne !important aus.
 
-   ZUM AUSWEITEN: `theme-scope` an eine weitere Seite haengen, oder einmal an
-   die Wurzel der Anwendung. Der Rest passiert von allein.
+   WO `theme-scope` HAENGT: am <body>, gesetzt von `lib/theme.js`. Waehrend der
+   Erprobung stand die Klasse an genau einer Seite; jetzt gilt sie fuer alles,
+   einschliesslich der Dialoge und Menues, die Radix per Portal an den Body
+   haengt und die sonst als einzige weiss geblieben waeren.
 
-   ACHTUNG, DIESELBE FALLE ZWEIMAL: `theme-scope` muss an dem Element haengen,
-   das den sichtbaren Inhalt umschliesst. Stand es versehentlich nur an der
+   ACHTUNG, DIE FALLE: Die Klasse muss an dem Element haengen, das den
+   sichtbaren Inhalt UMSCHLIESST. Stand sie versehentlich nur an der
    Ladeansicht, aenderte sich sichtbar bloss die Schrift — die erbt ueber
-   `body`, alles Klassenbasierte lief ins Leere.
+   `body`, alles Klassenbasierte lief ins Leere. Es sah aus wie ein Problem der
+   Regeln und war eines der Platzierung.
 
    BEWEGUNG bleibt unangetastet: Uebergaenge und Transformationen sind
    ausdruecklich nicht Teil dieses Blocks.
@@ -58,6 +61,7 @@
   --r-blood:    #d2402f;
   --r-moss:     #3f8f3a;
   --r-sky:      #2f6fd0;
+  --r-plum:     #7d4fa8;
 }
 
 /* --- Grundflaeche: die Wiese, gekachelt ---------------------------------- */
@@ -109,26 +113,78 @@
 [data-theme='retro'] .theme-scope .bg-\[\#f5f5f5\] { background-color: transparent; }
 [data-theme='retro'] .theme-scope .bg-black        { background-color: var(--r-edge); color: var(--r-parch); }
 [data-theme='retro'] .theme-scope .bg-\[\#ef5a24\] { background-color: var(--r-flame); color: #fff; }
+/**
+ * Die bunten Flaechen auf eine Handvoll Toene zusammenfassen.
+ *
+ * Warum ueberhaupt: Die Seitenleiste vergibt zwoelf Tailwind-Farben an zwoelf
+ * Eintraege. Auf Weiss ist das bunt, auf Holz und Pergament ist es Krach —
+ * 16-Bit-Oberflaechen kamen mit einer Handvoll Toene aus, und genau daher
+ * stammt der ruhige Eindruck. Sechs bleiben uebrig, die Eintraege sind
+ * trotzdem unterscheidbar.
+ *
+ * WARUM HIER `!important` STEHT — und sonst nirgends in dieser Datei:
+ * `index.css` schaltet im Layer `components` alle gesaettigten 500er- und
+ * 600er-Flaechen (indigo, violett, blau, tuerkis, gruen ...) hart auf
+ * #0a0a0a !important. Gegen eine Wichtig-Erklaerung hilft keine Spezifitaet,
+ * nur eine zweite. Ohne diese Zeilen waeren alle farbigen Plaketten im Retro
+ * schwarz — was aussieht wie ein Fehler und keiner ist.
+ */
 [data-theme='retro'] .theme-scope [class*='bg-amber-'],
-[data-theme='retro'] .theme-scope [class*='bg-yellow-'] { background-color: var(--r-gold); color: var(--r-edge); }
+[data-theme='retro'] .theme-scope [class*='bg-yellow-'] { background-color: var(--r-gold) !important;  color: var(--r-edge); }
 [data-theme='retro'] .theme-scope [class*='bg-green-'],
-[data-theme='retro'] .theme-scope [class*='bg-emerald-'] { background-color: var(--r-moss); color: var(--r-parch); }
+[data-theme='retro'] .theme-scope [class*='bg-emerald-'] { background-color: var(--r-moss) !important;  color: var(--r-parch); }
 [data-theme='retro'] .theme-scope [class*='bg-red-'],
-[data-theme='retro'] .theme-scope [class*='bg-rose-']    { background-color: var(--r-blood); color: var(--r-parch); }
+[data-theme='retro'] .theme-scope [class*='bg-rose-']    { background-color: var(--r-blood) !important; color: var(--r-parch); }
 [data-theme='retro'] .theme-scope [class*='bg-blue-'],
 [data-theme='retro'] .theme-scope [class*='bg-indigo-'],
-[data-theme='retro'] .theme-scope [class*='bg-sky-']     { background-color: var(--r-sky); color: var(--r-parch); }
+[data-theme='retro'] .theme-scope [class*='bg-cyan-'],
+[data-theme='retro'] .theme-scope [class*='bg-teal-'],
+[data-theme='retro'] .theme-scope [class*='bg-sky-']     { background-color: var(--r-sky) !important;   color: var(--r-parch); }
+[data-theme='retro'] .theme-scope [class*='bg-orange-']  { background-color: var(--r-flame) !important; color: #fff; }
+[data-theme='retro'] .theme-scope [class*='bg-violet-'],
+[data-theme='retro'] .theme-scope [class*='bg-purple-'],
+[data-theme='retro'] .theme-scope [class*='bg-fuchsia-'],
+[data-theme='retro'] .theme-scope [class*='bg-pink-']    { background-color: var(--r-plum) !important;  color: var(--r-parch); }
 
-/* Die Kopfzeile ist Holz, nicht Pergament — sie traegt die Seite. */
+/**
+ * Kopfzeile und Seitenleiste sind Holz, nicht Pergament — sie tragen die Seite.
+ *
+ * Ueber die Elementnamen statt ueber Klassen: `header` und `aside` bleiben,
+ * auch wenn jemand die Farbklassen darin austauscht.
+ *
+ * Das `[class]` ist kein Zierrat. Ohne es waere die Regel (0,2,1) und verloere
+ * gegen die Pergament-Regel weiter oben, die (0,3,0) hat — die Seitenleiste
+ * traegt `bg-white`. Das Attribut hebt sie auf (0,3,1) und damit knapp
+ * darueber. Jedes `aside` und `header` in dieser Anwendung hat Klassen; die
+ * Regel greift also ueberall.
+ */
+[data-theme='retro'] .theme-scope header[class],
+[data-theme='retro'] .theme-scope aside[class],
 [data-theme='retro'] .theme-scope .sticky.bg-white,
 [data-theme='retro'] .theme-scope .bg-white.sticky {
   background-color: var(--r-wood);
   color: var(--r-parch);
+  border-color: var(--r-edge);
+}
+[data-theme='retro'] .theme-scope header[class],
+[data-theme='retro'] .theme-scope .sticky.bg-white,
+[data-theme='retro'] .theme-scope .bg-white.sticky {
   border-bottom: 3px solid var(--r-edge);
 }
+[data-theme='retro'] .theme-scope aside[class] { border-right: 3px solid var(--r-edge); }
+
+[data-theme='retro'] .theme-scope header [class*='text-slate-'],
+[data-theme='retro'] .theme-scope aside [class*='text-slate-'],
 [data-theme='retro'] .theme-scope .sticky.bg-white [class*='text-slate-'],
 [data-theme='retro'] .theme-scope .bg-white.sticky [class*='text-slate-'] {
   color: var(--r-parch);
+}
+/* Der aktive Eintrag der Seitenleiste hebt sich sonst nicht mehr ab, sobald
+   alles Holz ist. */
+[data-theme='retro'] .theme-scope aside [class*='bg-slate-1'],
+[data-theme='retro'] .theme-scope aside [class*='bg-slate-2'],
+[data-theme='retro'] .theme-scope aside .bg-white {
+  background-color: rgba(240, 180, 41, 0.22);
 }
 
 /* --- Schrift ------------------------------------------------------------ */
@@ -185,6 +241,18 @@
 [data-theme='retro'] .theme-scope input::placeholder,
 [data-theme='retro'] .theme-scope textarea::placeholder { color: var(--r-ink-dim); }
 
+/* --- Verlaeufe ---------------------------------------------------------- */
+
+/**
+ * Farbverlaeufe sind das Gegenteil dieser Bildsprache: Diese Bildschirme
+ * konnten pro Flaeche eine Farbe, nicht tausend. An 18 Stellen im Projekt
+ * steht ein Verlauf; jeder wird hier zu einer glatten Flaeche.
+ */
+[data-theme='retro'] .theme-scope [class*='bg-gradient'] {
+  background-image: none;
+  background-color: var(--r-panel-flat, var(--r-parch-2));
+}
+
 /* --- Bilder ------------------------------------------------------------- */
 
 /* Harte Kanten statt weichem Skalieren — das ist der halbe Retro-Eindruck. */
@@ -216,6 +284,27 @@
 }
 
 /* --- Kleine Zutaten ----------------------------------------------------- */
+
+/* Auswahl, Tastaturfokus und Bildlaufleiste — die drei Stellen, an denen sonst
+   das Betriebssystem durchscheint und die Illusion bricht. */
+[data-theme='retro'] .theme-scope ::selection {
+  background: var(--r-gold);
+  color: var(--r-edge);
+}
+[data-theme='retro'] .theme-scope :focus-visible {
+  outline: 2px solid var(--r-gold);
+  outline-offset: 2px;
+}
+[data-theme='retro'] .theme-scope * {
+  scrollbar-color: var(--r-gold) var(--r-wood);
+  scrollbar-width: thin;
+}
+[data-theme='retro'] .theme-scope ::-webkit-scrollbar { width: 12px; height: 12px; }
+[data-theme='retro'] .theme-scope ::-webkit-scrollbar-track { background: var(--r-wood); }
+[data-theme='retro'] .theme-scope ::-webkit-scrollbar-thumb {
+  background: var(--r-gold);
+  border: 2px solid var(--r-edge);
+}
 
 /* Ein Hauch Rasterzeilen ueber der Flaeche, sehr zurueckhaltend. */
 [data-theme='retro'] .theme-scope::before {
