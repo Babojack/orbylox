@@ -221,13 +221,37 @@ function blogRelated(array $post, int $limit = 3): array
  * Deshalb hier: leere Liste zaehlt als "nicht gesetzt", und der Wert steht
  * genau einmal im Projekt.
  */
+/**
+ * Alle Orte, an denen eine Konfiguration liegen darf — in dieser Reihenfolge.
+ *
+ * Der erste Ort liegt EINE EBENE UEBER public_html und ist der einzige
+ * sichere: Ein Deploy ersetzt public_html/api, und was dort nicht im Paket
+ * liegt, wird dabei geloescht. Genau so ist die Konfiguration am 8.9. schon
+ * einmal verschwunden und hat Mailversand, Assistent, Erinnerungen und
+ * Blogverwaltung gleichzeitig lahmgelegt.
+ *
+ * Frueher sah diese Datei nur im eigenen Ordner nach, waehrend send-invite.php
+ * an drei Orten suchte. Wer die Konfiguration nach oben legt, haette sonst
+ * einen funktionierenden Mailversand und eine tote Blogverwaltung — bei
+ * derselben Datei.
+ */
+function blogConfigCandidates(): array
+{
+    return [
+        dirname(__DIR__, 2) . '/invite-config.php',
+        dirname(__DIR__) . '/invite-config.php',
+        __DIR__ . '/blog-config.php',
+        __DIR__ . '/invite-config.php',
+    ];
+}
+
 function blogAdminEmails(): array
 {
     static $cache = null;
     if ($cache !== null) return $cache;
 
     $emails = [];
-    foreach ([__DIR__ . '/blog-config.php', __DIR__ . '/invite-config.php'] as $file) {
+    foreach (blogConfigCandidates() as $file) {
         if (!is_file($file)) continue;
         $loaded = require $file;
         if (!is_array($loaded) || !isset($loaded['admin_emails'])) continue;
@@ -246,7 +270,7 @@ function blogAdminEmails(): array
 /** Firebase-Projektkennung aus einer der beiden Konfigurationsdateien. */
 function blogFirebaseProjectId(): string
 {
-    foreach ([__DIR__ . '/blog-config.php', __DIR__ . '/invite-config.php'] as $file) {
+    foreach (blogConfigCandidates() as $file) {
         if (!is_file($file)) continue;
         $loaded = require $file;
         if (is_array($loaded) && !empty($loaded['firebase_project_id'])) {
