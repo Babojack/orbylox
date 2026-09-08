@@ -7,6 +7,25 @@ import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion
 import ModuleShowcase from "@/components/landing/ModuleShowcase";
 import BotSection from "@/components/landing/BotSection";
 import ThemeSwitch from '@/components/common/ThemeSwitch';
+/**
+ * Freigestelltes Hauptbild — bewusst aus `src/`, nicht aus `public/`.
+ *
+ * Zwei Gruende:
+ *
+ * 1. INHALTSSTEMPEL. Dateien aus `public/` reicht Vite unveraendert durch,
+ *    ohne Hash im Namen. Wird so eine Datei ausgetauscht, liefern Browser und
+ *    Server weiter die alte Fassung unter demselben Namen — der Austausch ist
+ *    unsichtbar. Genau das ist hier passiert: Das Bild war laengst
+ *    freigestellt und trotzdem blieb der weisse Kasten stehen. Aus `src/`
+ *    bekommt es einen Hash und laesst sich nicht mehr aus dem Zwischenspeicher
+ *    verwechseln.
+ *
+ * 2. DAS ALTE BILD WIRD WEITER GEBRAUCHT. `/screens/hero-devices.webp` ist das
+ *    Vorschaubild des Blogs (`og_image`). Vorschaubilder mit Transparenz sind
+ *    heikel — manche Dienste legen Schwarz darunter. Die deckende Fassung
+ *    bleibt deshalb, wo sie ist.
+ */
+import heroDevices from '@/assets/hero-devices.webp';
 import OrbyloxMark from "@/components/OrbyloxMark";
 import {
   ArrowRight,
@@ -251,7 +270,7 @@ function LandingContent() {
             className="w-full"
           >
             <motion.img
-              src="/screens/hero-devices.webp"
+              src={heroDevices}
               data-screenshot=""
               alt={
                 de

@@ -324,10 +324,22 @@ const faelle = [
   ['Aufnahme bleibt scharf', () => w(R, '#aufnahme', 'image-rendering') === 'auto'],
   ['andere Bilder bleiben gepixelt', () => w(R, '#normalesbild', 'image-rendering') === 'pixelated'],
   // Das Weiss des Hauptbildes loest die Datei selbst auf, nicht das Theme.
-  ['Hauptbild hat einen Alphakanal', () => {
-    const b = fs.readFileSync(path.join(wurzel, 'public/screens/hero-devices.webp'));
-    // WEBP: 'VP8L' oder ein 'ALPH'-Abschnitt zeigen Transparenz an.
+  ['Hauptbild ist freigestellt', () => {
+    // WEBP: ein 'ALPH'-Abschnitt (oder VP8L) zeigt Transparenz an.
+    const b = fs.readFileSync(path.join(wurzel, 'src/assets/hero-devices.webp'));
     return b.includes(Buffer.from('ALPH')) || b.includes(Buffer.from('VP8L'));
+  }],
+  ['Hauptbild kommt aus src, nicht aus public', () => {
+    // Nur von dort bekommt es einen Inhaltsstempel im Dateinamen. Ohne den
+    // liefert jeder Zwischenspeicher weiter die alte Fassung.
+    const l = fs.readFileSync(path.join(wurzel, 'src/pages/Landing.jsx'), 'utf8');
+    return l.includes("from '@/assets/hero-devices.webp'")
+      && !l.includes('"/screens/hero-devices.webp"');
+  }],
+  ['Blog-Vorschaubild bleibt deckend', () => {
+    // Vorschaubilder mit Transparenz zeigen manche Dienste auf Schwarz.
+    const b = fs.readFileSync(path.join(wurzel, 'public/screens/hero-devices.webp'));
+    return !b.includes(Buffer.from('ALPH'));
   }],
 
   // Wiesenbaender auf der Startseite — Gruen traegt nur dunkle Schrift.
