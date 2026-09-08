@@ -133,6 +133,8 @@ const MARKUP = `
         <span class="bg-red-500" id="rot"></span>
       </div>
       <div class="bg-gradient-to-br from-indigo-500 to-purple-600" id="verlauf"></div>
+      <div class="bg-slate-500 text-white" id="dunkel">Einstellungen</div>
+      <div class="bg-slate-50" id="hell"></div>
     </div>
   </main>
   <div role="dialog" class="bg-white rounded-2xl shadow-2xl" id="dialog">
@@ -155,6 +157,116 @@ const w = (doc, sel, prop) => {
   return g ? g.wert : null;
 };
 
+/* ------------------------------------------------------------- Kontrast */
+
+/**
+ * Der zweite Teil der Prüfung: Ist das Ergebnis lesbar?
+ *
+ * Struktur allein genügt nicht. Eine Regel kann greifen und trotzdem Unsinn
+ * ergeben — grüne Schrift auf grüner Fläche, weiße Schrift auf Pergament. Also
+ * werden alle Klassenkombinationen aus dem Quelltext gesammelt, durch dieselbe
+ * Kaskade geschickt und ausgerechnet.
+ */
+
+const palette = Object.fromEntries(
+  [...fs.readFileSync(path.join(wurzel, 'src/styles/theme-retro.css'), 'utf8')
+      .matchAll(/(--r-[\w-]+):\s*(#[0-9a-fA-F]{6})/g)].map((m) => [m[1], m[2]]),
+);
+
+const zuRgb = (h) => {
+  h = h.replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  return [
+    parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16),
+    h.length >= 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1,
+  ];
+};
+
+function farbe(wert) {
+  if (!wert) return null;
+  const w = wert.trim();
+  const v = /^var\((--[\w-]+)/.exec(w);
+  if (v) return palette[v[1]] ? zuRgb(palette[v[1]]) : null;
+  if (w.startsWith('#')) return zuRgb(w);
+  const m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)\s*(?:[,/]\s*([\d.]+|var\([^)]*\)))?\s*\)/.exec(w);
+  if (m) return [+m[1], +m[2], +m[3], m[4] && !m[4].startsWith('var') ? parseFloat(m[4]) : 1];
+  if (w === 'white') return [255, 255, 255, 1];
+  if (w === 'transparent') return [0, 0, 0, 0];
+  return null;
+}
+const ueber = (v, h) => (!v ? h : v[3] >= 1 ? v
+  : [0, 1, 2].map((i) => Math.round(v[i] * v[3] + h[i] * (1 - v[3]))).concat(1));
+const leuchte = (c) => {
+  const f = (x) => ((x /= 255) <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+};
+const kontrast = (a, b) => {
+  const l1 = leuchte(a); const l2 = leuchte(b);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+};
+
+function jsDateien(dir, raus = []) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) jsDateien(p, raus);
+    else if (/\.jsx?$/.test(e.name)) raus.push(p);
+  }
+  return raus;
+}
+
+const kombis = new Map();
+for (const f of jsDateien(path.join(wurzel, 'src'))) {
+  const text = fs.readFileSync(f, 'utf8');
+  for (const m of text.matchAll(/className\s*=\s*(\{`([\s\S]*?)`\}|"([^"]*)"|\{"([^"]*)"\}|\{'([^']*)'\})/g)) {
+    const roh = m[2] ?? m[3] ?? m[4] ?? m[5] ?? '';
+    const tok = roh.replace(/\$\{[\s\S]*?\}/g, ' ').split(/[\s`'"]+/).filter(Boolean)
+      .map((t) => t.replace(/^[^a-zA-Z[]+/, ''));
+    const bgs = tok.filter((t) => /^bg-/.test(t));
+    const txt = tok.filter((t) => /^text-/.test(t)
+      && !/^text-(xs|sm|base|lg|xl|\dxl|left|right|center|justify|transparent)$/.test(t)
+      && !/^text-\[\d/.test(t));
+    if (!bgs.length || !txt.length) continue;
+    const zeile = text.slice(0, m.index).split('\n').length;
+    for (const b of bgs) for (const t of txt) {
+      const key = `${b} ${t}`;
+      if (!kombis.has(key)) kombis.set(key, { b, t, f: path.relative(wurzel, f), zeile });
+    }
+  }
+}
+
+/**
+ * Drei Kombinationen bleiben unter der Schwelle — alle drei auch OHNE Theme.
+ * Sie stehen hier namentlich, damit sie niemanden mehr aufhalten und trotzdem
+ * niemand vergisst, dass es sie gibt:
+ *   - zwei helle Schriften auf halbdurchsichtigen Flaechen ueber Fotos
+ *     (dort traegt das Bild den Kontrast, nicht die Flaeche)
+ *   - Weiss auf der Markenfarbe: 3,41:1, unveraendert seit jeher
+ */
+const BEKANNT = new Set([
+  'bg-white/10 text-white',
+  'bg-black/30 text-white',
+  'bg-[#ef5a24] text-white',
+]);
+const SCHWELLE = 3.5;
+
+function messen(klassen, mitTheme) {
+  const dom = new JSDOM(`<!doctype html><html${mitTheme ? ' data-theme="retro"' : ''}>` +
+    `<body class="${mitTheme ? 'theme-scope' : ''}"><span id="x" class="${klassen}"></span></body></html>`);
+  const el = dom.window.document.getElementById('x');
+  return { bg: farbe(gewinner(el, 'background-color')?.wert), fg: farbe(gewinner(el, 'color')?.wert) };
+}
+
+const PERGAMENT = zuRgb(palette['--r-parch']);
+const schwach = [];
+for (const [key, k] of kombis) {
+  if (BEKANNT.has(key)) continue;
+  const r = messen(`${k.b} ${k.t}`, true);
+  if (!r.bg || !r.fg) continue;
+  const grund = ueber(r.bg, PERGAMENT);
+  const wert = kontrast(grund, ueber(r.fg, grund));
+  if (wert < SCHWELLE) schwach.push({ ...k, wert: wert.toFixed(2) });
+}
+
 /* ------------------------------------------------------------- Prüfungen */
 
 const faelle = [
@@ -176,18 +288,30 @@ const faelle = [
   ['Karte wird eckig', () => w(R, '#karte', 'border-radius') === '0'],
   ['Verlauf wird glatte Fläche', () => w(R, '#verlauf', 'background-image') === 'none'],
 
-  // Die Farbfamilien — hier steht !important gegen !important
-  ['Grün wird Moos', () => w(R, '#fertig', 'background-color') === 'var(--r-moss)'],
-  ['Türkis fällt auf Blau', () => w(R, '#tuerkis', 'background-color') === 'var(--r-sky)'],
-  ['Lila fällt auf Pflaume', () => w(R, '#lila', 'background-color') === 'var(--r-plum)'],
-  ['Gelb wird Gold', () => w(R, '#gelb', 'background-color') === 'var(--r-gold)'],
-  ['Rot wird Blut', () => w(R, '#rot', 'background-color') === 'var(--r-blood)'],
+  // Die Farbfamilien — hier steht !important gegen !important.
+  // Die Werte sind die nachgedunkelten Vollfarben aus dem Farbblock, nicht die
+  // rohen Palettenvariablen: Sie sind so gewählt, dass helle Schrift darauf
+  // über 4,5:1 liegt.
+  ['Grün wird Moos', () => w(R, '#fertig', 'background-color') === '#33742f'],
+  ['Türkis fällt auf Blau', () => w(R, '#tuerkis', 'background-color') === '#2b65be'],
+  ['Lila fällt auf Pflaume', () => w(R, '#lila', 'background-color') === '#7d4fa8'],
+  ['Rot wird Blut', () => w(R, '#rot', 'background-color') === '#ba392a'],
+  // Helle Stufe bleibt hell — das war der Fehler bei der "online"-Plakette.
+  ['bg-amber-50 bleibt zart', () => w(R, '#gelb', 'background-color') === '#e2d0a4'],
 
   // Gegenprobe: ohne Theme darf sich NICHTS ändern
   ['Ohne Theme: Karte weiß', () => /255 255 255/.test(w(N, '#karte', 'background-color') || '')],
   ['Ohne Theme: Seitenleiste weiß', () => /255 255 255/.test(w(N, 'aside', 'background-color') || '')],
   ['Ohne Theme: keine Pixelschrift', () => !/Press Start 2P/.test(w(N, '#cta', 'font-family') || '')],
   ['Ohne Theme: Farben wie gehabt', () => w(N, '#fertig', 'background-color') === '#0a0a0a'],
+
+  // Helligkeitsstufen dürfen sich nicht überlappen: bg-slate-500 ist DUNKEL,
+  // auch wenn 'bg-slate-50' als Zeichenkette darin vorkommt.
+  ['bg-slate-500 bleibt dunkel', () => w(R, '#dunkel', 'background-color') === 'var(--r-wood)'],
+  ['bg-slate-50 bleibt hell', () => w(R, '#hell', 'background-color') === 'var(--r-parch)'],
+
+  // Der Kontrast-Rundgang
+  [`${kombis.size} Klassenpaare über ${SCHWELLE}:1`, () => schwach.length === 0],
 
   // Bewegung bleibt unangetastet — das war die ausdrückliche Bedingung.
   [
@@ -209,6 +333,13 @@ for (const [name, pruefen] of faelle) {
   }
   console.log(`  ${ok ? 'OK  ' : 'FEHL'}  ${name}`);
   if (!ok) fehler++;
+}
+
+if (schwach.length) {
+  console.log('\nZu schwacher Kontrast:');
+  for (const t of schwach.sort((a, b) => a.wert - b.wert)) {
+    console.log(`  ${String(t.wert).padStart(5)}  ${t.b} + ${t.t}   ${t.f}:${t.zeile}`);
+  }
 }
 
 console.log(
