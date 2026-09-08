@@ -252,6 +252,7 @@ function LandingContent() {
           >
             <motion.img
               src="/screens/hero-devices.webp"
+              data-screenshot=""
               alt={
                 de
                   ? 'ORBYLOX auf Laptop, Tablet und Handy'

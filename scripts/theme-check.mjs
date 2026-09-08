@@ -134,6 +134,8 @@ const MARKUP = `
       </div>
       <div class="bg-gradient-to-br from-indigo-500 to-purple-600" id="verlauf"></div>
       <div class="bg-slate-500 text-white" id="dunkel">Einstellungen</div>
+      <img src="/screens/hero-devices.webp" data-screenshot="" id="aufnahme" />
+      <img src="/covers/projekt.png" id="normalesbild" />
       <div class="bg-slate-50" id="hell"></div>
     </div>
   </main>
@@ -309,6 +311,16 @@ const faelle = [
   // auch wenn 'bg-slate-50' als Zeichenkette darin vorkommt.
   ['bg-slate-500 bleibt dunkel', () => w(R, '#dunkel', 'background-color') === 'var(--r-wood)'],
   ['bg-slate-50 bleibt hell', () => w(R, '#hell', 'background-color') === 'var(--r-parch)'],
+
+  // Produktaufnahmen: scharf, nicht gepixelt.
+  ['Aufnahme bleibt scharf', () => w(R, '#aufnahme', 'image-rendering') === 'auto'],
+  ['andere Bilder bleiben gepixelt', () => w(R, '#normalesbild', 'image-rendering') === 'pixelated'],
+  // Das Weiss des Hauptbildes loest die Datei selbst auf, nicht das Theme.
+  ['Hauptbild hat einen Alphakanal', () => {
+    const b = fs.readFileSync(path.join(wurzel, 'public/screens/hero-devices.webp'));
+    // WEBP: 'VP8L' oder ein 'ALPH'-Abschnitt zeigen Transparenz an.
+    return b.includes(Buffer.from('ALPH')) || b.includes(Buffer.from('VP8L'));
+  }],
 
   // Der Kontrast-Rundgang
   [`${kombis.size} Klassenpaare über ${SCHWELLE}:1`, () => schwach.length === 0],

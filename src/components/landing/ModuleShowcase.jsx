@@ -142,6 +142,7 @@ function Layer({ item, index, total, progress, rm, isActive }) {
         <div className="w-full h-[34vh] sm:h-[40vh] flex items-center justify-center">
           <motion.img
             src={item.src}
+            data-screenshot=""
             alt={item.title}
             loading={index === 0 ? 'eager' : 'lazy'}
             decoding="async"

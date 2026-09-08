@@ -1285,6 +1285,24 @@
   image-rendering: pixelated;
 }
 
+/**
+ * Produktaufnahmen nicht pixeln.
+ *
+ * Eine 1800 Pixel breite Aufnahme auf halbe Größe mit
+ * Nachbarschaftsvergrößerung zerreißt jede dünne Linie der abgebildeten
+ * Oberfläche. Das sieht nach Fehler aus, nicht nach Absicht.
+ *
+ * Das eingebackene Weiß des Hauptbildes ist NICHT hier gelöst, sondern in der
+ * Datei selbst: `hero-devices.webp` hat jetzt einen Alphakanal. Der Weg über
+ * `mix-blend-mode: multiply` wäre kürzer gewesen und hätte hier versagt — das
+ * Bild steckt in einem `motion`-Element, und ein Elternteil mit `transform`
+ * oder `opacity` kapselt das Mischen ab. Dann bliebe das Weiß stehen, und
+ * zwar ohne dass an der Regel etwas falsch aussieht.
+ */
+[data-theme='retro'] .theme-scope img[data-screenshot] {
+  image-rendering: auto;
+}
+
 /* --- Menues und Dialoge ------------------------------------------------- */
 
 /* Radix haengt beides per Portal an den Body, also ausserhalb von
