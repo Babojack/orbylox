@@ -16,6 +16,7 @@ import TaskDetailDialog from "@/components/kanban/TaskDetailDialog";
 import TimelineView from "@/components/kanban/TimelineView";
 import DustEffect from "@/components/kanban/DustEffect";
 import DependencyGraph from "@/components/kanban/DependencyGraph";
+import ProjectAssistant, { AssistantButton } from "@/components/assistant/ProjectAssistant";
 import { indexTasks, indexSubtasks, openBlockersOf, canMoveTo, DONE_STATUS, storyPointsOf, sumStoryPoints } from "@/lib/taskDependencies";
 import { celebrate } from "@/lib/botStage";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -99,6 +100,7 @@ export default function ScrumBoard() {
     const [newBoardTitle, setNewBoardTitle] = React.useState("");
     const [renameBoardTarget, setRenameBoardTarget] = React.useState(null);
     const [renameBoardTitle, setRenameBoardTitle] = React.useState("");
+    const [assistantOpen, setAssistantOpen] = React.useState(false);
 
     const searchParams = new URLSearchParams(window.location.search);
     const projectId = searchParams.get('project');
@@ -512,6 +514,40 @@ export default function ScrumBoard() {
     if (nextStatus === DONE_STATUS) celebrate();
   };
 
+  /**
+   * Vorschlaege des Assistenten anlegen — erst hier, nach dem Klick.
+   *
+   * Der Assistent kennt nur ids bestehender Tickets, keine der noch nicht
+   * angelegten. Abhaengigkeiten untereinander koennte er also gar nicht
+   * ausdruecken; genommen wird nur, was auf vorhandene Tickets zeigt.
+   * Zugewiesen wird nur an echte Mitglieder — geraetene Adressen wuerden
+   * sonst Benachrichtigungen ins Leere schicken.
+   */
+  const createSuggestedTasks = async (picked) => {
+    const known = new Set((tasks || []).map((t) => t.id));
+    const memberSet = new Set(allAssignees.map((e) => (e || '').toLowerCase()));
+    const boardKey =
+      selectedKanbanBoardId === DEFAULT_KANBAN_BOARD_KEY ? null : selectedKanbanBoardId;
+    let order = getColumnTasks('todo').length;
+
+    for (const s of picked) {
+      const email = String(s.assignee_email || '').toLowerCase();
+      await api.entities.Task.create({
+        project_id: projectId,
+        title: String(s.title || '').slice(0, 200),
+        description: String(s.description || ''),
+        status: 'todo',
+        priority: ['low', 'medium', 'high'].includes(s.priority) ? s.priority : 'medium',
+        story_points: Number(s.story_points) || 0,
+        assignee_email: memberSet.has(email) ? email : '',
+        depends_on: (s.depends_on || []).filter((id) => known.has(id)),
+        board_order: order++,
+        kanban_board_id: boardKey,
+      });
+    }
+    await queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+  };
+
   const onDragStart = (start) => {
     const t = (tasks || []).find((x) => x.id === start.draggableId);
     setDraggingTask(t || null);
@@ -666,6 +702,10 @@ export default function ScrumBoard() {
               <UserIcon className="w-4 h-4" />
             </button>
           </div>
+          <AssistantButton
+            onClick={() => setAssistantOpen(true)}
+            label={language === 'de' ? 'Assistent' : 'Assistant'}
+          />
           {/* Assignee Filter */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
             <button
@@ -1359,6 +1399,15 @@ export default function ScrumBoard() {
       )}
 
       {/* Dust Effect */}
+      <ProjectAssistant
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        project={project}
+        tasks={boardScopedTasks}
+        members={allAssignees}
+        onCreateTasks={createSuggestedTasks}
+      />
+
       <DustEffect isActive={dustEffect.active} x={dustEffect.x} y={dustEffect.y} />
 
       {/* Task Detail Dialog */}

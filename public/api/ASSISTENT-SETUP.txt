@@ -1,0 +1,110 @@
+ORBYLOX — PROJEKT-ASSISTENT EINRICHTEN
+======================================
+
+Der Assistent sitzt im Kanban-Board hinter dem orangefarbenen Knopf
+"Assistent". Er sieht die Tickets des offenen Boards und schlaegt vor:
+Tickets zerlegen, zuweisen, Aufwand schaetzen, fehlende Schritte finden.
+
+ER LEGT NICHTS SELBST AN. Vorschlaege erscheinen als abhakbare Karten;
+angelegt wird erst, wenn du auf "Tickets anlegen" drueckst. Der Endpunkt
+schreibt in keine Datenbank — er kann es technisch nicht.
+
+
+-------------------------------------------------------------------------
+1. SCHLUESSEL BESORGEN
+-------------------------------------------------------------------------
+platform.openai.com -> Anmelden -> API keys -> Create new secret key.
+Der Schluessel beginnt mit "sk-". Er wird dort nur EINMAL angezeigt.
+
+Guthaben nicht vergessen: Ohne Zahlungsmittel antwortet OpenAI mit einem
+Fehler, den der Assistent dann im Klartext anzeigt.
+
+
+-------------------------------------------------------------------------
+2. SCHLUESSEL EINTRAGEN
+-------------------------------------------------------------------------
+In api/invite-config.php — dieselbe Datei wie SMTP und cron_token:
+
+    'openai_api_key' => 'sk-...',
+    'openai_model'   => 'gpt-4o-mini',
+
+WARUM NICHT IN DIE .env:
+Alles, was in der .env mit VITE_ beginnt, backt Vite in die ausgelieferte
+JavaScript-Datei. Der Schluessel waere fuer jeden Besucher im Quelltext
+lesbar und binnen Stunden auf deine Rechnung leergeschrieben. Er gehoert
+ausschliesslich auf den Server.
+
+Zum Modell: gpt-4o-mini ist guenstig und fuer diese Aufgabe ausreichend —
+kurze Ticketlisten, keine langen Texte. Wer bessere Vorschlaege will,
+traegt ein groesseres Modell ein; die Zeile ist das Einzige, was sich
+dafuer aendert.
+
+
+-------------------------------------------------------------------------
+3. DATEIEN HOCHLADEN
+-------------------------------------------------------------------------
+Aus dist/ nach public_html/:
+
+  api/assistant.php
+  api/firebase-auth.php    (schon vorhanden, wird mitbenutzt)
+  api/invite-config.php    (mit dem neuen Schluessel)
+  die neue index-*.js und index.html aus dist/
+
+
+-------------------------------------------------------------------------
+4. PRUEFEN, OHNE ETWAS ZU VERBRAUCHEN
+-------------------------------------------------------------------------
+Im Browser aufrufen:
+
+  https://orbylox.de/api/assistant.php?action=diag
+
+Erwartete Antwort:
+
+  { "ok": true, "key_configured": true, "key_looks_like_openai": true,
+    "key_length": 164, "model": "gpt-4o-mini", "curl_available": true }
+
+Diese Seite zeigt NIE den Schluessel, nur ob einer da ist und wie lang er
+ist. Sie ruft OpenAI nicht auf, kostet also nichts.
+
+  key_configured: false  -> Eintrag fehlt oder Datei nicht hochgeladen
+  405 statt JSON         -> PHP laeuft, aber die Adresse ist falsch
+  403                    -> kommt nicht aus diesem Skript, sondern vom
+                            Webserver davor
+
+
+-------------------------------------------------------------------------
+5. WAS DER ASSISTENT SIEHT
+-------------------------------------------------------------------------
+Projektname, Beschreibung, Mitgliederliste und bis zu 120 Tickets des
+offenen Boards — je Ticket nur Titel, Status, Punkte, zugewiesene Person
+und Abhaengigkeiten. Keine Kommentare, keine Dateien, keine Chatverlaeufe.
+
+Der Verlauf des Gesprächs geht mit (die letzten zwoelf Nachrichten),
+damit Rueckfragen Sinn ergeben. Gespeichert wird er nicht: Wer das Fenster
+schliesst, beginnt neu.
+
+
+-------------------------------------------------------------------------
+6. KOSTEN IM BLICK
+-------------------------------------------------------------------------
+Bezahlt wird nach Verbrauch. Ein Gespraech mit 30 Tickets im Kontext liegt
+bei gpt-4o-mini im Bereich von Bruchteilen eines Cents. Trotzdem:
+
+- Der Endpunkt verlangt eine gueltige Anmeldung, BEVOR er OpenAI ruft.
+  Ohne diese Reihenfolge koennte jeder Fremde auf deine Rechnung rechnen
+  lassen.
+- Nachrichtenlaenge, Kontextgroesse und Verlaufslaenge sind begrenzt
+  (max_message_chars, max_context_tasks, max_history in assistant.php).
+- Ein Ausgabenlimit setzt man am besten zusaetzlich bei OpenAI selbst:
+  Settings -> Limits -> Monthly budget.
+
+
+-------------------------------------------------------------------------
+7. WAS NOCH NICHT DRIN IST
+-------------------------------------------------------------------------
+- Der Assistent kann nur NEUE Tickets vorschlagen, keine bestehenden
+  aendern oder verschieben.
+- Vorschlaege koennen nicht voneinander abhaengen: Er kennt nur die ids
+  bestehender Tickets, nicht die der noch nicht angelegten.
+- Er kann keine Teilaufgaben vorschlagen, nur Tickets.
+- Der Gespraechsverlauf ueberlebt das Schliessen des Fensters nicht.

@@ -36,4 +36,9 @@ return [
 
     // Basisadresse fuer die Links in den Mails.
     'app_url' => 'https://orbylox.de',
+    // Projekt-Assistent (OpenAI). Schluessel auf platform.openai.com erzeugen.
+    // Er gehoert AUSSCHLIESSLICH hierher: Alles mit VITE_ im Namen landet im
+    // ausgelieferten JavaScript und waere fuer jeden Besucher lesbar.
+    'openai_api_key' => '',
+    'openai_model' => 'gpt-4o-mini',
 ];
