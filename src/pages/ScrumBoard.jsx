@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import TaskDetailDialog from "@/components/kanban/TaskDetailDialog";
 import TimelineView from "@/components/kanban/TimelineView";
 import DustEffect from "@/components/kanban/DustEffect";
-import { indexTasks, openBlockersOf, canMoveTo, DONE_STATUS } from "@/lib/taskDependencies";
+import { indexTasks, openBlockersOf, canMoveTo, DONE_STATUS, storyPointsOf, sumStoryPoints } from "@/lib/taskDependencies";
 import { celebrate } from "@/lib/botStage";
 import { useLanguage } from "@/components/LanguageProvider";
 import { notifyAssignment } from "@/lib/notifyAssignment";
@@ -1089,9 +1089,23 @@ export default function ScrumBoard() {
                       {forbidden && <Lock className="w-3.5 h-3.5 shrink-0 text-slate-400" />}
                       <span className="truncate">{t(config.key)}</span>
                     </h3>
-                    <Badge variant="secondary" className="bg-white text-slate-500 shadow-sm shrink-0">
-                        {columnTaskCount(columnId)}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge variant="secondary" className="bg-white text-slate-500 shadow-sm">
+                          {columnTaskCount(columnId)}
+                      </Badge>
+                      {/* Summe der Story Points der Spalte. Erst ab einem
+                          geschaetzten Ticket sichtbar — eine Null neben jeder
+                          Spalte waere nur Rauschen. */}
+                      {sumStoryPoints(getColumnTasks(columnId)) > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className="bg-[#ef5a24]/10 text-[#ef5a24] shadow-sm"
+                          title={language === 'de' ? 'Story Points in dieser Spalte' : 'Story points in this column'}
+                        >
+                          {sumStoryPoints(getColumnTasks(columnId))} SP
+                        </Badge>
+                      )}
+                    </div>
                 </div>
                 {forbidden && (
                   <p className="mt-1.5 text-[11px] leading-tight text-slate-500">
@@ -1208,6 +1222,14 @@ export default function ScrumBoard() {
                               )}
 
                               <div className="flex items-center gap-3 text-xs text-slate-400 mb-3">
+                                {storyPointsOf(draggableTask) > 0 && (
+                                  <span
+                                    className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 border border-slate-300 text-[11px] font-bold text-slate-600"
+                                    title={language === 'de' ? 'Story Points' : 'Story points'}
+                                  >
+                                    {storyPointsOf(draggableTask)}
+                                  </span>
+                                )}
                                 {subtasksInfo.total > 0 && (
                                   <span className="flex items-center gap-1">
                                     <CheckSquare className="w-3 h-3" />
@@ -1315,6 +1337,7 @@ export default function ScrumBoard() {
         currentUser={currentUser}
         projectId={projectId}
         onDeleteTask={(taskId) => deleteTaskMutation.mutate(taskId)}
+        kanbanBoards={kanbanBoards}
         allTasks={tasks || []}
         project={project}
       />

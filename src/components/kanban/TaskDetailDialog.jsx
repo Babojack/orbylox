@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import TaskDependencies from "@/components/kanban/TaskDependencies";
 import { notifyAssignment } from "@/lib/notifyAssignment";
-import { canMoveTo, indexTasks } from "@/lib/taskDependencies";
+import { canMoveTo, indexTasks, indexSubtasks, STORY_POINTS } from "@/lib/taskDependencies";
 import { celebrate } from "@/lib/botStage";
 import { useLanguage } from "@/components/LanguageProvider";
 import { 
@@ -24,7 +24,9 @@ import {
   Upload,
   FileText,
   Trash2,
-  Calendar
+  Calendar,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { askDelete } from '@/lib/confirmDelete';
 
@@ -64,8 +66,11 @@ export default function TaskDetailDialog({
   projectId,
   onDeleteTask,
   allTasks = [],
-  project = null
+  project = null,
+  kanbanBoards = [],
 }) {
+  /** Leerer Wert wird von Radix-Select nicht akzeptiert — daher ein Platzhalter. */
+  const MAIN_BOARD = '__main__';
   const queryClient = useQueryClient();
   const { language, t } = useLanguage();
   const [statusBlocked, setStatusBlocked] = useState(null);
@@ -100,7 +105,11 @@ export default function TaskDetailDialog({
     queryKey: ['subtasks', task?.id],
     queryFn: async () => {
       const all = await api.entities.Subtask.list('-created_date', 100);
-      return all.filter(s => s.task_id === task?.id);
+      // Nach eigener Reihenfolge, nicht nach Anlagedatum. Wer keine hat
+      // (Altdaten), rutscht ans Ende statt nach vorn.
+      return all
+        .filter(s => s.task_id === task?.id)
+        .sort((a, b) => (Number(a.sort_order ?? 1e9)) - (Number(b.sort_order ?? 1e9)));
     },
     enabled: !!task?.id && isOpen
   });
@@ -159,7 +168,8 @@ export default function TaskDetailDialog({
       task_id: task.id,
       project_id: projectId,
       title,
-      completed: false
+      completed: false,
+      sort_order: subtasks.length,
     }),
     onMutate: async (title) => {
       await queryClient.cancelQueries(['subtasks', task?.id]);
@@ -197,6 +207,44 @@ export default function TaskDetailDialog({
       queryClient.invalidateQueries(['subtasks', task?.id]);
     }
   });
+
+  /**
+   * Teilaufgabe um eine Stelle verschieben.
+   *
+   * Geschrieben wird die neue Reihenfolge fuer BEIDE betroffenen Zeilen, nicht
+   * fuer die ganze Liste: Das sind zwei Schreibvorgaenge statt zehn, und bei
+   * Altdaten ohne sort_order wird die Reihenfolge dabei nachgezogen.
+   */
+  const reorderSubtasks = useMutation({
+    mutationFn: (updates) =>
+      Promise.all(updates.map(({ id, sort_order }) =>
+        api.entities.Subtask.update(id, { sort_order }))),
+    onMutate: async (updates) => {
+      await queryClient.cancelQueries(['subtasks', task?.id]);
+      const previous = queryClient.getQueryData(['subtasks', task?.id]);
+      const orderById = new Map(updates.map((u) => [u.id, u.sort_order]));
+      queryClient.setQueryData(['subtasks', task?.id], (old) =>
+        [...(old || [])]
+          .map((s) => (orderById.has(s.id) ? { ...s, sort_order: orderById.get(s.id) } : s))
+          .sort((a, b) => Number(a.sort_order ?? 1e9) - Number(b.sort_order ?? 1e9)));
+      return { previous };
+    },
+    onError: (err, vars, context) => {
+      queryClient.setQueryData(['subtasks', task?.id], context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries(['subtasks', task?.id]),
+  });
+
+  const moveSubtask = (index, delta) => {
+    const target = index + delta;
+    if (target < 0 || target >= subtasks.length) return;
+    const a = subtasks[index];
+    const b = subtasks[target];
+    reorderSubtasks.mutate([
+      { id: a.id, sort_order: target },
+      { id: b.id, sort_order: index },
+    ]);
+  };
 
   // Delete subtask mutation
   const deleteSubtaskMutation = useMutation({
@@ -360,7 +408,7 @@ export default function TaskDetailDialog({
                 <Select
                   value={editedTask.status || 'todo'}
                   onValueChange={(v) => {
-                    const check = canMoveTo(editedTask, v, indexTasks(allTasks));
+                    const check = canMoveTo(editedTask, v, indexTasks(allTasks), indexSubtasks(subtasks));
                     if (!check.ok) {
                       setStatusBlocked(check.blockers.map((b) => b.title));
                       window.setTimeout(() => setStatusBlocked(null), 6000);
@@ -410,6 +458,63 @@ export default function TaskDetailDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Story Points: Aufwand, nicht Stunden. Die Fibonacci-Sprünge
+                  halten die Schätzung ehrlich — grosse Tickets lassen sich
+                  ohnehin nicht auf den Punkt schätzen. */}
+              <div>
+                <label className="text-sm font-medium text-slate-600 mb-2 block">
+                  {language === 'de' ? 'Story Points' : 'Story points'}
+                </label>
+                <Select
+                  value={String(editedTask.story_points || 0)}
+                  onValueChange={(v) => {
+                    const n = Number(v);
+                    setEditedTask({ ...editedTask, story_points: n });
+                    updateTaskMutation.mutate({ story_points: n });
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">{language === 'de' ? 'Nicht geschätzt' : 'Not estimated'}</SelectItem>
+                    {STORY_POINTS.map((p) => (
+                      <SelectItem key={p} value={String(p)}>
+                        {p}{p === 13 || p === 21
+                          ? (language === 'de' ? '  — besser teilen' : '  — better split')
+                          : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Board wechseln. Der leere Wert ist das Hauptboard: Tickets
+                  ohne kanban_board_id landen dort. */}
+              {kanbanBoards.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-slate-600 mb-2 block">
+                    {language === 'de' ? 'Board' : 'Board'}
+                  </label>
+                  <Select
+                    value={editedTask.kanban_board_id || MAIN_BOARD}
+                    onValueChange={(v) => {
+                      const next = v === MAIN_BOARD ? null : v;
+                      setEditedTask({ ...editedTask, kanban_board_id: next });
+                      updateTaskMutation.mutate({ kanban_board_id: next });
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={MAIN_BOARD}>
+                        {language === 'de' ? 'Hauptboard' : 'Main board'}
+                      </SelectItem>
+                      {kanbanBoards.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="sm:col-span-2">
                 <label className="text-sm font-medium text-slate-600 mb-2 block">Zugewiesene Personen</label>
                 <div className="flex flex-wrap gap-2 mb-2 min-w-0">
@@ -526,12 +631,36 @@ export default function TaskDetailDialog({
                 </div>
               )}
 
+              {/* Reihenfolge per Pfeil statt per Ziehen: In einem modalen
+                  Dialog kämpft Ziehen mit dem Fokusfang, und auf dem Handy
+                  trifft man die kleinen Zeilen kaum. Zwei Pfeile treffen
+                  immer — auch mit der Tastatur. */}
               <div className="space-y-2 mb-3">
-                {subtasks.map((subtask) => (
+                {subtasks.map((subtask, i) => (
                   <div key={subtask.id} className="flex items-center gap-2 group">
+                    <div className="flex flex-col shrink-0">
+                      <button
+                        type="button"
+                        disabled={i === 0}
+                        aria-label={language === 'de' ? 'Nach oben' : 'Move up'}
+                        onClick={() => moveSubtask(i, -1)}
+                        className="text-slate-300 hover:text-slate-900 disabled:opacity-0 leading-none"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={i === subtasks.length - 1}
+                        aria-label={language === 'de' ? 'Nach unten' : 'Move down'}
+                        onClick={() => moveSubtask(i, 1)}
+                        className="text-slate-300 hover:text-slate-900 disabled:opacity-0 leading-none"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     <Checkbox
                       checked={subtask.completed}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked) =>
                         toggleSubtaskMutation.mutate({ id: subtask.id, completed: checked })
                       }
                     />
