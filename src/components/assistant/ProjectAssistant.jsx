@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, X, Send, Loader2, Check, Plus } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, Check } from 'lucide-react';
+import { onBotAvatar } from '@/lib/botAvatar';
 import { askAssistant } from '@/api/assistant';
 import { useLanguage } from '@/components/LanguageProvider';
+
+/* Three.js waere sonst in jedem Seitenaufruf drin — der Roboter kommt erst,
+   wenn der Knopf sichtbar wird. */
+const AssistantBot = lazy(() => import('./AssistantBot'));
 
 /**
  * Der Projekt-Assistent.
@@ -32,6 +37,30 @@ const STARTERS = {
   ],
 };
 
+/**
+ * Das Gesicht des Assistenten neben seinen Antworten.
+ *
+ * Ein Bild, keine 3D-Szene: Der Roboter läuft genau einmal, im runden Knopf.
+ * Bis das Standbild daraus vorliegt — oder falls es nie kommt, etwa ohne
+ * WebGL — steht hier die Marke. `hidden` haelt den Platz frei, damit
+ * aufeinanderfolgende Antworten buendig bleiben.
+ */
+function BotFace({ avatar, size = 30, hidden = false }) {
+  const style = { width: size, height: size };
+  if (hidden) return <span className="shrink-0" style={style} aria-hidden="true" />;
+  return (
+    <span
+      className="grid place-items-center shrink-0 rounded-full overflow-hidden border-2 border-black bg-[#ef5a24]"
+      style={style}
+      aria-hidden="true"
+    >
+      {avatar
+        ? <img src={avatar} alt="" className="w-full h-full object-cover" />
+        : <Sparkles className="w-3.5 h-3.5 text-white" />}
+    </span>
+  );
+}
+
 export default function ProjectAssistant({ open, onClose, project, tasks = [], members = [], onCreateTasks }) {
   const { language } = useLanguage();
   const de = language !== 'en';
@@ -44,6 +73,9 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
   const [creating, setCreating] = useState(false);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  /* Standbild des Roboters — kommt aus dem runden Knopf, sobald er lief. */
+  const [avatar, setAvatar] = useState(null);
+  useEffect(() => onBotAvatar(setAvatar), []);
 
   useEffect(() => {
     if (open) window.setTimeout(() => inputRef.current?.focus(), 50);
@@ -126,9 +158,7 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
       >
         <header className="flex items-center justify-between gap-2 border-b-2 border-black px-4 py-3 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="grid place-items-center w-8 h-8 bg-[#ef5a24] text-white shrink-0">
-              <Sparkles className="w-4 h-4" />
-            </span>
+            <BotFace avatar={avatar} size={34} />
             <div className="min-w-0">
               <p className="font-black leading-tight">
                 {de ? 'Projekt-Assistent' : 'Project assistant'}
@@ -168,22 +198,33 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
           )}
 
           {messages.map((m, i) => (
-            <div key={i} className={m.role === 'user' ? 'text-right' : ''}>
-              <div className={`inline-block max-w-[92%] text-sm px-3 py-2 border-2 text-left whitespace-pre-wrap [overflow-wrap:anywhere] ${
-                m.role === 'user'
-                  ? 'border-black bg-black text-white'
-                  : 'border-black bg-white'
-              }`}>
-                {m.content}
+            m.role === 'user' ? (
+              <div key={i} className="text-right">
+                <div className="inline-block max-w-[92%] text-sm px-3 py-2 border-2 border-black bg-black text-white text-left whitespace-pre-wrap [overflow-wrap:anywhere]">
+                  {m.content}
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Antworten bekommen den Roboter davor. Bei mehreren Antworten
+                 hintereinander nur bei der ersten — sonst steht eine Spalte
+                 identischer Bilder da. */
+              <div key={i} className="flex items-start gap-2">
+                <BotFace avatar={avatar} hidden={messages[i - 1]?.role === 'assistant'} />
+                <div className="inline-block max-w-[86%] text-sm px-3 py-2 border-2 border-black bg-white text-left whitespace-pre-wrap [overflow-wrap:anywhere]">
+                  {m.content}
+                </div>
+              </div>
+            )
           ))}
 
           {busy && (
-            <p className="flex items-center gap-2 text-sm text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {de ? 'Denkt nach…' : 'Thinking…'}
-            </p>
+            <div className="flex items-center gap-2">
+              <BotFace avatar={avatar} />
+              <p className="flex items-center gap-2 text-sm text-slate-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {de ? 'Denkt nach…' : 'Thinking…'}
+              </p>
+            </div>
           )}
 
           {error && (
@@ -276,17 +317,33 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
   );
 }
 
-/** Der Knopf, der ihn öffnet. */
+/**
+ * Der runde Knopf mit dem Roboter.
+ *
+ * Bis das Modell geladen ist, steht dort die Marke — kein Loch und kein
+ * Zappeln. Fehlt WebGL ganz, bleibt sie einfach stehen: Der Knopf muss
+ * anklickbar sein, ob die Figur läuft oder nicht.
+ */
 export function AssistantButton({ onClick, label }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 h-9 px-3 border-2 border-[#ef5a24] bg-[#ef5a24] text-white text-xs font-bold uppercase tracking-wide hover:bg-black hover:border-black"
+      title={label}
+      aria-label={label}
+      className="relative grid place-items-center w-11 h-11 shrink-0 rounded-full
+                 border-2 border-black bg-[#ef5a24] overflow-hidden
+                 transition-transform hover:scale-105 active:scale-95
+                 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
     >
-      <Sparkles className="w-4 h-4" />
-      <span className="hidden sm:inline">{label}</span>
-      <Plus className="w-3 h-3 sm:hidden" />
+      {/* Platzhalter liegt darunter und verschwindet nie — der Roboter legt
+          sich mit eigenem Hintergrund darüber, sobald er da ist. */}
+      <Sparkles className="absolute w-5 h-5 text-white" aria-hidden="true" />
+      <span className="absolute inset-0">
+        <Suspense fallback={null}>
+          <AssistantBot size={44} />
+        </Suspense>
+      </span>
     </button>
   );
 }
