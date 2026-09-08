@@ -210,16 +210,6 @@ function ProjectsListContent() {
   // Rechnung, aber es loest sie um Mitternacht erneut aus.
   const focusedId = useMemo(() => activeFocusId(focusLock), [focusLock, dayTick]);
 
-  /**
-   * Zeigt die Sperre auf ein Projekt, das es nicht mehr gibt (geloescht,
-   * verlassen, Zugriff entzogen), faellt die Liste zurueck in den Normalfall.
-   * Eine leere Fokus-Ansicht waere eine Sackgasse.
-   */
-  const focusedProject = useMemo(
-    () => (focusedId ? projects.find((p) => p.id === focusedId) || null : null),
-    [focusedId, projects],
-  );
-
   const enterFocus = (project) => {
     setFocusLock(project.id);   // Sperre, Zeitstempel und Neu-Hinweis in einem Zug
     window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
@@ -307,6 +297,24 @@ function ProjectsListContent() {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
+
+  /**
+   * Das Projekt, auf das die Tagessperre zeigt.
+   *
+   * MUSS NACH der Projekt-Abfrage stehen. Vorher stand es weiter oben, direkt
+   * bei der Sperre — fachlich naheliegend, technisch tödlich: `projects` ist
+   * ein `const` aus der Abfrage weiter unten, und der Zugriff davor wirft
+   * "Cannot access 'projects' before initialization". Die Projektliste war
+   * damit komplett weiss. Weder Build noch Lint sagten etwas.
+   *
+   * Zeigt die Sperre auf ein Projekt, das es nicht mehr gibt (gelöscht,
+   * verlassen, Zugriff entzogen), fällt die Liste in den Normalfall zurück.
+   * Eine leere Fokus-Ansicht wäre eine Sackgasse.
+   */
+  const focusedProject = useMemo(
+    () => (focusedId ? projects.find((p) => p.id === focusedId) || null : null),
+    [focusedId, projects],
+  );
 
   const userCreatedProjects = projects.filter(p =>
     p.created_by && userEmailLower && p.created_by.toLowerCase() === userEmailLower
@@ -657,7 +665,8 @@ function ProjectsListContent() {
               variant="outline"
               size="sm"
               onClick={() => navigate(createPageUrl('IdeasHub'))}
-              className="inline-flex border-amber-200 text-amber-900 hover:bg-amber-50 shrink-0"
+              /* h-9 wie alle Nachbarn: `size="sm"` waere 32px neben 36px. */
+              className="h-9 inline-flex border-amber-200 text-amber-900 hover:bg-amber-50 shrink-0"
               aria-label={language === 'de' ? 'Ideen Hub' : 'Ideas Hub'}
               title={language === 'de' ? 'Ideen Hub' : 'Ideas Hub'}
             >

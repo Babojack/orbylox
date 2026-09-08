@@ -598,7 +598,8 @@ function LayoutContent({ children, currentPageName }) {
             <button
               type="button"
               onPointerDown={toggleSidebar}
-              className="h-10 w-10 inline-flex items-center justify-center rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95"
+              /* 36px wie Sprache, Theme und Glocke daneben — vorher 40. */
+              className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95"
               aria-label="Open navigation menu"
             >
               <Menu className="w-6 h-6" />

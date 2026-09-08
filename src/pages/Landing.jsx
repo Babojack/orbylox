@@ -7,6 +7,7 @@ import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion
 import ModuleShowcase from "@/components/landing/ModuleShowcase";
 import BotSection from "@/components/landing/BotSection";
 import ThemeSwitch from '@/components/common/ThemeSwitch';
+import { cn } from '@/lib/utils';
 /**
  * Freigestelltes Hauptbild — bewusst aus `src/`, nicht aus `public/`.
  *
@@ -49,6 +50,21 @@ import {
    Alle Knoepfe teilen dieselben drei Varianten.
    -------------------------------------------------------------------------- */
 
+/**
+ * Knopf im TaskNow-Stil.
+ *
+ * WARUM HIER `cn` UND NICHT EINFACH ANEINANDERHÄNGEN
+ * Vorher stand hier `${base} ${variants} ${className}` — und Übergaben von
+ * aussen wirkten NICHT. Bei Tailwind entscheidet nicht die Reihenfolge im
+ * Klassenattribut, sondern die Reihenfolge im Stylesheet: `py-3` steht dort
+ * hinter `py-2`, also gewann `py-3`, obwohl der Aufrufer `py-2` mitgab. Die
+ * Kopfzeile hatte deshalb zwei Knöpfe mit 44 und drei mit 36 Pixeln Höhe —
+ * am Quelltext sah alles richtig aus.
+ *
+ * `cn` (clsx + tailwind-merge) löst das, indem es die unterlegene Klasse
+ * ENTFERNT statt sie zu überschreiben. Beide Werkzeuge liegen im Projekt und
+ * werden von den shadcn-Bausteinen längst benutzt; hier fehlten sie.
+ */
 function TnButton({ variant = 'solid', className = '', children, ...props }) {
   const base =
     'inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold uppercase tracking-wide border-2 transition-colors';
@@ -58,11 +74,32 @@ function TnButton({ variant = 'solid', className = '', children, ...props }) {
     outline: 'bg-white text-black border-black hover:bg-black hover:text-white',
   };
   return (
-    <button type="button" className={`${base} ${variants[variant]} ${className}`} {...props}>
+    <button type="button" className={cn(base, variants[variant], className)} {...props}>
       {children}
     </button>
   );
 }
+
+/**
+ * Die Maße aller Bedienelemente der Kopfzeile — an EINER Stelle.
+ *
+ * Sprache, Theme, Blog, Anmelden und Registrieren sind fünf verschiedene
+ * Bauteile: zwei rohe Knöpfe, ein Verweis und zweimal `TnButton`. Solange
+ * jeder seine eigenen Abstände mitbringt, driften sie bei der nächsten
+ * Änderung wieder auseinander. Eine gemeinsame Zeichenkette kann das nicht.
+ *
+ * Die Höhe steht ausdrücklich als `h-9` da und nicht als Ergebnis von
+ * Innenabstand plus Zeilenhöhe: So bleibt sie gleich, auch wenn jemand später
+ * die Schriftgröße anfasst.
+ *
+ * Das `py-0` ist kein Füllsel. `TnButton` bringt `py-3` mit; bei 36 Pixeln
+ * Höhe wären das 24 Pixel Innenabstand um eine 16 Pixel hohe Zeile — der
+ * Inhalt würde gequetscht. `tailwind-merge` entfernt `py-3` nur, wenn ein
+ * anderer Wert derselben Eigenschaft danebensteht.
+ */
+const KOPF_STEUERUNG =
+  'h-9 px-3 py-0 inline-flex items-center justify-center gap-1.5 shrink-0 ' +
+  'text-xs font-bold uppercase tracking-wide border-2';
 
 function SectionTitle({ children, sub }) {
   return (
@@ -195,7 +232,7 @@ function LandingContent() {
               onPointerEnter={prefetchSalute}
               onFocus={prefetchSalute}
               aria-label={de ? 'Auf Englisch umschalten' : 'Switch to German'}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 border-2 border-black text-xs font-bold uppercase hover:bg-black hover:text-white transition-colors"
+              className={cn(KOPF_STEUERUNG, 'border-black hover:bg-black hover:text-white transition-colors')}
             >
               <Languages className="w-4 h-4" />
               <span className="hidden xs:inline">{de ? 'EN' : 'DE'}</span>
@@ -206,15 +243,15 @@ function LandingContent() {
                 Blog-Knopf in die englische Übersicht führen. */}
             <a
               href={de ? '/blog' : '/en/blog'}
-              className="hidden sm:inline-flex items-center px-3 py-2 border-2 border-black text-xs font-bold uppercase tracking-wide hover:bg-black hover:text-white transition-colors"
+              className={cn(KOPF_STEUERUNG, 'hidden sm:inline-flex border-black hover:bg-black hover:text-white transition-colors')}
             >
               Blog
             </a>
-            <TnButton variant="outline" className="px-3 sm:px-4 py-2 text-xs" onClick={goLogin}>
+            <TnButton variant="outline" className={KOPF_STEUERUNG} onClick={goLogin}>
               <LogIn className="w-4 h-4" />
               {de ? 'Anmelden' : 'Login'}
             </TnButton>
-            <TnButton variant="solid" className="hidden sm:inline-flex px-4 py-2 text-xs" onClick={goLogin}>
+            <TnButton variant="solid" className={cn(KOPF_STEUERUNG, 'hidden sm:inline-flex')} onClick={goLogin}>
               <UserPlus className="w-4 h-4" />
               {de ? 'Registrieren' : 'Register'}
             </TnButton>
