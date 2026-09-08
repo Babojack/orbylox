@@ -17,6 +17,7 @@
  */
 
 const SCOPE_CLASS = 'theme-scope';
+const THEME_EVENT = 'orbylox:theme';
 
 const KEY = 'orbylox_theme';
 export const THEMES = ['default', 'retro'];
@@ -60,7 +61,27 @@ export function applyTheme(theme) {
   } catch {
     // Privater Modus: gilt dann nur fuer diese Sitzung.
   }
+  /**
+   * Bescheid geben, dass sich das Aussehen geaendert hat.
+   *
+   * Das Theme wirkt sonst rein ueber CSS, und CSS sieht React nicht. Was aber
+   * am Theme haengt und KEIN CSS ist — welche Figur im runden Knopf steht —,
+   * erfaehrt vom Wechsel nichts und zeigt bis zum naechsten Neuladen den
+   * Roboter. Ein Ereignis am `window` erreicht alle, ohne dass ein Kontext
+   * durch den halben Baum gereicht werden muss.
+   */
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: { theme: t } }));
+  }
   return t;
+}
+
+/** Zuhoeren, wenn das Aussehen wechselt. Gibt die Abmeldefunktion zurueck. */
+export function onThemeChange(handler) {
+  if (typeof window === 'undefined') return () => {};
+  const fn = (e) => handler(e.detail?.theme || currentTheme());
+  window.addEventListener(THEME_EVENT, fn);
+  return () => window.removeEventListener(THEME_EVENT, fn);
 }
 
 /** Beim Start anwenden, damit die Seite nicht kurz im falschen Kleid steht. */

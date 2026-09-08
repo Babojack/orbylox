@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Palette } from 'lucide-react';
-import { applyTheme, readTheme } from '@/lib/theme';
+import { applyTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/useTheme';
 import { nod } from '@/lib/botStage';
 
 /**
@@ -10,9 +10,10 @@ import { nod } from '@/lib/botStage';
  * Schalter ehrlicher als eine Auswahl, die so tut, als gäbe es mehr.
  */
 export default function ThemeSwitch({ de = true }) {
-  const [theme, setTheme] = useState('default');
-
-  useEffect(() => { setTheme(readTheme()); }, []);
+  // Ueber den Hook statt ueber eigenen Zustand: Auf der Projektliste steht der
+  // Schalter zweimal im Baum (Kopfzeile und Liste). Mit eigenem Zustand haette
+  // der eine noch "Design" gezeigt, waehrend der andere schon "Retro" sagt.
+  const theme = useTheme();
 
   /**
    * Erst umschalten, dann nicken.
@@ -29,7 +30,7 @@ export default function ThemeSwitch({ de = true }) {
    */
   const toggle = () => {
     const next = theme === 'retro' ? 'default' : 'retro';
-    setTheme(applyTheme(next));
+    applyTheme(next);            // meldet den Wechsel, der Hook zieht nach
     if (next === 'retro') nod();
   };
 

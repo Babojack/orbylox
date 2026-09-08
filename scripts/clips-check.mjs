@@ -143,6 +143,42 @@ for (const [datei, zweck, welt] of CLIPS) {
   );
 }
 
+/* --- Die Ruhebewegung im runden Knopf ------------------------------------ */
+
+/**
+ * Der Knopf läuft in Endlosschleife. Springt die Bewegung zwischen letztem
+ * und erstem Bild, sieht man das alle paar Sekunden — bei 44 Pixeln als
+ * Zucken, das man nicht einordnen kann.
+ *
+ * Der Roboter bringt sein `idle` im GLB mit; sie nicht, dort wird die
+ * Kopfgeste geschleift. Also wird genau das nachgemessen, statt es zu hoffen.
+ */
+{
+  const ruhe = 'nod-retro.clip.json';
+  const d = JSON.parse(fs.readFileSync(path.join(modelle, ruhe), 'utf8'));
+  let sprung = 0;
+  for (const t of d.clip.tracks) {
+    const s2 = t.values.length / t.times.length;
+    const n = t.times.length;
+    for (let k = 0; k < s2; k++) {
+      sprung = Math.max(sprung, Math.abs(t.values[k] - t.values[(n - 1) * s2 + k]));
+    }
+  }
+  const nahtlos = sprung < 0.01;
+  if (!nahtlos) fehler++;
+  console.log(`\n  ${nahtlos ? 'OK  ' : 'FEHL'}  Ruheschleife (retro) schließt sich` +
+              `   Abstand Anfang/Ende ${sprung.toFixed(4)}`);
+
+  // Der Roboter braucht keine eigene Datei — seine Bewegung liegt im Modell.
+  const glb = fs.readFileSync(path.join(modelle, 'xbot.glb'));
+  const laenge = glb.readUInt32LE(12);
+  const gltf = JSON.parse(glb.slice(20, 20 + laenge).toString('utf8'));
+  const hatIdle = (gltf.animations || []).length > 0;
+  if (!hatIdle) fehler++;
+  console.log(`  ${hatIdle ? 'OK  ' : 'FEHL'}  Ruhebewegung (normal) steckt in xbot.glb` +
+              `   ${(gltf.animations || []).length} Animation(en)`);
+}
+
 /* --- Verweist die Zuordnung auf Dateien, die es gibt? -------------------- */
 const quelle = fs.readFileSync(path.join(wurzel, 'src/lib/botClips.js'), 'utf8');
 for (const m of quelle.matchAll(/'(\/models\/[\w.-]+\.(?:json|glb))'/g)) {

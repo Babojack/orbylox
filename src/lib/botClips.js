@@ -47,6 +47,26 @@ export function modelFor(theme = currentTheme()) {
   return MODELLE[theme] || MODELLE.default;
 }
 
+/**
+ * Die Ruhebewegung für den runden Knopf.
+ *
+ * `null` heißt: steckt im Modell selbst. Der Roboter bringt sein `idle` in
+ * `xbot.glb` mit; ihre Datei enthält bewusst keine Bewegung, weil dieselben
+ * Spuren sonst dreimal im Paket lägen.
+ *
+ * Genommen wird die Kopfgeste. Das ist keine Verlegenheitslösung: Ihre erste
+ * und letzte Haltung sind bis auf drei Nachkommastellen gleich, die Schleife
+ * schließt sich also ohne Sprung — nachgemessen, nicht gehofft.
+ */
+const RUHE = {
+  default: null,
+  retro: '/models/nod-retro.clip.json',
+};
+
+export function idleFor(theme = currentTheme()) {
+  return RUHE[theme] ?? null;
+}
+
 const SAETZE = {
   default: {
     celebrate: '/models/dance.clip.json',

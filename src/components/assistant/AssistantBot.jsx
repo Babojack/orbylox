@@ -3,15 +3,20 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { setBotAvatar } from '@/lib/botAvatar';
+import { idleFor, modelFor } from '@/lib/botClips';
+import { useTheme } from '@/lib/useTheme';
 
 /**
- * Der Roboter im runden Knopf — dieselbe Figur wie auf der Startseite,
- * dieselbe Bewegung.
+ * Die Figur im runden Knopf — dieselbe wie bei ihren Auftritten, dieselbe
+ * Bewegung. Im normalen Design der Roboter, im Retro die Figur mit Umhang.
  *
- * Die Animation steckt im Modell selbst (`idle` in xbot.glb), es ist also
- * dieselbe ruhige Schleife wie im Hauptbild. Nur der Ausschnitt ist enger:
- * Auf 44 Pixeln erkennt man von einer ganzen Figur nichts, deshalb Kopf und
- * Schultern.
+ * Woher die Ruhebewegung kommt, ist je Figur verschieden: Der Roboter bringt
+ * sein `idle` in `xbot.glb` mit, ihre Datei nicht — dort wird die Kopfgeste
+ * geladen und in Schleife gelegt. `idleFor` weiß, welcher Fall gilt.
+ *
+ * Der Ausschnitt ist eng: Auf 44 Pixeln erkennt man von einer ganzen Figur
+ * nichts, deshalb Kopf und Schultern. Beide sind fast gleich groß (Kopf bei
+ * 1,60 bzw. 1,58 Einheiten), eine eigene Kameraeinstellung braucht es nicht.
  *
  * Nebenbei entsteht hier das Profilbild für den Chat: Sobald das Modell ein
  * paar Bilder gelaufen ist, wird ein Standbild aus der Leinwand gezogen und
@@ -20,13 +25,15 @@ import { setBotAvatar } from '@/lib/botAvatar';
  * dem Zeichnen verworfen wird.
  */
 
-const MODEL_URL = '/models/xbot.glb';
-
 export default function AssistantBot({ size = 44 }) {
   const mountRef = useRef(null);
   const [ready, setReady] = useState(false);
+  // Beim Themewechsel muss die Szene neu aufgebaut werden — es ist ein anderes
+  // Modell, nicht bloß eine andere Farbe.
+  const theme = useTheme();
 
   useEffect(() => {
+    setReady(false);
     const mount = mountRef.current;
     if (!mount) return undefined;
 
@@ -72,9 +79,15 @@ export default function AssistantBot({ size = 44 }) {
 
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    loader.load(
-      MODEL_URL,
-      (gltf) => {
+
+    const ruheUrl = idleFor(theme);
+    const ladeModell = new Promise((res, rej) => loader.load(modelFor(theme), res, undefined, rej));
+    const ladeRuhe = ruheUrl
+      ? fetch(ruheUrl).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Clip ${r.status}`))))
+      : Promise.resolve(null);
+
+    Promise.all([ladeModell, ladeRuhe])
+      .then(([gltf, ruhe]) => {
         if (disposed) return;
         const model = gltf.scene;
         model.scale.setScalar(0.01);       // Mixamo liefert Zentimeter
@@ -83,15 +96,19 @@ export default function AssistantBot({ size = 44 }) {
           if (o.isMesh || o.isSkinnedMesh) o.frustumCulled = false;
         });
         scene.add(model);
-        if (gltf.animations?.length) {
+
+        const clip = ruhe
+          ? THREE.AnimationClip.parse(ruhe.clip)
+          : gltf.animations?.[0];          // beim Roboter im Modell eingebacken
+        if (clip) {
           mixer = new THREE.AnimationMixer(model);
-          mixer.clipAction(gltf.animations[0]).play();   // 'idle'
+          const action = mixer.clipAction(clip);
+          action.setLoop(THREE.LoopRepeat, Infinity);
+          action.play();
         }
         setReady(true);
-      },
-      undefined,
-      (err) => console.error('[AssistantBot] Modell konnte nicht geladen werden', err),
-    );
+      })
+      .catch((err) => console.error('[AssistantBot] konnte nicht laden', err));
 
     const clock = new THREE.Clock();
     let raf = 0;
@@ -120,7 +137,7 @@ export default function AssistantBot({ size = 44 }) {
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
-  }, [size]);
+  }, [size, theme]);
 
   return (
     <div
