@@ -1160,7 +1160,14 @@ export default function ScrumBoard() {
                  sonst steht Pergament auf Pergament und man sieht die Grenzen
                  nicht mehr. */
               data-kanban-column=""
-              className={`flex-1 flex flex-col bg-slate-50/50 rounded-2xl border min-h-[60vh] transition-all duration-200 ${
+              /* `min-w-0` ist hier kein Feinschliff, sondern trägt die Spalte.
+                 Als Flex-Kind gilt sonst `min-width: auto`: Die Spalte darf
+                 dann nie schmaler werden als ihr breitester unteilbarer
+                 Inhalt — und wächst über ihre Hülle hinaus in die
+                 Nachbarspalte. Genau so sind "Zu erledigen" und "In Arbeit"
+                 ineinandergelaufen. Gemessen: bei 1200px Fensterbreite ragte
+                 die Spalte 5px heraus, bei 1000px schon 10px. */
+              className={`flex-1 min-w-0 flex flex-col bg-slate-50/50 rounded-2xl border min-h-[60vh] transition-all duration-200 ${
                 forbidden ? 'border-slate-200 opacity-45' : 'border-slate-100/60'
               }`}
             >
@@ -1262,7 +1269,10 @@ export default function ScrumBoard() {
                                       {t('dragHint')}
                                   </span>
                               </div>
-                              <p className="text-sm font-medium text-slate-800 leading-snug mb-2">
+                              {/* `break-words`: Ein Ticket darf einen langen
+                                  Link oder ein zusammengesetztes Wort im Titel
+                                  haben, ohne die Spalte zu sprengen. */}
+                              <p className="text-sm font-medium text-slate-800 leading-snug mb-2 break-words">
                                   {draggableTask.title}
                               </p>
 
@@ -1276,10 +1286,20 @@ export default function ScrumBoard() {
                                     title={open.map((b) => b.title).join('\n')}
                                   >
                                     <Lock className="w-3 h-3 mt-0.5 shrink-0 text-[#ef5a24]" />
-                                    <span className="text-[11px] leading-tight text-slate-600 min-w-0">
+                                    {/* `truncate` gehoert an DIESEN Span, nicht
+                                        an den inneren. Innen ist er ein
+                                        Inline-Kasten: `overflow` und
+                                        `text-overflow` greifen dort nicht,
+                                        `white-space: nowrap` aber schon. Der
+                                        Titel wurde also nie gekuerzt, sondern
+                                        nur unteilbar — und schob die ganze
+                                        Spalte auseinander. Hier aussen ist der
+                                        Span ein Flex-Kind und damit ein Block:
+                                        jetzt kuerzt er wirklich. */}
+                                    <span className="text-[11px] leading-tight text-slate-600 min-w-0 truncate">
                                       <span className="font-bold text-[#ef5a24]">{t('blockedBadge')}</span>
                                       {' · '}
-                                      <span className="truncate">{open[0].title}</span>
+                                      {open[0].title}
                                       {open.length > 1 && ` +${open.length - 1}`}
                                     </span>
                                   </div>

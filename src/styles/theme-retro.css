@@ -1520,26 +1520,36 @@
  * darunter; damit sieht man Grenzen, ohne dass eine Linie sie ziehen müsste.
  */
 /**
- * Die Wiese liegt NUR unter dem Brett — nicht unter der ganzen Seite.
+ * Die Wiese unter dem ganzen Inhaltsbereich.
  *
- * Der erste Anlauf faerbte `main`. Das war zu grob: Im Projekt-Feed und im
- * Dateibereich haben Kacheln und Karten ihre Fuellung teils aus Klassen, die
- * das Theme nicht anfasst (Verlaeufe, halbdurchsichtiges Weiss). Auf weissem
- * Grund fiel das nie auf — auf Gruen standen sie ploetzlich fuellungslos da,
- * roter Text auf gruener Flaeche, und man sah nichts mehr.
- *
- * Also gilt: Grundflaeche bleibt Pergament, und gruen wird gezielt das, was
- * gruen sein soll.
+ * `main[class]` statt `main`: Der Bereich traegt `bg-white`, und die Regel
+ * dafuer hat (0,3,0). Das Attribut hebt uns auf (0,3,1) — knapp davor, ohne
+ * dass irgendwo ein `!important` noetig waere.
  */
-[data-theme='retro'] .theme-scope [data-kanban-board] {
+[data-theme='retro'] .theme-scope main[class] {
   background-color: var(--r-grass);
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 0, 0, 0.055) 1px, transparent 1px);
   background-size: 16px 16px, 16px 16px;
-  padding: 12px;
-  border: 2px solid var(--r-edge);
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.08);
+}
+/**
+ * ... und darauf wird jede gedaempfte Schrift zu Tinte.
+ *
+ * Das Gras liegt in der Mitte der Helligkeitsskala — dem unguenstigsten Ort
+ * fuer Text. Tinte darauf ergibt 4,57:1, gedaempftes Braun aber nur 1,87:1.
+ * Es gibt keinen zweiten, helleren Ton, der hier noch traegt: selbst ein
+ * deutlich dunkleres Braun kaeme nur auf 3,37:1 — und waere dann von Tinte
+ * kaum noch zu unterscheiden. Also gilt auf dem Gras dasselbe wie auf den
+ * Wiesenbaendern der Startseite: alles wird Tinte, die Hierarchie traegt
+ * dort Groesse und Schnitt.
+ *
+ * Das `:not(...)` nimmt alles aus, was eine eigene Flaeche mitbringt. In
+ * einer Karte, einer Kachel, einer Spalte liegt kein Gras hinter der
+ * Schrift — dort bleibt die Abstufung, wie sie ist.
+ */
+[data-theme='retro'] .theme-scope main :is(.text-slate-50,.text-slate-100,.text-slate-200,.text-slate-300,.text-slate-400,.text-slate-500,.text-slate-600,.text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300,.text-gray-400,.text-gray-500,.text-gray-600,.text-zinc-50,.text-zinc-100,.text-zinc-200,.text-zinc-300,.text-zinc-400,.text-zinc-500,.text-zinc-600,.text-neutral-50,.text-neutral-100,.text-neutral-200,.text-neutral-300,.text-neutral-400,.text-neutral-500,.text-neutral-600,.text-stone-50,.text-stone-100,.text-stone-200,.text-stone-300,.text-stone-400,.text-stone-500,.text-stone-600,.text-red-50,.text-red-100,.text-red-200,.text-red-300,.text-red-400,.text-red-500,.text-red-600,.text-rose-50,.text-rose-100,.text-rose-200,.text-rose-300,.text-rose-400,.text-rose-500,.text-rose-600,.text-orange-50,.text-orange-100,.text-orange-200,.text-orange-300,.text-orange-400,.text-orange-500,.text-orange-600,.text-amber-50,.text-amber-100,.text-amber-200,.text-amber-300,.text-amber-400,.text-amber-500,.text-amber-600,.text-yellow-50,.text-yellow-100,.text-yellow-200,.text-yellow-300,.text-yellow-400,.text-yellow-500,.text-yellow-600,.text-green-50,.text-green-100,.text-green-200,.text-green-300,.text-green-400,.text-green-500,.text-green-600,.text-emerald-50,.text-emerald-100,.text-emerald-200,.text-emerald-300,.text-emerald-400,.text-emerald-500,.text-emerald-600,.text-lime-50,.text-lime-100,.text-lime-200,.text-lime-300,.text-lime-400,.text-lime-500,.text-lime-600,.text-teal-50,.text-teal-100,.text-teal-200,.text-teal-300,.text-teal-400,.text-teal-500,.text-teal-600,.text-cyan-50,.text-cyan-100,.text-cyan-200,.text-cyan-300,.text-cyan-400,.text-cyan-500,.text-cyan-600,.text-sky-50,.text-sky-100,.text-sky-200,.text-sky-300,.text-sky-400,.text-sky-500,.text-sky-600,.text-blue-50,.text-blue-100,.text-blue-200,.text-blue-300,.text-blue-400,.text-blue-500,.text-blue-600,.text-indigo-50,.text-indigo-100,.text-indigo-200,.text-indigo-300,.text-indigo-400,.text-indigo-500,.text-indigo-600,.text-violet-50,.text-violet-100,.text-violet-200,.text-violet-300,.text-violet-400,.text-violet-500,.text-violet-600,.text-purple-50,.text-purple-100,.text-purple-200,.text-purple-300,.text-purple-400,.text-purple-500,.text-purple-600,.text-fuchsia-50,.text-fuchsia-100,.text-fuchsia-200,.text-fuchsia-300,.text-fuchsia-400,.text-fuchsia-500,.text-fuchsia-600,.text-pink-50,.text-pink-100,.text-pink-200,.text-pink-300,.text-pink-400,.text-pink-500,.text-pink-600,.text-black):not(:is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-'],main :is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-']) *)) {
+  color: var(--r-ink);
 }
 [data-theme='retro'] .theme-scope [data-kanban-column] {
   background-color: var(--r-parch-2);

@@ -152,6 +152,8 @@ const MARKUP = `
       <div class="cursor-grab" id="greifen"></div>
       <button data-menu="" class="h-9 w-9 text-slate-600 hover:text-slate-900 hover:bg-slate-100" id="menue"></button>
       <div class="bg-blue-50" id="spalteblau"></div>
+      <p class="text-slate-500" id="freitext">Neuigkeiten, Ankündigungen und Team-Diskussionen.</p>
+      <div class="bg-white rounded-xl" id="tafel"><p class="text-slate-500" id="tafeltext">Nebensache</p></div>
       <div data-kanban-board="" class="flex gap-3 overflow-auto pb-4 flex-1" id="brett">
         <div data-kanban-column="" class="bg-slate-50/50 rounded-2xl border min-h-[60vh]" id="kanbanspalte">
           <div class="bg-white rounded-xl border-2 border-black" id="kanbankarte">Aufgabe</div>
@@ -425,16 +427,23 @@ const faelle = [
    * Pergament — das Brett zerfiel. Geprüft wird nicht "sieht gut aus",
    * sondern dass sich die drei Flächen paarweise überhaupt unterscheiden.
    */
-  ['Brettfläche ist Wiese', () => farbe(w(R, '#brett', 'background-color'))?.join() === zuRgb(palette['--r-grass']).join()],
+  ['Inhaltsfläche ist Wiese', () => farbe(w(R, 'main', 'background-color'))?.join() === zuRgb(palette['--r-grass']).join()],
   /**
-   * Und der Rest der Seite ist es NICHT.
+   * Auf dem Gras wird gedämpfte Schrift zu Tinte — aber NUR dort.
    *
-   * Diese Zusicherung ist die Narbe eines Fehlers: Zuerst wurde `main`
-   * eingefärbt. Im Feed und im Dateibereich standen daraufhin Kacheln, deren
-   * Füllung das Theme nicht anfasst, ohne Fläche auf dem Grün — roter Text
-   * auf grüner Wiese, unlesbar. Die Wiese bleibt beim Brett.
+   * Das Gras liegt in der Mitte der Helligkeitsskala: Tinte darauf ergibt
+   * 4,57:1, gedämpftes Braun 1,87:1. Einen helleren Ton, der hier noch trägt,
+   * gibt es nicht — selbst ein deutlich dunkleres Braun käme nur auf 3,37:1
+   * und wäre dann von Tinte kaum zu unterscheiden. Also: freistehend Tinte,
+   * in einer Karte bleibt die Abstufung.
+   *
+   * Die zweite Zusicherung ist die wichtigere. Ohne sie hätte die Regel auch
+   * "alles wird Tinte" heißen können, und die Hierarchie in jeder Karte wäre
+   * still verschwunden.
    */
-  ['der Rest der Seite bleibt Pergament', () => farbe(w(R, 'main', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],
+  ['freier Text auf Gras wird Tinte', () => w(R, '#freitext', 'color') === 'var(--r-ink)'],
+  ['in der Karte bleibt er gedämpft', () => w(R, '#tafeltext', 'color') === 'var(--r-ink-dim)'],
+  ['ohne Theme bleibt er grau', () => /100\s+116\s+139|#64748b/.test(w(N, '#freitext', 'color') || '')],
   ['Spalte hebt sich von der Wiese ab', () => {
     const s = w(R, '#kanbanspalte', 'background-color');
     return s !== null && farbe(s)?.join() !== zuRgb(palette['--r-grass']).join();
@@ -444,8 +453,32 @@ const faelle = [
     const ka = farbe(w(R, '#kanbankarte', 'background-color'));
     return sp && ka && sp.join() !== ka.join();
   }],
+  /**
+   * Zwei Zusicherungen am Quelltext statt am Stylesheet.
+   *
+   * Sie halten den Fehler fest, an dem "Zu erledigen" und "In Arbeit"
+   * ineinandergewachsen sind — beide sind mit Farben nicht zu fassen:
+   *
+   *   1. Die Spalte ist ein Flex-Kind. Ohne `min-w-0` gilt `min-width: auto`,
+   *      sie darf dann nie schmaler werden als ihr breitester unteilbarer
+   *      Inhalt und wächst über ihre Hülle hinaus in die Nachbarspalte.
+   *   2. `truncate` an einem Inline-Span kürzt nichts: `overflow` und
+   *      `text-overflow` greifen dort nicht, `white-space: nowrap` schon.
+   *      Der Text wird also bloß unteilbar — genau der Inhalt aus (1).
+   *      Am äußeren Span, der ein Flex-Kind und damit ein Block ist, kürzt er.
+   */
+  ['Kanban-Spalte darf schrumpfen', () => {
+    const s = fs.readFileSync(path.join(wurzel, 'src/pages/ScrumBoard.jsx'), 'utf8');
+    const i = s.indexOf('data-kanban-column');
+    return i > 0 && /className=\{`flex-1 min-w-0 /.test(s.slice(i, i + 900));
+  }],
+  ['und kein truncate an einem Inline-Span', () => {
+    const s = fs.readFileSync(path.join(wurzel, 'src/pages/ScrumBoard.jsx'), 'utf8');
+    // Der Sperrhinweis: kuerzen darf nur der Span, der auch min-w-0 traegt.
+    return /min-w-0 truncate/.test(s) && !/<span className="truncate">\{open\[0\]/.test(s);
+  }],
   ['die Spalte hat eine Kante', () => /solid/.test(w(R, '#kanbanspalte', 'border') || '')],
-  ['ohne Theme bleibt das Brett hell', () => farbe(w(N, '#brett', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],
+  ['ohne Theme bleibt alles hell', () => farbe(w(N, 'main', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],
 
   /**
    * Die `hover:`-Varianten.
