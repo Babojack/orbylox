@@ -30,6 +30,23 @@ concurrency:
 jobs:
   ausliefern:
     runs-on: ubuntu-latest
+
+    # Einmal oben, nicht in jedem Schritt erneut.
+    #
+    # `secrets.X || vars.X`: GitHub fuehrt unter "Secrets and variables" zwei
+    # getrennte Listen. Rechnername und Port sind keine Geheimnisse im engeren
+    # Sinn und landen deshalb leicht unter "Variables" — `secrets.X` ist dann
+    # leer, und im Protokoll steht `ssh-keyscan -p "" -H ""`. Genau daran ist
+    # die Auslieferung gescheitert. Beide Listen zu lesen kostet nichts.
+    #
+    # Der Schluessel steht bewusst NICHT in dieser Reihe: Ein privater
+    # Schluessel unter "Variables" waere unmaskiert im Protokoll.
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER || vars.SSH_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || vars.DEPLOY_PATH }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -71,11 +88,10 @@ jobs:
       # Zeile und Rückgabewerte, ausgegeben wird "gesetzt" oder "LEER".
       - name: Schlüssel einrichten
         env:
+          # Der Schlüssel NUR aus den Secrets. Läge er unter "Variables",
+          # stünde er unmaskiert in jedem Protokoll — dieser Weg bleibt zu.
+          # Die uebrigen vier stehen auf Job-Ebene.
           SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           set -u
           fehlt=0
@@ -89,6 +105,8 @@ jobs:
           done
           if [ "$fehlt" = "1" ]; then
             echo "Nachtragen unter: Settings -> Secrets and variables -> Actions."
+            echo "Achtung: Dort gibt es ZWEI Reiter. Der Ablauf liest beide,"
+            echo "aber der Schluessel MUSS unter 'Secrets' stehen."
             exit 1
           fi
 
@@ -147,17 +165,17 @@ jobs:
           rsync -rlptz --omit-dir-times \
             --exclude '.DS_Store' \
             --exclude 'htaccess' \
-            -e "ssh -p ${{ secrets.SSH_PORT }} -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes" \
-            dist/ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+            -e "ssh -p $SSH_PORT -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes" \
+            dist/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
 
       # Alte Bündel aufräumen. Sie tragen einen Inhaltsstempel im Namen, sind
       # also nach einer Auslieferung unerreichbar — bis auf Seiten, die schon
       # offen sind. 30 Tage Schonfrist ist dafür reichlich.
       - name: Alte Bündel wegräumen
         run: |
-          ssh -p "${{ secrets.SSH_PORT }}" -i ~/.ssh/id_deploy \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "find '${{ secrets.DEPLOY_PATH }}/assets' -type f -mtime +30 -delete" || true
+          ssh -p "$SSH_PORT" -i ~/.ssh/id_deploy \
+            "$SSH_USER@$SSH_HOST" \
+            "find '$DEPLOY_PATH/assets' -type f -mtime +30 -delete" || true
 
       - name: Nachsehen, was live ist
         run: |

@@ -123,13 +123,19 @@ lesen; dort steht einer dieser vier Fälle:
 
 | Meldung | Ursache | Was zu tun ist |
 |---|---|---|
-| `Das Geheimnis … ist leer oder fehlt` | Eins der fünf Geheimnisse fehlt | Settings → Secrets and variables → Actions → nachtragen |
+| `Das Geheimnis … ist leer oder fehlt` | Eins der fünf Werte fehlt — **oder steht im falschen Reiter** | Settings → Secrets and variables → Actions. Dort gibt es zwei Listen: **Secrets** und **Variables**. Der Ablauf liest beide; nur `SSH_KEY` muss zwingend unter *Secrets* stehen |
 | `Der Schlüssel hat nur 1 Zeile(n)` | Beim Einfügen sind die Zeilenumbrüche verlorengegangen | Datei mit `cat ~/.ssh/orbylox-deploy` öffnen und **alles** von `-----BEGIN` bis `-----END` einfügen |
 | `Die erste Zeile ist kein -----BEGIN` | Der **öffentliche** Schlüssel (`.pub`) steckt im Geheimnis | Die Datei **ohne** `.pub` nehmen |
 | `Der Server antwortet nicht auf Port …` | `SSH_HOST` oder `SSH_PORT` stimmt nicht | Port aus dem hPanel prüfen — bei Hostinger meist `65002`, nicht `22`. `SSH_HOST` ist der Rechnername, nicht `orbylox.de` |
 
 Der Schritt gibt dabei nie den Schlüssel aus: Er meldet nur „gesetzt" oder
 „LEER", die Zeilenzahl und Rückgabewerte.
+
+**Woran man ein fehlendes Geheimnis im alten Protokoll erkennt:** Gesetzte
+Geheimnisse erscheinen im Befehlsabdruck als `***`. Stehen dort stattdessen
+leere Anführungszeichen — `ssh-keyscan -p "" -H ""` —, ist der Wert schlicht
+nicht da. Genau so sah der Fehlschlag vom September 2026 aus: Der Schlüssel
+war maskiert, Rechnername und Port waren leer.
 
 **Die Prüfung schlägt fehl** — dann ist es kein Auslieferungsproblem. In den
 Actions-Protokollen steht, welche Zusicherung gerissen ist; dieselbe Prüfung
