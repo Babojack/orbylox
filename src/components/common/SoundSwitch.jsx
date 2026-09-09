@@ -43,7 +43,11 @@ export default function SoundSwitch({ de = true }) {
       aria-label={an
         ? (de ? 'Musik ausschalten' : 'Turn the music off')
         : (de ? 'Musik einschalten' : 'Turn the music on')}
-      className="h-9 w-9 shrink-0 inline-flex items-center justify-center border-2 border-black bg-white hover:bg-black hover:text-white transition-colors"
+      /* `px-3` statt `w-9`: Die Nachbarn in der Kopfzeile sind 44 Pixel breit
+         (12 + 16 Symbol + 12, dazu zweimal 2 Pixel Rahmen). Mit fester Breite
+         waere dieser Knopf 36 — acht Pixel schmaler als alle anderen, und in
+         einer Reihe sieht man das sofort. */
+      className="h-9 px-3 shrink-0 inline-flex items-center justify-center border-2 border-black bg-white hover:bg-black hover:text-white transition-colors"
     >
       {an ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
     </button>

@@ -477,6 +477,23 @@ const faelle = [
     // Der Sperrhinweis: kuerzen darf nur der Span, der auch min-w-0 traegt.
     return /min-w-0 truncate/.test(s) && !/<span className="truncate">\{open\[0\]/.test(s);
   }],
+  /**
+   * Die Kopfzeile der Startseite auf dem Handy.
+   *
+   * Gemessen bei 428 Pixern Fensterbreite: zwischen Wortmarke und Knopfreihe
+   * blieben 27 Pixel, bei 390 nur 15 — die Reihe klebte zusammen, im Retro
+   * zusaetzlich verklebt durch die harten Schatten. Beide Ursachen stehen
+   * hier fest: kein Knopf mit fester Breite (er waere 36 statt 44 wie seine
+   * Nachbarn), und das Wort am Anmelden-Knopf erst ab `sm`.
+   */
+  ['Ton-Knopf hat dieselbe Form wie die Nachbarn', () => {
+    const s = fs.readFileSync(path.join(wurzel, 'src/components/common/SoundSwitch.jsx'), 'utf8');
+    return /h-9 px-3 /.test(s) && !/h-9 w-9/.test(s);
+  }],
+  ['Anmelden traegt sein Wort erst ab sm', () => {
+    const s = fs.readFileSync(path.join(wurzel, 'src/pages/Landing.jsx'), 'utf8');
+    return /hidden sm:inline">\{de \? 'Anmelden'/.test(s);
+  }],
   ['die Spalte hat eine Kante', () => /solid/.test(w(R, '#kanbanspalte', 'border') || '')],
   ['ohne Theme bleibt alles hell', () => farbe(w(N, 'main', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],
 

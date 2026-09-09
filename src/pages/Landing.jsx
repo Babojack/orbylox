@@ -218,15 +218,19 @@ function LandingContent() {
     <div data-landing="" className="min-h-screen bg-white text-black">
       {/* Kopfzeile */}
       <header className="border-b-2 border-black">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <OrbyloxMark className="w-8 h-8 shrink-0" />
             <span className="font-extrabold tracking-tight text-base sm:text-lg">RBYLOX</span>
           </div>
 
           {/* Auf dem Handy nur Sprache + Anmelden — sonst laeuft die Zeile ueber
-              den Rand. Registrieren steht direkt darunter im Hero. */}
-          <div className="flex items-center gap-2 shrink-0">
+              den Rand. Registrieren steht direkt darunter im Hero.
+              Die Abstände sind auf dem Handy bewusst größer als die Voreinstellung:
+              Im Retro trägt jeder Knopf einen harten Schatten von drei Pixeln
+              nach rechts. Der frisst von einer Lücke von acht Pixeln mehr als ein
+              Drittel — die Knöpfe standen aneinandergeklebt. */}
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={() => requestLanguageChange(de ? 'en' : 'de')}
@@ -249,9 +253,20 @@ function LandingContent() {
             >
               Blog
             </a>
-            <TnButton variant="outline" className={KOPF_STEUERUNG} onClick={goLogin}>
+            {/* Auf dem Handy nur das Zeichen. Das Wort kostet dort hundert
+                Pixel in einer Zeile, die keine hat — und direkt darunter im
+                Hero steht derselbe Knopf noch einmal, ausgeschrieben und
+                fingerbreit. Die Beschriftung bleibt über `aria-label` und
+                `title` erhalten, sie wird nur nicht mehr gemalt. */}
+            <TnButton
+              variant="outline"
+              className={KOPF_STEUERUNG}
+              onClick={goLogin}
+              aria-label={de ? 'Anmelden' : 'Login'}
+              title={de ? 'Anmelden' : 'Login'}
+            >
               <LogIn className="w-4 h-4" />
-              {de ? 'Anmelden' : 'Login'}
+              <span className="hidden sm:inline">{de ? 'Anmelden' : 'Login'}</span>
             </TnButton>
             <TnButton variant="solid" className={cn(KOPF_STEUERUNG, 'hidden sm:inline-flex')} onClick={goLogin}>
               <UserPlus className="w-4 h-4" />
