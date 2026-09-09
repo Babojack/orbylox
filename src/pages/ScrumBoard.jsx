@@ -1135,7 +1135,11 @@ export default function ScrumBoard() {
         </div>
       ) : (
       <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="flex gap-3 sm:gap-4 overflow-auto pb-4 flex-1 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
+        {/* Anker fuers Retro: NUR diese Flaeche wird zur Wiese, nicht die
+            ganze Seite. Der erste Versuch faerbte `main` — dann standen im
+            Feed und im Dateibereich alle Kacheln ohne eigene Fuellung direkt
+            auf dem Gruen und waren nicht mehr zu erkennen. */}
+        <div data-kanban-board="" className="flex gap-3 sm:gap-4 overflow-auto pb-4 flex-1 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
           {Object.entries(COLUMNS).map(([columnId, config]) => {
             const columnTasks = getColumnTasks(columnId);
             const columnIndex = Object.keys(COLUMNS).indexOf(columnId);

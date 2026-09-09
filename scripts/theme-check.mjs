@@ -152,8 +152,10 @@ const MARKUP = `
       <div class="cursor-grab" id="greifen"></div>
       <button data-menu="" class="h-9 w-9 text-slate-600 hover:text-slate-900 hover:bg-slate-100" id="menue"></button>
       <div class="bg-blue-50" id="spalteblau"></div>
-      <div data-kanban-column="" class="bg-slate-50/50 rounded-2xl border min-h-[60vh]" id="kanbanspalte">
-        <div class="bg-white rounded-xl border-2 border-black" id="kanbankarte">Aufgabe</div>
+      <div data-kanban-board="" class="flex gap-3 overflow-auto pb-4 flex-1" id="brett">
+        <div data-kanban-column="" class="bg-slate-50/50 rounded-2xl border min-h-[60vh]" id="kanbanspalte">
+          <div class="bg-white rounded-xl border-2 border-black" id="kanbankarte">Aufgabe</div>
+        </div>
       </div>
       <section class="bg-[#f5f5f5]" id="woanders"><span class="text-[#ef5a24]" id="markentext">x</span></section>
     </div>
@@ -359,7 +361,19 @@ const faelle = [
   ['auch Nebentext wird Tinte', () => w(R, '#wiesentext', 'color') === 'var(--r-ink)'],
   ['Karte im Gras bleibt Pergament', () => w(R, '#wiesenkarte', 'background-color') === 'var(--r-parch)'],
   ['ohne Theme bleibt das Band grau', () => /245/.test(w(N, '#wiese', 'background-color') || '')],
-  ['Wiese nur auf der Startseite', () => w(R, '#woanders', 'background-color') === 'transparent'],
+  ['Wiese nur auf der Startseite', () => w(R, '#woanders', 'background-color') === 'var(--r-parch-2)'],
+  /**
+   * ... und die Kachel hat dort trotzdem eine Flaeche.
+   *
+   * Vorher war sie `transparent`. Die Ordnerkacheln im Dateibereich waren
+   * damit nur ein Rahmen; lag etwas anderes als Pergament darunter, sah man
+   * gar nichts mehr. Geprueft wird deshalb, dass hier ueberhaupt eine Farbe
+   * steht — und dass sie nicht die Wiese ist.
+   */
+  ['Kachel ausserhalb hat eine Flaeche', () => {
+    const f = farbe(w(R, '#woanders', 'background-color'));
+    return !!f && f[3] === 1 && f.join() !== zuRgb(palette['--r-grass']).join();
+  }],
 
   /**
    * Der eigene Mauszeiger — und was von ihm verschont bleibt.
@@ -411,7 +425,16 @@ const faelle = [
    * Pergament — das Brett zerfiel. Geprüft wird nicht "sieht gut aus",
    * sondern dass sich die drei Flächen paarweise überhaupt unterscheiden.
    */
-  ['Inhaltsfläche ist Wiese', () => farbe(w(R, 'main', 'background-color'))?.join() === zuRgb(palette['--r-grass']).join()],
+  ['Brettfläche ist Wiese', () => farbe(w(R, '#brett', 'background-color'))?.join() === zuRgb(palette['--r-grass']).join()],
+  /**
+   * Und der Rest der Seite ist es NICHT.
+   *
+   * Diese Zusicherung ist die Narbe eines Fehlers: Zuerst wurde `main`
+   * eingefärbt. Im Feed und im Dateibereich standen daraufhin Kacheln, deren
+   * Füllung das Theme nicht anfasst, ohne Fläche auf dem Grün — roter Text
+   * auf grüner Wiese, unlesbar. Die Wiese bleibt beim Brett.
+   */
+  ['der Rest der Seite bleibt Pergament', () => farbe(w(R, 'main', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],
   ['Spalte hebt sich von der Wiese ab', () => {
     const s = w(R, '#kanbanspalte', 'background-color');
     return s !== null && farbe(s)?.join() !== zuRgb(palette['--r-grass']).join();
@@ -422,7 +445,7 @@ const faelle = [
     return sp && ka && sp.join() !== ka.join();
   }],
   ['die Spalte hat eine Kante', () => /solid/.test(w(R, '#kanbanspalte', 'border') || '')],
-  ['ohne Theme bleibt das Brett hell', () => farbe(w(N, 'main', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],
+  ['ohne Theme bleibt das Brett hell', () => farbe(w(N, '#brett', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],
 
   /**
    * Die `hover:`-Varianten.

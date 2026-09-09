@@ -140,8 +140,18 @@
 [data-theme='retro'] .theme-scope [data-landing] .bg-\[\#f5f5f5\] .text-black {
   color: var(--r-ink);
 }
-/* Ausserhalb der Startseite bleibt es, wie es war: der Grund scheint durch. */
-[data-theme='retro'] .theme-scope .bg-\[\#f5f5f5\] { background-color: transparent; }
+/**
+ * Ausserhalb der Startseite: eine eigene, vertiefte Flaeche.
+ *
+ * Vorher stand hier `transparent`. Auf Pergament fiel das kaum auf — eine
+ * Kachel, durch die der Grund scheint, sieht dort nur flach aus. Sobald aber
+ * eine andere Flaeche darunterlag, waren die Ordnerkacheln im Dateibereich
+ * nicht mehr da: nur noch ein duenner Rahmen und Schrift, die im Grund hing.
+ *
+ * Eine Kachel ist ein Gegenstand. Sie braucht eine Flaeche, egal worauf sie
+ * liegt.
+ */
+[data-theme='retro'] .theme-scope .bg-\[\#f5f5f5\] { background-color: var(--r-parch-2); }
 [data-theme='retro'] .theme-scope .bg-black        { background-color: var(--r-edge); color: var(--r-parch); }
 [data-theme='retro'] .theme-scope .bg-\[\#ef5a24\] { background-color: var(--r-flame); color: #fff; }
 /**
@@ -1509,15 +1519,27 @@
  * Karten im hellen Pergament. Jede Ebene ist eine Stufe heller als die
  * darunter; damit sieht man Grenzen, ohne dass eine Linie sie ziehen müsste.
  */
-/* `main[class]` statt `main`: Der Inhaltsbereich traegt `bg-white`, und die
-   Regel dafuer hat (0,3,0). Das Attribut hebt uns auf (0,3,1) — knapp davor,
-   ohne dass irgendwo ein `!important` noetig waere. */
-[data-theme='retro'] .theme-scope main[class] {
+/**
+ * Die Wiese liegt NUR unter dem Brett — nicht unter der ganzen Seite.
+ *
+ * Der erste Anlauf faerbte `main`. Das war zu grob: Im Projekt-Feed und im
+ * Dateibereich haben Kacheln und Karten ihre Fuellung teils aus Klassen, die
+ * das Theme nicht anfasst (Verlaeufe, halbdurchsichtiges Weiss). Auf weissem
+ * Grund fiel das nie auf — auf Gruen standen sie ploetzlich fuellungslos da,
+ * roter Text auf gruener Flaeche, und man sah nichts mehr.
+ *
+ * Also gilt: Grundflaeche bleibt Pergament, und gruen wird gezielt das, was
+ * gruen sein soll.
+ */
+[data-theme='retro'] .theme-scope [data-kanban-board] {
   background-color: var(--r-grass);
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 0, 0, 0.055) 1px, transparent 1px);
   background-size: 16px 16px, 16px 16px;
+  padding: 12px;
+  border: 2px solid var(--r-edge);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.08);
 }
 [data-theme='retro'] .theme-scope [data-kanban-column] {
   background-color: var(--r-parch-2);
