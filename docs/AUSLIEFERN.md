@@ -117,6 +117,20 @@ Ablauf.
 Der Ablauf holt ihn bei jedem Lauf frisch; tritt es trotzdem auf, einmal von
 Hand anstossen.
 
+**Der Schritt „Schlüssel einrichten" endet mit `exit code 1`** — er sagt seit
+September 2026 selbst, woran es liegt. Aufklappen und die letzte rote Zeile
+lesen; dort steht einer dieser vier Fälle:
+
+| Meldung | Ursache | Was zu tun ist |
+|---|---|---|
+| `Das Geheimnis … ist leer oder fehlt` | Eins der fünf Geheimnisse fehlt | Settings → Secrets and variables → Actions → nachtragen |
+| `Der Schlüssel hat nur 1 Zeile(n)` | Beim Einfügen sind die Zeilenumbrüche verlorengegangen | Datei mit `cat ~/.ssh/orbylox-deploy` öffnen und **alles** von `-----BEGIN` bis `-----END` einfügen |
+| `Die erste Zeile ist kein -----BEGIN` | Der **öffentliche** Schlüssel (`.pub`) steckt im Geheimnis | Die Datei **ohne** `.pub` nehmen |
+| `Der Server antwortet nicht auf Port …` | `SSH_HOST` oder `SSH_PORT` stimmt nicht | Port aus dem hPanel prüfen — bei Hostinger meist `65002`, nicht `22`. `SSH_HOST` ist der Rechnername, nicht `orbylox.de` |
+
+Der Schritt gibt dabei nie den Schlüssel aus: Er meldet nur „gesetzt" oder
+„LEER", die Zeilenzahl und Rückgabewerte.
+
 **Die Prüfung schlägt fehl** — dann ist es kein Auslieferungsproblem. In den
 Actions-Protokollen steht, welche Zusicherung gerissen ist; dieselbe Prüfung
 läuft bei dir lokal mit `npm run check:theme` beziehungsweise

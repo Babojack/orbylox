@@ -60,13 +60,87 @@ jobs:
       - name: Fristen prüfen
         run: npm run check:deadlines
 
+      # Dieser Schritt sagt jetzt, WORAN es liegt.
+      #
+      # Vorher stand hier `ssh-keyscan … 2>/dev/null`: Der Befehl schlägt fehl,
+      # wenn Rechnername oder Port leer sind oder der Server nicht antwortet —
+      # und seine Begründung wurde weggeworfen. Im Protokoll stand dann nur
+      # "exit code 1", ohne einen Hinweis, welches der fünf Geheimnisse fehlt.
+      #
+      # Nichts hiervon gibt den Schlüssel preis: Geprüft werden Länge, erste
+      # Zeile und Rückgabewerte, ausgegeben wird "gesetzt" oder "LEER".
       - name: Schlüssel einrichten
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
+          set -u
+          fehlt=0
+          for name in SSH_KEY SSH_HOST SSH_PORT SSH_USER DEPLOY_PATH; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Das Geheimnis $name ist leer oder fehlt."
+              fehlt=1
+            else
+              echo "$name: gesetzt"
+            fi
+          done
+          if [ "$fehlt" = "1" ]; then
+            echo "Nachtragen unter: Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/id_deploy
+          # `tr -d '\r'`: Ein unter Windows kopierter Schlüssel bringt
+          # Wagenrückläufe mit. OpenSSH lehnt ihn dann als "invalid format" ab
+          # — an einer Stelle, die nicht mehr nach der Ursache aussieht.
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -p "${{ secrets.SSH_PORT }}" -H "${{ secrets.SSH_HOST }}" \
-            >> ~/.ssh/known_hosts 2>/dev/null
+
+          zeilen=$(wc -l < ~/.ssh/id_deploy)
+          echo "Schlüsseldatei: $zeilen Zeilen"
+          if [ "$zeilen" -lt 3 ]; then
+            echo "::error::Der Schlüssel hat nur $zeilen Zeile(n). Beim Einfügen"
+            echo "gehen die Zeilenumbrüche oft verloren. Es muss der GESAMTE"
+            echo "Inhalt der PRIVATEN Datei hinein — von '-----BEGIN' bis"
+            echo "'-----END', mit allen Umbrüchen, ohne die .pub-Datei."
+            exit 1
+          fi
+          if ! head -n 1 ~/.ssh/id_deploy | grep -q -- '-----BEGIN'; then
+            echo "::error::Die erste Zeile ist kein '-----BEGIN …-----'."
+            echo "Vermutlich steckt der öffentliche Schlüssel (.pub) im Geheimnis."
+            exit 1
+          fi
+
+          # Laesst OpenSSH den Schluessel ueberhaupt lesen? `-P ''` verhindert,
+          # dass eine Passphrase-Abfrage den Ablauf zum Stillstand bringt.
+          if ! ssh-keygen -y -P '' -f ~/.ssh/id_deploy > /dev/null 2>~/keyfehler.txt; then
+            echo "::error::OpenSSH kann den Schlüssel nicht lesen."
+            echo "Häufigste Gründe: Passphrase gesetzt (Automatik kann sie nicht"
+            echo "eingeben) oder beim Kopieren etwas abgeschnitten."
+            sed 's/[A-Za-z0-9+/=]\{20,\}/…/g' ~/keyfehler.txt   # nichts Langes durchlassen
+            exit 1
+          fi
+          echo "Schlüssel lesbar."
+
+          # Der eigentliche Stolperstein: Antwortet der Server auf diesem Port?
+          # Dreimal versuchen, dann mit Begruendung aufgeben.
+          for versuch in 1 2 3; do
+            if ssh-keyscan -T 10 -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>~/scanfehler.txt \
+               && [ -s ~/.ssh/known_hosts ]; then
+              echo "Serverschlüssel geholt (Versuch $versuch)."
+              exit 0
+            fi
+            echo "Versuch $versuch fehlgeschlagen:"
+            cat ~/scanfehler.txt || true
+            sleep 5
+          done
+          echo "::error::Der Server antwortet nicht auf Port $SSH_PORT."
+          echo "Zu prüfen: SSH_HOST (Rechnername, nicht die Web-Adresse) und"
+          echo "SSH_PORT (bei Hostinger meist 65002, nicht 22)."
+          exit 1
 
       - name: Hochladen
         run: |
