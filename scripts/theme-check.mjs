@@ -146,6 +146,8 @@ const MARKUP = `
       </div>
       <input type="text" id="textfeld" />
       <div class="cursor-grab" id="greifen"></div>
+      <button data-menu="" class="h-9 w-9 text-slate-600 hover:text-slate-900 hover:bg-slate-100" id="menue"></button>
+      <div class="bg-blue-50" id="spalteblau"></div>
       <section class="bg-[#f5f5f5]" id="woanders"><span class="text-[#ef5a24]" id="markentext">x</span></section>
     </div>
   </main>
@@ -309,7 +311,7 @@ const faelle = [
   ['Lila fällt auf Pflaume', () => w(R, '#lila', 'background-color') === '#7d4fa8'],
   ['Rot wird Blut', () => w(R, '#rot', 'background-color') === '#ba392a'],
   // Helle Stufe bleibt hell — das war der Fehler bei der "online"-Plakette.
-  ['bg-amber-50 bleibt zart', () => w(R, '#gelb', 'background-color') === '#e2d0a4'],
+  ['bg-amber-50 bleibt zart', () => w(R, '#gelb', 'background-color') === '#e8d7b0'],
 
   // Gegenprobe: ohne Theme darf sich NICHTS ändern
   ['Ohne Theme: Karte weiß', () => /255 255 255/.test(w(N, '#karte', 'background-color') || '')],
@@ -369,6 +371,46 @@ const faelle = [
     return g === null || !/data:image/.test(g);
   }],
   ['ohne Theme kein eigener Zeiger', () => !/data:image/.test(w(N, 'body', 'cursor') || '')],
+
+  /**
+   * Der Weg ins Menü muss man sehen.
+   *
+   * Der Knopf stand auf Holz, ohne Fläche und ohne Rahmen; beim Überfahren
+   * legte sich das unveränderte `slate-100` darunter und sein pergament-
+   * farbenes Symbol verschwand darin. Beides wird hier geprüft.
+   */
+  ['Menü-Knopf ist grün', () => w(R, '#menue', 'background-color') === '#33742f'],
+  ['und hat einen Rahmen', () => /solid/.test(w(R, '#menue', 'border') || '')],
+  ['ohne Theme bleibt er schlicht', () => w(N, '#menue', 'background-color') !== '#33742f'],
+
+  /**
+   * Die `hover:`-Varianten.
+   *
+   * Sie lassen sich nicht über `matches()` prüfen — ein Element, über dem
+   * keine Maus schwebt, passt auf keinen `:hover`-Selektor. Geprüft wird
+   * deshalb, DASS es die Regeln im gebauten Stylesheet überhaupt gibt: Genau
+   * ihr Fehlen war der Grund, warum der Menü-Knopf beim Überfahren weiss
+   * wurde und sein Symbol darin verschwand.
+   */
+  ['Überfahren wird mitgenommen', () => {
+    // Gesucht wird der VOLLSTÄNDIGE Selektor mit dem Theme davor. Nur nach
+    // `hover\\:bg-slate-100:hover` zu suchen fände Tailwinds eigene Regel und
+    // wäre immer grün — der erste Anlauf dieser Prüfung tat genau das.
+    const praefix = 'data-theme=retro] .theme-scope .';
+    return ['hover\\:bg-slate-100:hover', 'hover\\:bg-black:hover', 'hover\\:text-white:hover']
+      .every((k) => css.includes(praefix + k));
+  }],
+
+  /**
+   * Und die hellen Töne müssen ihren FARBTON behalten. Beim Mischen mit dem
+   * Pergament wurde aus Blau ein Grau — die Kanban-Spalte "In Arbeit" sah
+   * ausgegraut aus. Gemessen wird die Buntheit: Abstand zwischen stärkstem
+   * und schwächstem Kanal.
+   */
+  ['helles Blau bleibt blau', () => {
+    const c = zuRgb(w(R, '#spalteblau', 'background-color') || '#000');
+    return Math.max(...c.slice(0, 3)) - Math.min(...c.slice(0, 3)) > 40 && c[2] > c[0];
+  }],
 
   // Der Kontrast-Rundgang
   [`${kombis.size} Klassenpaare über ${SCHWELLE}:1`, () => schwach.length === 0],

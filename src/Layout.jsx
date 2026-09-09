@@ -599,6 +599,10 @@ function LayoutContent({ children, currentPageName }) {
             <button
               type="button"
               onPointerDown={toggleSidebar}
+              /* `data-menu` ist der Anker fuer das Retro: Dort bekommt dieser
+                 Knopf eine gruene Flaeche, damit man ihm ansieht, dass sich
+                 dahinter das Menue oeffnet. */
+              data-menu=""
               /* 36px wie Sprache, Theme und Glocke daneben — vorher 40. */
               className="h-9 w-9 inline-flex items-center justify-center rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95"
               aria-label="Open navigation menu"

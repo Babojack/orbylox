@@ -164,7 +164,13 @@
  * Deckkraft-Varianten: dort macht der Schraegstrich die Grenze eindeutig.
  *
  * DIE WERTE SIND GERECHNET, NICHT GERATEN
- * Jede Paarung aus Flaeche und Schrift liegt ueber 4,5:1. Dafuer sind die
+ * Jede Paarung aus Flaeche und Schrift liegt ueber 4,5:1.
+ *
+ * Die hellen Toenungen entstehen NICHT durch Mischen mit dem Pergament. Das
+ * war der erste Versuch, und er hat Blau zu Grau gemacht: Eine kalte Farbe in
+ * eine warme gemischt landet in der Mitte, also im Unbunten — die Kanban-
+ * Spalte "In Arbeit" sah aus wie ausgegraut. Stattdessen bleibt der Farbton
+ * erhalten und nur die Helligkeit steigt; Blau bleibt damit blau. Dafuer sind die
  * Vollfarben teils nachgedunkelt — Gruen von #3f8f3a auf #33742f, Gold von
  * #f0b429 auf #836216, weil Weiss auf hellem Gold 1,5:1 ergab. Das helle Gold
  * bleibt als Rahmen- und Akzentfarbe erhalten, nur als Flaeche taugt es nicht.
@@ -194,8 +200,8 @@
 [data-theme='retro'] .theme-scope [class*='bg-rose-200/'],
 [data-theme='retro'] .theme-scope .bg-rose-300,
 [data-theme='retro'] .theme-scope [class*='bg-rose-300/'] {
-  background-color: #ebc9a7;
-  color: #9a3425;
+  background-color: #e8b6b0;
+  color: #9a2113;
 }
 /* rot — volle Flaeche, helle Schrift */
 [data-theme='retro'] .theme-scope .bg-red-400,
@@ -239,8 +245,8 @@
 [data-theme='retro'] .theme-scope [class*='bg-orange-200/'],
 [data-theme='retro'] .theme-scope .bg-orange-300,
 [data-theme='retro'] .theme-scope [class*='bg-orange-300/'] {
-  background-color: #f3cfa6;
-  color: #9d3e1a;
+  background-color: #e8bfb0;
+  color: #962e08;
 }
 /* orange — volle Flaeche, helle Schrift */
 [data-theme='retro'] .theme-scope .bg-orange-400,
@@ -278,8 +284,8 @@
 [data-theme='retro'] .theme-scope [class*='bg-yellow-200/'],
 [data-theme='retro'] .theme-scope .bg-yellow-300,
 [data-theme='retro'] .theme-scope [class*='bg-yellow-300/'] {
-  background-color: #e2d0a4;
-  color: #715316;
+  background-color: #e8d7b0;
+  color: #7b5909;
 }
 /* gelb — volle Flaeche, helle Schrift */
 [data-theme='retro'] .theme-scope .bg-amber-400,
@@ -339,8 +345,8 @@
 [data-theme='retro'] .theme-scope [class*='bg-lime-200/'],
 [data-theme='retro'] .theme-scope .bg-lime-300,
 [data-theme='retro'] .theme-scope [class*='bg-lime-300/'] {
-  background-color: #d5d3a8;
-  color: #356129;
+  background-color: #b9e2b6;
+  color: #226c1d;
 }
 /* gruen — volle Flaeche, helle Schrift */
 [data-theme='retro'] .theme-scope .bg-green-400,
@@ -430,8 +436,8 @@
 [data-theme='retro'] .theme-scope [class*='bg-indigo-200/'],
 [data-theme='retro'] .theme-scope .bg-indigo-300,
 [data-theme='retro'] .theme-scope [class*='bg-indigo-300/'] {
-  background-color: #d4d1bf;
-  color: #2f5694;
+  background-color: #b0c6e8;
+  color: #144da3;
 }
 /* blau — volle Flaeche, helle Schrift */
 [data-theme='retro'] .theme-scope .bg-teal-400,
@@ -541,8 +547,8 @@
 [data-theme='retro'] .theme-scope [class*='bg-pink-200/'],
 [data-theme='retro'] .theme-scope .bg-pink-300,
 [data-theme='retro'] .theme-scope [class*='bg-pink-300/'] {
-  background-color: #e1cdbb;
-  color: #6c4584;
+  background-color: #cdbade;
+  color: #68329a;
 }
 /* lila — volle Flaeche, helle Schrift */
 [data-theme='retro'] .theme-scope .bg-violet-400,
@@ -630,7 +636,7 @@
 [data-theme='retro'] .theme-scope [class*='text-rose-900/'],
 [data-theme='retro'] .theme-scope .text-rose-950,
 [data-theme='retro'] .theme-scope [class*='text-rose-950/'] {
-  color: #9a3425;
+  color: #9a2113;
 }
 [data-theme='retro'] .theme-scope .text-orange-500,
 [data-theme='retro'] .theme-scope [class*='text-orange-500/'],
@@ -644,7 +650,7 @@
 [data-theme='retro'] .theme-scope [class*='text-orange-900/'],
 [data-theme='retro'] .theme-scope .text-orange-950,
 [data-theme='retro'] .theme-scope [class*='text-orange-950/'] {
-  color: #9d3e1a;
+  color: #962e08;
 }
 [data-theme='retro'] .theme-scope .text-amber-500,
 [data-theme='retro'] .theme-scope [class*='text-amber-500/'],
@@ -670,7 +676,7 @@
 [data-theme='retro'] .theme-scope [class*='text-yellow-900/'],
 [data-theme='retro'] .theme-scope .text-yellow-950,
 [data-theme='retro'] .theme-scope [class*='text-yellow-950/'] {
-  color: #715316;
+  color: #7b5909;
 }
 [data-theme='retro'] .theme-scope .text-green-500,
 [data-theme='retro'] .theme-scope [class*='text-green-500/'],
@@ -708,7 +714,7 @@
 [data-theme='retro'] .theme-scope [class*='text-lime-900/'],
 [data-theme='retro'] .theme-scope .text-lime-950,
 [data-theme='retro'] .theme-scope [class*='text-lime-950/'] {
-  color: #356129;
+  color: #226c1d;
 }
 [data-theme='retro'] .theme-scope .text-teal-500,
 [data-theme='retro'] .theme-scope [class*='text-teal-500/'],
@@ -770,7 +776,7 @@
 [data-theme='retro'] .theme-scope [class*='text-indigo-900/'],
 [data-theme='retro'] .theme-scope .text-indigo-950,
 [data-theme='retro'] .theme-scope [class*='text-indigo-950/'] {
-  color: #2f5694;
+  color: #144da3;
 }
 [data-theme='retro'] .theme-scope .text-violet-500,
 [data-theme='retro'] .theme-scope [class*='text-violet-500/'],
@@ -820,7 +826,7 @@
 [data-theme='retro'] .theme-scope [class*='text-pink-900/'],
 [data-theme='retro'] .theme-scope .text-pink-950,
 [data-theme='retro'] .theme-scope [class*='text-pink-950/'] {
-  color: #6c4584;
+  color: #68329a;
 }
 [data-theme='retro'] .theme-scope .text-red-50,
 [data-theme='retro'] .theme-scope [class*='text-red-50/'],
@@ -1392,6 +1398,75 @@
  */
 [data-theme='retro'] .theme-scope :is(a, button, label, summary, [role='button'], .cursor-pointer) {
   cursor: url('../assets/retro-cursor.png') 0 5, auto;
+}
+
+
+/* --- Beim Ueberfahren ---------------------------------------------------- */
+
+/**
+ * Die `hover:`-Varianten mitnehmen.
+ *
+ * Das war eine echte Luecke: Rund 150 Klassen im Projekt heissen
+ * `hover:bg-slate-100`, `hover:bg-black`, `hover:text-white` und so fort. Das
+ * Theme hat sie nie angefasst, weil `.bg-slate-100` und `.hover\:bg-slate-100`
+ * zwei verschiedene Klassen sind — die eine wird umgedeutet, die andere nicht.
+ *
+ * Sichtbar wurde es am Menue-Knopf in der Kopfzeile: Sein Symbol ist auf Holz
+ * pergamentfarben, beim Ueberfahren legte sich das UNVERAENDERTE, fast weisse
+ * `slate-100` darunter — Pergament auf Fastweiss. Der Knopf sah aus wie ein
+ * leerer Kasten, und niemand konnte erraten, dass sich dort das Menue oeffnet.
+ *
+ * Geschrieben mit maskierten Klassennamen statt mit `[class*='hover:bg-slate-50']`:
+ * Letzteres wuerde auch `hover:bg-slate-500` treffen — derselbe Teilstring-
+ * Fehler wie schon zweimal.
+ */
+[data-theme='retro'] .theme-scope .hover\:bg-black:hover {
+  background-color: var(--r-edge);
+  color: var(--r-parch);
+}
+[data-theme='retro'] .theme-scope .hover\:bg-white:hover {
+  background-color: var(--r-parch);
+  color: var(--r-ink);
+}
+[data-theme='retro'] .theme-scope .hover\:bg-slate-50:hover,
+[data-theme='retro'] .theme-scope .hover\:bg-slate-100:hover,
+[data-theme='retro'] .theme-scope .hover\:bg-slate-200:hover,
+[data-theme='retro'] .theme-scope .hover\:bg-gray-100:hover,
+[data-theme='retro'] .theme-scope .hover\:bg-accent:hover {
+  background-color: var(--r-parch-2);
+  color: var(--r-ink);
+}
+[data-theme='retro'] .theme-scope .hover\:text-white:hover { color: #fff; }
+[data-theme='retro'] .theme-scope .hover\:text-slate-900:hover,
+[data-theme='retro'] .theme-scope .hover\:text-slate-800:hover,
+[data-theme='retro'] .theme-scope .hover\:text-slate-700:hover,
+[data-theme='retro'] .theme-scope .hover\:text-slate-600:hover { color: var(--r-ink); }
+[data-theme='retro'] .theme-scope .hover\:bg-red-50:hover { background-color: #e8b6b0; color: #9a2113; }
+[data-theme='retro'] .theme-scope .hover\:bg-amber-50:hover { background-color: #e8d7b0; color: #7b5909; }
+
+/* --- Der Weg ins Menue --------------------------------------------------- */
+
+/**
+ * Gruen, damit man es sieht.
+ *
+ * Ein Symbol allein reicht in dieser Kopfzeile nicht: Es steht auf Holz, hat
+ * keinen Rahmen und keine Flaeche, und daneben liegt der Projektname in
+ * derselben Farbe. Eine gefuellte Flaeche macht aus einem Zeichen einen Knopf.
+ *
+ * Gruen und nicht Gold: Gold ist hier die Rahmenfarbe von allem, es wuerde
+ * untergehen. Das Gruen ist dasselbe wie die Wiese der Startseite, nur
+ * gesaettigt — es gehoert zur Welt und faellt trotzdem auf. Pergament darauf
+ * ergibt 4,6:1.
+ */
+[data-theme='retro'] .theme-scope [data-menu] {
+  background-color: #33742f;
+  color: var(--r-parch);
+  border: 2px solid var(--r-edge);
+  box-shadow: 3px 3px 0 0 var(--r-edge);
+}
+[data-theme='retro'] .theme-scope [data-menu]:hover {
+  background-color: #226c1d;
+  color: #fff;
 }
 
 /* --- Kleine Zutaten ----------------------------------------------------- */
