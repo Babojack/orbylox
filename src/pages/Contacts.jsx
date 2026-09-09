@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   Upload, Plus, Check, Trash2, Search, Loader2, Pause, Play, Users, Flame, ArrowLeft,
+  CalendarClock,
 } from 'lucide-react';
 import { api } from '@/api/apiClient';
 import {
@@ -11,6 +12,7 @@ import {
 import { parseContactsFile, mergeContacts, emptyContact } from '@/lib/contactsImport';
 import {
   pickSuggestions, markContacted, overdueDays, countDue, INTERVAL_OPTIONS,
+  deadlineState, countDeadlinesDue, nextDeadlineFrom, dayStamp, VORWARNUNG_TAGE,
 } from '@/lib/contactSuggestions';
 import { LanguageProvider, useLanguage } from '@/components/LanguageProvider';
 import OrbyloxMark from '@/components/OrbyloxMark';
@@ -59,6 +61,59 @@ function IntervalSelect({ value, onChange, de, className = '' }) {
   );
 }
 
+/**
+ * Die Frist eines Kontakts — ein Tag, bis zu dem angerufen sein muss.
+ *
+ * Ein `type="date"` und kein eigener Kalender: Das Feld des Browsers kennt
+ * die Sprache des Geräts, die Feiertage nicht, aber die Schreibweise — und
+ * auf dem Handy öffnet es die Raddrehung, die jeder kennt.
+ */
+function DeadlineField({ value, onChange, de, className = '' }) {
+  return (
+    <input
+      type="date"
+      value={value || ''}
+      min={dayStamp()}
+      onChange={(e) => onChange(e.target.value || null)}
+      aria-label={de ? 'Frist' : 'Deadline'}
+      title={de ? 'Bis wann muss kontaktiert sein?' : 'Contact by when?'}
+      className={`h-9 px-2 border-2 border-black bg-white text-sm ${className}`}
+    />
+  );
+}
+
+/**
+ * Wie die Frist dasteht.
+ *
+ * Vier Zustände, vier Töne — und die Zahl der Tage immer dabei. "Bald" allein
+ * sagt nichts; "in 2 Tagen" sagt, ob man heute noch etwas anderes tun kann.
+ */
+function DeadlineBadge({ contact, de }) {
+  const { gesetzt, tage, phase } = deadlineState(contact);
+  if (!gesetzt) return null;
+
+  const text = {
+    abgelaufen: de ? `Frist seit ${Math.abs(tage)} Tag(en) abgelaufen` : `Deadline passed ${Math.abs(tage)} day(s) ago`,
+    heute: de ? 'Frist läuft heute ab' : 'Deadline is today',
+    bald: de ? `Frist in ${tage} Tag(en)` : `Deadline in ${tage} day(s)`,
+    offen: de ? `Frist in ${tage} Tagen` : `Deadline in ${tage} days`,
+  }[phase];
+
+  const ton = {
+    abgelaufen: 'border-red-600 bg-red-50 text-red-800',
+    heute: 'border-[#ef5a24] bg-[#ef5a24]/10 text-[#a63c12]',
+    bald: 'border-amber-600 bg-amber-50 text-amber-900',
+    offen: 'border-slate-300 bg-slate-50 text-slate-600',
+  }[phase];
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 border-2 px-2 py-0.5 text-xs font-bold ${ton}`}>
+      <CalendarClock className="w-3.5 h-3.5 shrink-0" />
+      <span className="truncate">{text}</span>
+    </span>
+  );
+}
+
 function ContactsContent() {
   const queryClient = useQueryClient();
   const { language } = useLanguage();
@@ -67,6 +122,7 @@ function ContactsContent() {
   const [search, setSearch] = useState('');
   const [doneToday, setDoneToday] = useState([]);
   const [importInfo, setImportInfo] = useState(null);
+  const [fristInfo, setFristInfo] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState(null);
@@ -101,10 +157,26 @@ function ContactsContent() {
 
   const totalContacts = contacts.reduce((n, c) => n + (c.contactCount || 0), 0);
 
-  /** Abhaken: Zähler hoch, Zeitpunkt setzen, nächster rückt nach. */
+  /**
+   * Abhaken: Zähler hoch, Zeitpunkt setzen, nächster rückt nach.
+   *
+   * Hatte der Kontakt eine Frist, wird sie aus dem Takt weitergesetzt — und
+   * das wird auch gesagt. Eine Frist, die sich still selbst verschiebt, wäre
+   * eine Zusage, von der man nichts weiß.
+   */
   const markDone = (contact) => {
     setDoneToday((prev) => [...prev, contact.id]);
-    saveOne.mutate(markContacted(contact));
+    const weiter = markContacted(contact);
+    saveOne.mutate(weiter);
+    if (contact.deadlineAt) {
+      setFristInfo(weiter.deadlineAt
+        ? (de
+          ? `${contact.name}: erledigt. Nächste Frist am ${new Date(weiter.deadlineAt).toLocaleDateString('de-DE')}.`
+          : `${contact.name}: done. Next deadline ${new Date(weiter.deadlineAt).toLocaleDateString('en-GB')}.`)
+        : (de
+          ? `${contact.name}: erledigt. Ohne Takt gibt es keine neue Frist — setz sie unten selbst, wenn du eine brauchst.`
+          : `${contact.name}: done. Without a rhythm there is no new deadline — set one below if you need it.`));
+    }
   };
 
   const onFile = async (e) => {
@@ -178,19 +250,41 @@ function ContactsContent() {
         <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">
           {de ? 'Kontaktpflege' : 'Staying in touch'}
         </h1>
-        <p className="text-slate-600 mb-8 max-w-2xl">
+        <p className="text-slate-600 mb-2 max-w-2xl">
           {de
             ? 'Drei Vorschläge am Tag. Wer abgehakt ist, kommt erst nach dem eingestellten Takt wieder.'
             : 'Three suggestions a day. Once ticked off, a person only returns after their set rhythm.'}
         </p>
+        {/* Wann die Mail kommt, steht dort, wo die Frist gesetzt wird — sonst
+            muesste man es ausprobieren. Die Zahl kommt aus derselben Konstante,
+            nach der auch der Cron verschickt: eine Angabe, die dem Versand
+            widerspricht, waere schlimmer als keine. */}
+        <p className="text-slate-600 mb-8 max-w-2xl flex items-start gap-2">
+          <CalendarClock className="w-4 h-4 mt-0.5 shrink-0 text-[#ef5a24]" />
+          <span>
+            {de
+              ? `Wer eine Frist bekommt, wird ${VORWARNUNG_TAGE} Tage vorher und am Fristtag selbst per E-Mail gemeldet. Nach dem Abhaken setzt der Takt die nächste Frist.`
+              : `Anyone with a deadline is emailed ${VORWARNUNG_TAGE} days before and on the day itself. Ticking off sets the next deadline from the rhythm.`}
+          </span>
+        </p>
 
         {error && <div className="border-2 border-red-600 bg-red-50 text-red-800 px-4 py-3 text-sm mb-6">{error}</div>}
         {importInfo && <div className="border-2 border-green-600 bg-green-50 text-green-900 px-4 py-3 text-sm mb-6">{importInfo}</div>}
+        {fristInfo && (
+          <div className="border-2 border-black bg-white px-4 py-3 text-sm mb-6 flex items-start gap-2">
+            <CalendarClock className="w-4 h-4 mt-0.5 shrink-0 text-[#ef5a24]" />
+            <span className="flex-1">{fristInfo}</span>
+            <button type="button" onClick={() => setFristInfo(null)} className="text-xs font-bold uppercase underline shrink-0">
+              {de ? 'Ok' : 'Ok'}
+            </button>
+          </div>
+        )}
 
         {/* ---------------------------------------------------- Kennzahlen */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
           <Stat icon={Users} value={contacts.length} label={de ? 'Kontakte' : 'Contacts'} />
           <Stat icon={Flame} value={countDue(contacts)} label={de ? 'gerade fällig' : 'due now'} />
+          <Stat icon={CalendarClock} value={countDeadlinesDue(contacts)} label={de ? 'Fristen abgelaufen oder heute' : 'deadlines today or passed'} />
           <Stat icon={Check} value={totalContacts} label={de ? 'Kontakte insgesamt aufgenommen' : 'times reached out'} />
         </div>
 
@@ -249,12 +343,23 @@ function ContactsContent() {
                         {de ? `${over} Tage überfällig` : `${over} days overdue`}
                       </p>
                     )}
+                    {c.deadlineAt && (
+                      <div className="mt-2"><DeadlineBadge contact={c} de={de} /></div>
+                    )}
+                    {c.deadlineAt && c.deadlineNote && (
+                      <p className="text-xs text-slate-500 mt-1 truncate" title={c.deadlineNote}>{c.deadlineNote}</p>
+                    )}
 
                     <div className="mt-4 flex items-center gap-2 flex-wrap">
                       <IntervalSelect
                         de={de}
                         value={c.intervalDays}
                         onChange={(days) => saveOne.mutate({ ...c, intervalDays: days })}
+                      />
+                      <DeadlineField
+                        de={de}
+                        value={c.deadlineAt}
+                        onChange={(tag) => saveOne.mutate({ ...c, deadlineAt: tag })}
                       />
                     </div>
 
@@ -298,6 +403,34 @@ function ContactsContent() {
                 <Label className="text-xs font-bold uppercase">{de ? 'Takt' : 'Rhythm'}</Label>
                 <div><IntervalSelect de={de} value={draft.intervalDays} onChange={(d2) => setDraft({ ...draft, intervalDays: d2 })} /></div>
               </div>
+              <div>
+                <Label className="text-xs font-bold uppercase">{de ? 'Frist (optional)' : 'Deadline (optional)'}</Label>
+                <div className="flex items-center gap-2">
+                  <DeadlineField de={de} value={draft.deadlineAt} onChange={(tag) => setDraft({ ...draft, deadlineAt: tag })} />
+                  {/* Der Takt liefert den naheliegenden Vorschlag. Ein Knopf
+                      dafuer spart das Ausrechnen im Kopf — und macht sichtbar,
+                      dass Frist und Takt zusammenhaengen. */}
+                  {!draft.deadlineAt && Number(draft.intervalDays) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDraft({ ...draft, deadlineAt: nextDeadlineFrom(draft) })}
+                      className="h-9 px-2 border-2 border-black bg-white text-xs font-bold uppercase whitespace-nowrap"
+                    >
+                      {de ? 'Aus Takt' : 'From rhythm'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {draft.deadlineAt && (
+                <div className="sm:col-span-2">
+                  <Label className="text-xs font-bold uppercase">{de ? 'Wofür ist die Frist?' : 'What is the deadline for?'}</Label>
+                  <Input
+                    value={draft.deadlineNote || ''}
+                    placeholder={de ? 'z. B. Angebot nachfassen' : 'e.g. follow up on the offer'}
+                    onChange={(e) => setDraft({ ...draft, deadlineNote: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
             <div className="mt-4 flex gap-2">
               <button
@@ -341,6 +474,7 @@ function ContactsContent() {
                     <p className="text-xs text-slate-500 truncate">
                       {[c.company, c.email, c.phone].filter(Boolean).join(' · ') || '—'}
                     </p>
+                    {c.deadlineAt && <div className="mt-1"><DeadlineBadge contact={c} de={de} /></div>}
                   </div>
                   <span className="text-xs text-slate-500 whitespace-nowrap">
                     {c.contactCount}× {de ? 'kontaktiert' : 'contacted'}
@@ -349,6 +483,11 @@ function ContactsContent() {
                     de={de}
                     value={c.intervalDays}
                     onChange={(days) => saveOne.mutate({ ...c, intervalDays: days })}
+                  />
+                  <DeadlineField
+                    de={de}
+                    value={c.deadlineAt}
+                    onChange={(tag) => saveOne.mutate({ ...c, deadlineAt: tag })}
                   />
                   <button
                     type="button"

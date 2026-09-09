@@ -29,6 +29,16 @@ export function emptyContact() {
     lastContactedAt: null,
     /** Aus der Vorschlagsauswahl herausnehmen, ohne zu löschen. */
     paused: false,
+    /**
+     * Frist als Kalendertag 'YYYY-MM-DD', null = keine.
+     *
+     * Bewusst kein Zeitstempel: Eine Frist ist ein Tag, kein Augenblick.
+     * Als ISO-Zeitpunkt wäre der 14. je nach Zeitzone am 13. abends schon
+     * vorbei — und der Cron läuft in einer anderen Zone als das Handy.
+     */
+    deadlineAt: null,
+    /** Wofür die Frist steht. Läuft in der Erinnerungsmail mit. */
+    deadlineNote: '',
   };
 }
 

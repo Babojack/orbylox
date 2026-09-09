@@ -176,6 +176,20 @@ function rmOverdueDays(array $c, int $now): int
     return (int)floor(($now - $due) / 86400);
 }
 
+/**
+ * Der Zuschlag einer gesetzten Frist — dieselben Zahlen wie im Browser
+ * (fristBonus in src/lib/contactSuggestions.js). Groesser als alles andere
+ * zusammen: Eine Frist ist eine Zusage mit Datum, kein Vorschlag.
+ */
+function rmFristBonus(array $c, ?int $now = null): int
+{
+    $tage = rmFristTage((string)($c['deadline_at'] ?? ''), $now);
+    if ($tage === null) return 0;
+    if ($tage <= 0) return 500;
+    if ($tage <= RM_FRIST_VORWARNUNG) return 250;
+    return 0;
+}
+
 function pickContactSuggestions(array $contacts, int $count = 3, ?int $now = null): array
 {
     $now = $now ?? time();
@@ -188,7 +202,10 @@ function pickContactSuggestions(array $contacts, int $count = 3, ?int $now = nul
         $urgency = max(-30, min(120, $over));
         $never = empty($c['last_contacted_at']) ? 40 : 0;
         $jitter = rmHash((string)($c['id'] ?? $c['name'] ?? ''), $seed) * 25;
-        $scored[] = ['c' => $c, 's' => $urgency + $never + $jitter];
+        // Dieselben Zuschlaege wie fristBonus() im Browser. Ohne sie zeigte
+        // die Morgenmail andere drei Namen als die Seite am selben Tag —
+        // und der Kontakt mit Frist stuende ausgerechnet dort nicht drin.
+        $scored[] = ['c' => $c, 's' => $urgency + $never + $jitter + rmFristBonus($c, $now)];
     }
     usort($scored, function ($a, $b) {
         return $b['s'] <=> $a['s'] ?: strcmp((string)($a['c']['id'] ?? ''), (string)($b['c']['id'] ?? ''));
@@ -231,7 +248,7 @@ function contactsHtml(string $lang, array $picked, string $appUrl): string
     return rmLayout(
         $lang === 'en' ? 'Three people worth a message' : 'Drei Menschen für heute',
         $lang === 'en'
-            ? 'Beziehungen leben von Regelmäßigkeit. Tick them off in ORBYLOX once you have written.'
+            ? 'Relationships live on regularity. Tick them off in ORBYLOX once you have written.'
             : 'Beziehungen leben von Regelmäßigkeit. Hake sie in ORBYLOX ab, sobald du geschrieben hast.',
         $body,
         $lang === 'en' ? 'Open contacts' : 'Zu den Kontakten',
@@ -245,6 +262,158 @@ function contactsText(string $lang, array $picked, string $appUrl): string
     foreach ($picked as $c) {
         $extra = array_filter([(string)($c['company'] ?? ''), (string)($c['email'] ?? '')]);
         $lines[] = '- ' . (string)($c['name'] ?? '') . ($extra ? ' (' . implode(', ', $extra) . ')' : '');
+    }
+    $lines[] = '';
+    $lines[] = $appUrl . '/Contacts';
+    return implode("\n", $lines);
+}
+
+/* ---------------------------------------------------------------- Fristen */
+
+/**
+ * Vorwarnung in Tagen — dieselbe Zahl wie VORWARNUNG_TAGE in
+ * src/lib/contactSuggestions.js. Steht sie hier anders, verspricht die Seite
+ * etwas anderes, als der Versand tut.
+ */
+const RM_FRIST_VORWARNUNG = 3;
+
+/**
+ * Tage bis zur Frist. Negativ heisst: der Tag ist vorbei.
+ *
+ * Gerechnet wird in KALENDERTAGEN in Europe/Berlin, nicht in 86400-Sekunden-
+ * Schritten ab jetzt. Sonst waere eine Frist um 23:30 noch "morgen" und um
+ * 00:30 schon "heute" — je nachdem, wann der Cron laeuft.
+ */
+function rmFristTage(string $tag, ?int $now = null): ?int
+{
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tag)) return null;
+    $tz = new DateTimeZone('Europe/Berlin');
+    $ziel = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $tag . ' 00:00:00', $tz);
+    if (!$ziel) return null;
+    $heute = (new DateTimeImmutable('@' . ($now ?? time())))->setTimezone($tz)->setTime(0, 0, 0);
+    return (int)$ziel->diff($heute)->days * ($ziel < $heute ? -1 : 1);
+}
+
+/**
+ * Wer heute in die Fristen-Mail gehoert.
+ *
+ * Drei Anlaesse: die Vorwarnung (genau drei Tage vorher), der Fristtag
+ * selbst, und jeder Tag danach, solange nicht abgehakt wurde. Der letzte
+ * Punkt ist Absicht: Eine verstrichene Frist, die verstummt, ist schlimmer
+ * als gar keine. Wer sie loswerden will, hakt ab — dann setzt der Takt die
+ * naechste, oder sie faellt weg.
+ *
+ * Pausierte Kontakte bleiben aussen vor. Wer jemanden ausdruecklich stumm
+ * gestellt hat, will auch keine Frist-Mail ueber ihn.
+ */
+function pickDeadlineContacts(array $contacts, ?int $now = null): array
+{
+    $raus = [];
+    foreach ($contacts as $c) {
+        if (!empty($c['paused'])) continue;
+        $tage = rmFristTage((string)($c['deadline_at'] ?? ''), $now);
+        if ($tage === null) continue;
+        if ($tage > RM_FRIST_VORWARNUNG) continue;                 // noch zu frueh
+        if ($tage > 0 && $tage !== RM_FRIST_VORWARNUNG) continue;  // dazwischen: still
+        $c['_tage'] = $tage;
+        $raus[] = $c;
+    }
+    // Das Dringendste zuerst: abgelaufen vor heute vor Vorwarnung.
+    usort($raus, fn ($a, $b) => $a['_tage'] <=> $b['_tage']);
+    return $raus;
+}
+
+function fristWhen(string $lang, int $tage): string
+{
+    if ($lang === 'en') {
+        if ($tage < -1) return 'deadline passed ' . abs($tage) . ' days ago';
+        if ($tage === -1) return 'deadline passed yesterday';
+        if ($tage === 0) return 'deadline is today';
+        if ($tage === 1) return 'deadline tomorrow';
+        return "deadline in $tage days";
+    }
+    if ($tage < -1) return 'Frist seit ' . abs($tage) . ' Tagen abgelaufen';
+    if ($tage === -1) return 'Frist seit gestern abgelaufen';
+    if ($tage === 0) return 'Frist läuft heute ab';
+    if ($tage === 1) return 'Frist morgen';
+    return "Frist in $tage Tagen";
+}
+
+/**
+ * Der Betreff sagt, was zu tun ist — und wessen Name dranhängt.
+ *
+ * Ein Name im Betreff ist mehr wert als eine Zahl: "Frist läuft ab: Anna
+ * Bauer" erkennt man in der Vorschau, "3 Erinnerungen" nicht. Einzahl und
+ * Mehrzahl werden ausgeschrieben; "Frist(en)" liest sich wie ein Formular.
+ */
+function fristSubject(string $lang, array $items): string
+{
+    $spaet = 0;
+    foreach ($items as $i) if ((int)$i['_tage'] <= 0) $spaet++;
+    $n = count($items);
+    $erste = (string)($items[0]['name'] ?? '');
+
+    if ($spaet > 0) {
+        if ($lang === 'en') {
+            return $spaet === 1 && $n === 1
+                ? "Deadline is up: $erste"
+                : "$spaet deadline" . ($spaet === 1 ? '' : 's') . " up — starting with $erste";
+        }
+        return $spaet === 1 && $n === 1
+            ? "Frist läuft ab: $erste"
+            : "$spaet Frist" . ($spaet === 1 ? '' : 'en') . " laufen ab — angefangen bei $erste";
+    }
+
+    if ($lang === 'en') {
+        return $n === 1 ? "Deadline coming up: $erste" : "$n deadlines coming up — $erste …";
+    }
+    return $n === 1 ? "Frist rückt näher: $erste" : "$n Fristen rücken näher — $erste …";
+}
+
+
+function fristHtml(string $lang, array $items, string $appUrl): string
+{
+    $rows = '';
+    foreach ($items as $c) {
+        $tage = (int)$c['_tage'];
+        $farbe = $tage <= 0 ? RM_ORANGE : '#b45309';
+        $name = rmEsc((string)($c['name'] ?? ''));
+        $sub = array_filter([
+            (string)($c['company'] ?? ''),
+            (string)($c['email'] ?? ''),
+            (string)($c['phone'] ?? ''),
+        ]);
+        $grund = trim((string)($c['deadline_note'] ?? ''));
+        $rows .= '<tr><td style="padding:12px 0;border-bottom:1px solid #e2e8f0;">'
+            . '<div style="font:700 15px/1.4 -apple-system,BlinkMacSystemFont,\'Segoe UI\',Arial,sans-serif;color:' . RM_INK . ';">' . $name . '</div>'
+            . ($sub ? '<div style="font:400 13px/1.5 -apple-system,BlinkMacSystemFont,\'Segoe UI\',Arial,sans-serif;color:#64748b;">' . rmEsc(implode(' · ', $sub)) . '</div>' : '')
+            . ($grund !== '' ? '<div style="font:400 13px/1.5 -apple-system,BlinkMacSystemFont,\'Segoe UI\',Arial,sans-serif;color:#334155;margin-top:2px;">' . rmEsc($grund) . '</div>' : '')
+            . '<div style="font:700 12px/1.5 -apple-system,BlinkMacSystemFont,\'Segoe UI\',Arial,sans-serif;color:' . $farbe . ';margin-top:4px;text-transform:uppercase;letter-spacing:.04em;">' . rmEsc(fristWhen($lang, $tage)) . '</div>'
+            . '</td></tr>';
+    }
+    $body = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $rows . '</table>';
+
+    return rmLayout(
+        $lang === 'en' ? 'Deadlines with people' : 'Fristen bei Menschen',
+        $lang === 'en'
+            ? 'You set a deadline to get in touch with these people. Tick them off in ORBYLOX once you have.'
+            : 'Für diese Menschen hast du dir eine Frist gesetzt. Hake sie in ORBYLOX ab, sobald du sie erreicht hast.',
+        $body,
+        $lang === 'en' ? 'Open contacts' : 'Zu den Kontakten',
+        $appUrl . '/Contacts'
+    );
+}
+
+function fristText(string $lang, array $items, string $appUrl): string
+{
+    $lines = [$lang === 'en' ? 'Deadlines with people:' : 'Fristen bei Menschen:', ''];
+    foreach ($items as $c) {
+        $extra = array_filter([(string)($c['company'] ?? ''), (string)($c['email'] ?? '')]);
+        $grund = trim((string)($c['deadline_note'] ?? ''));
+        $lines[] = '- ' . (string)($c['name'] ?? '')
+            . ($extra ? ' (' . implode(', ', $extra) . ')' : '')
+            . ' — ' . fristWhen($lang, (int)$c['_tage'])
+            . ($grund !== '' ? ' — ' . $grund : '');
     }
     $lines[] = '';
     $lines[] = $appUrl . '/Contacts';

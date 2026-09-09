@@ -1,9 +1,21 @@
 ORBYLOX — AUTOMATISCHE E-MAILS EINRICHTEN
 =========================================
 
-Betrifft zwei Dinge, die dieselbe Technik brauchen:
-  - Deadline-Erinnerungen (3 Tage vorher, am Tag selbst, bei Ueberfaelligkeit)
+Betrifft drei Dinge, die dieselbe Technik brauchen:
+  - Deadline-Erinnerungen fuer Aufgaben (3 Tage vorher, am Tag selbst,
+    bei Ueberfaelligkeit)
   - Kontaktpflege: drei Vorschlaege am Tag
+  - Fristen bei Kontakten: eigene Mail mit eigenem Betreff, 3 Tage vor dem
+    Stichtag, am Stichtag selbst und danach taeglich, bis abgehakt wurde.
+    Hoechstens eine solche Mail pro Tag und Empfaenger, auch wenn mehrere
+    Fristen zusammenfallen.
+
+    Die Vorwarnzeit steht an zwei Stellen, weil PHP und JavaScript sich
+    keinen Code teilen koennen:
+      public/api/reminder-template.php  ->  RM_FRIST_VORWARNUNG
+      src/lib/contactSuggestions.js     ->  VORWARNUNG_TAGE
+    "npm run check:deadlines" vergleicht beide. Wer eine aendert, aendert
+    die andere mit, sonst verspricht die Seite etwas anderes als der Versand.
 
 WARUM EIN CRON-JOB NOETIG IST
 Eine Webseite laeuft nur, solange jemand sie geoeffnet hat. Eine Erinnerung

@@ -6,6 +6,10 @@
  *   1. Deadline-Erinnerungen: Aufgaben, die in den nächsten Tagen fällig
  *      werden oder es schon sind, an die zuständige Person.
  *   2. Kontaktpflege: drei Vorschläge an alle, die das eingeschaltet haben.
+ *   3. Fristen bei Kontakten: wer sich für jemanden einen Stichtag gesetzt
+ *      hat, wird drei Tage vorher, am Tag selbst und danach täglich erinnert,
+ *      bis abgehakt ist. Eigene Mail mit eigenem Betreff — eine Zusage mit
+ *      Datum darf nicht in einem Vorschlag untergehen.
  *
  * Aufruf (Cron):
  *   php /home/…/public_html/api/reminders.php
@@ -132,7 +136,7 @@ function smtpOptions(array $config): array
 $today = gmdate('Y-m-d');
 $log = loadSentLog();
 $smtp = smtpOptions($config);
-$report = ['date' => $today, 'dry_run' => $dryRun, 'deadlines' => 0, 'contacts' => 0, 'skipped' => 0, 'errors' => []];
+$report = ['date' => $today, 'dry_run' => $dryRun, 'deadlines' => 0, 'deadlineContacts' => 0, 'contacts' => 0, 'skipped' => 0, 'errors' => []];
 
 /**
  * Verschicken, aber nur einmal je Schlüssel und Tag.
@@ -213,6 +217,30 @@ try {
         $contacts = fsQuery($projectId, 'Contact', [['userId', 'EQUAL', $uid]], 1000);
         if (!$contacts) continue;
 
+        /* --- 2a. Fristen: eigene Mail, eigener Betreff ------------------
+         *
+         * Bewusst getrennt von den Tagesvorschlaegen. Die Vorschlaege sind ein
+         * Angebot ("waere mal wieder Zeit"), eine Frist ist eine Zusage mit
+         * Datum. Stuenden beide in derselben Mail, ginge die Zusage im Angebot
+         * unter — und der Betreff koennte nur eins von beidem sagen.
+         *
+         * Ein Schluessel je Empfaenger und Tag, nicht je Anlass: Sonst kaeme
+         * an einem Tag, an dem einer abgelaufen und ein anderer in drei Tagen
+         * faellig ist, zweimal Post. Eine Mail am Tag, darin alles.
+         */
+        $fristen = pickDeadlineContacts($contacts);
+        if ($fristen) {
+            $mail = [
+                'to'      => $to,
+                'subject' => fristSubject('de', $fristen),
+                'html'    => fristHtml('de', $fristen, $appUrl),
+                'text'    => fristText('de', $fristen, $appUrl),
+            ];
+            sendOnce('frist|' . $to, $mail, $smtp, $log, $today, $dryRun, $report);
+            $report['deadlineContacts']++;
+        }
+
+        /* --- 2b. Die drei Tagesvorschlaege ------------------------------ */
         $picked = pickContactSuggestions($contacts, 3);
         if (!$picked) continue;
 

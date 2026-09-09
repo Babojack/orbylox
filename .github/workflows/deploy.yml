@@ -53,6 +53,13 @@ jobs:
       - name: Bewegungen prüfen
         run: npm run check:clips
 
+      # Diese Prüfung braucht den Build nicht — sie liest den Quelltext. Sie
+      # steht trotzdem hier, weil sie vergleicht, ob Seite und Cron dieselbe
+      # Vorwarnzeit verwenden: Ein Auseinanderdriften merkt sonst niemand,
+      # bis eine Frist ohne Vorwarnung abläuft.
+      - name: Fristen prüfen
+        run: npm run check:deadlines
+
       - name: Schlüssel einrichten
         run: |
           mkdir -p ~/.ssh

@@ -33,6 +33,11 @@ export function fromDoc(id, d = {}) {
     contactCount: Number(d.contact_count) || 0,
     lastContactedAt: typeof d.last_contacted_at === 'string' ? d.last_contacted_at : null,
     paused: !!d.paused,
+    // Nur ein sauberes 'YYYY-MM-DD' zaehlt. Alles andere wird zu null statt
+    // ungeprueft durchgereicht: ein halber Datumswert wuerde spaeter still
+    // als "keine Frist" wirken, aber in der Anzeige als Frist auftauchen.
+    deadlineAt: /^\d{4}-\d{2}-\d{2}$/.test(String(d.deadline_at || '')) ? String(d.deadline_at) : null,
+    deadlineNote: String(d.deadline_note || ''),
   };
 }
 
@@ -49,6 +54,8 @@ export function toDoc(c, uid) {
     contact_count: Number(c.contactCount) || 0,
     last_contacted_at: c.lastContactedAt || null,
     paused: !!c.paused,
+    deadline_at: /^\d{4}-\d{2}-\d{2}$/.test(String(c.deadlineAt || '')) ? String(c.deadlineAt) : null,
+    deadline_note: String(c.deadlineNote || '').slice(0, 200),
     updated_date: new Date().toISOString(),
   };
 }

@@ -83,7 +83,22 @@ export function scoreOf(contact, now = Date.now(), seed = 0) {
   const urgency = Math.max(-30, Math.min(120, over));   // Tage, gedeckelt
   const never = contact?.lastContactedAt ? 0 : 40;      // nie kontaktiert: Bonus
   const jitter = hashOf(contact?.id || contact?.name || '', seed) * 25;
-  return urgency + never + jitter;
+  return urgency + never + jitter + fristBonus(contact, now);
+}
+
+/**
+ * Eine gesetzte Frist schlägt jeden Takt.
+ *
+ * Der Zuschlag ist absichtlich größer als alles andere zusammen (Takt max.
+ * 120, nie kontaktiert 40, Zufall 25): Eine Frist ist eine Zusage an sich
+ * selbst, mit einem Datum daran. Sie darf nicht hinter jemandem landen, der
+ * zufällig länger nicht dran war.
+ */
+export function fristBonus(contact, now = Date.now()) {
+  const { phase } = deadlineState(contact, new Date(now));
+  if (phase === 'abgelaufen' || phase === 'heute') return 500;
+  if (phase === 'bald') return 250;
+  return 0;
 }
 
 /**
@@ -115,15 +130,110 @@ export function countDue(contacts, now = Date.now()) {
   return (contacts || []).filter((c) => c && !c.paused && overdueDays(c, now) >= 0).length;
 }
 
+/* ============================================================== Fristen ==
+ *
+ * Der Takt sagt "ungefähr alle 30 Tage". Eine Frist sagt "bis zum 14.".
+ * Das ist etwas anderes und braucht deshalb ein eigenes Feld:
+ *
+ *   contact.deadlineAt   'YYYY-MM-DD' — der Tag, bis zu dem kontaktiert sein muss
+ *   contact.deadlineNote  optionaler Grund, der in der Mail mitläuft
+ *
+ * WARUM EIN TAG ALS ZEICHENKETTE UND KEIN ZEITSTEMPEL
+ * Eine Frist ist ein Kalendertag, kein Augenblick. Als ISO-Zeitstempel
+ * gespeichert wäre der 14. je nach Zeitzone am 13. abends schon vorbei —
+ * und der Cron auf dem Server läuft in einer anderen Zone als das Handy.
+ * Ein Tag als Text hat dieses Problem nicht.
+ */
+
+/** Vorwarnung: so viele Tage vor der Frist geht die erste Mail raus. */
+export const VORWARNUNG_TAGE = 3;
+
+/** Kalendertag als 'YYYY-MM-DD' — in der Zone des Geräts, wie der Nutzer ihn sieht. */
+export function dayStamp(value = new Date()) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Tage von heute bis zum Tag `stamp`; negativ heißt "liegt zurück". */
+export function daysUntil(stamp, now = new Date()) {
+  if (!stamp) return null;
+  const [y, m, d] = String(stamp).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const ziel = new Date(y, m - 1, d);
+  const heute = now instanceof Date ? new Date(now) : new Date(now);
+  // Beide auf Mitternacht: sonst zählt die Uhrzeit mit und "heute" wäre je
+  // nach Tageszeit mal 0 und mal -1 Tage.
+  ziel.setHours(0, 0, 0, 0);
+  heute.setHours(0, 0, 0, 0);
+  return Math.round((ziel - heute) / DAY);
+}
+
+/**
+ * In welchem Zustand ist die Frist dieses Kontakts?
+ *
+ *   keine     — es ist keine gesetzt
+ *   offen     — mehr als die Vorwarnzeit entfernt
+ *   bald      — innerhalb der Vorwarnzeit (dann geht die erste Mail raus)
+ *   heute     — heute ist der Tag
+ *   abgelaufen— der Tag ist vorbei, ohne dass abgehakt wurde
+ */
+export function deadlineState(contact, now = new Date()) {
+  const stamp = contact?.deadlineAt || '';
+  const tage = daysUntil(stamp, now);
+  if (tage === null) return { gesetzt: false, tage: null, phase: 'keine' };
+  if (tage < 0) return { gesetzt: true, tage, phase: 'abgelaufen' };
+  if (tage === 0) return { gesetzt: true, tage, phase: 'heute' };
+  if (tage <= VORWARNUNG_TAGE) return { gesetzt: true, tage, phase: 'bald' };
+  return { gesetzt: true, tage, phase: 'offen' };
+}
+
+/**
+ * Die nächste Frist nach einem erledigten Kontakt.
+ *
+ * Sie kommt aus dem Takt: Wer "jeden Monat" eingestellt hat, bekommt nach dem
+ * Abhaken den Tag in 30 Tagen. Ohne Takt gibt es keine neue Frist — sonst
+ * würde ORBYLOX einen Termin erfinden, den niemand gesetzt hat.
+ */
+export function nextDeadlineFrom(contact, now = new Date()) {
+  const takt = Number(contact?.intervalDays) || 0;
+  if (takt <= 0) return null;
+  const ab = now instanceof Date ? new Date(now) : new Date(now);
+  ab.setHours(0, 0, 0, 0);
+  return dayStamp(new Date(ab.getTime() + takt * DAY));
+}
+
+/** Wie viele Fristen sind heute oder schon vorbei? Für die Anzeige. */
+export function countDeadlinesDue(contacts, now = new Date()) {
+  return (contacts || []).filter((c) => {
+    if (!c || c.paused) return false;
+    const { phase } = deadlineState(c, now);
+    return phase === 'heute' || phase === 'abgelaufen';
+  }).length;
+}
+
 /**
  * Kontakt nach dem Abhaken fortschreiben.
  * Reine Funktion — leicht zu testen und ohne Nebenwirkung.
+ *
+ * Die Frist wird dabei WEITERGESETZT, nicht gelöscht: Wer einmal eine Frist
+ * für jemanden gesetzt hat, will ihn nicht nach dem ersten Anruf aus den
+ * Augen verlieren. Ohne Takt fällt sie weg — dann war es ein einmaliger
+ * Termin, und ein erfundener Folgetermin wäre eine Anmaßung.
  */
 export function markContacted(contact, now = new Date()) {
-  const at = (now instanceof Date ? now : new Date(now)).toISOString();
-  return {
+  const jetzt = now instanceof Date ? now : new Date(now);
+  const at = jetzt.toISOString();
+  const hatteFrist = !!contact?.deadlineAt;
+  const neu = {
     ...contact,
     contactCount: (Number(contact?.contactCount) || 0) + 1,
     lastContactedAt: at,
   };
+  if (hatteFrist) {
+    const folge = nextDeadlineFrom(contact, jetzt);
+    neu.deadlineAt = folge || null;
+    if (!folge) neu.deadlineNote = null;
+  }
+  return neu;
 }
