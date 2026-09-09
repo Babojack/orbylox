@@ -408,7 +408,11 @@ export default function Dashboard() {
                       key={task.id}
                       className="flex items-center justify-between gap-2 p-2 rounded-lg border border-slate-100"
                     >
-                      <span className="text-sm font-medium text-slate-800 truncate flex-1">
+                      {/* `min-w-0` gehoert zu `truncate`, sobald es an einem
+                          Flex-Kind steht: Ohne das gilt `min-width: auto`, der
+                          Titel wird nicht gekuerzt, sondern unteilbar — und
+                          schiebt die Zeile auseinander. */}
+                      <span className="text-sm font-medium text-slate-800 truncate flex-1 min-w-0">
                         {task.title || t("dashboardUntitled")}
                       </span>
                       <Badge className={`shrink-0 text-[10px] ${st.color}`}>

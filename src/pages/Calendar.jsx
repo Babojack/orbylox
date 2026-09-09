@@ -466,8 +466,14 @@ export default function Calendar() {
               value={newEvent.description}
               onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
             />
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            {/* `data-datumspaar` ist der Haken fuers Retro: Dort ist die Schrift
+                eine Pixelschrift, und ein Datumsfeld braucht darin gut 400
+                Pixel. Zwei nebeneinander passen in einen 512 Pixel breiten
+                Dialog nicht — im Retro stehen sie deshalb untereinander.
+                `min-w-0` an den Zellen ist das Netz darunter: ohne das darf
+                eine Rasterzelle nie schmaler werden als ihr Inhalt. */}
+            <div data-datumspaar="" className="grid grid-cols-2 gap-4">
+              <div className="min-w-0">
                 <label className="text-sm text-slate-600 mb-1 block">{t('eventStart')}</label>
                 <Input
                   type="datetime-local"
@@ -475,7 +481,7 @@ export default function Calendar() {
                   onChange={(e) => setNewEvent({ ...newEvent, start_date: e.target.value })}
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="text-sm text-slate-600 mb-1 block">{t('eventEnd')}</label>
                 <Input
                   type="datetime-local"
@@ -489,8 +495,9 @@ export default function Calendar() {
               <label className="text-sm text-slate-600 mb-1 block flex items-center gap-1">
                 <UserPlus className="w-4 h-4" /> Teilnehmer einladen
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 min-w-0">
                 <Input
+                  className="min-w-0"
                   placeholder="email@example.com"
                   value={attendeeInput}
                   onChange={(e) => setAttendeeInput(e.target.value)}
@@ -552,7 +559,11 @@ export default function Calendar() {
 
               {newEvent.video_enabled && newEvent.video_url && (
                 <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2 py-1.5">
-                  <span className="text-xs text-slate-600 truncate flex-1">{newEvent.video_url}</span>
+                  {/* `truncate` allein kuerzt hier nichts: Als Flex-Kind gilt
+                      `min-width: auto`, und der Link ist unteilbar — er schob
+                      den Dialog um 252 Pixel auseinander, statt gekuerzt zu
+                      werden. Erst mit `min-w-0` darf er schrumpfen. */}
+                  <span className="text-xs text-slate-600 truncate flex-1 min-w-0">{newEvent.video_url}</span>
                   <Button
                     type="button"
                     size="sm"

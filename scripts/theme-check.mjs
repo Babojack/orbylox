@@ -164,6 +164,10 @@ const MARKUP = `
   </main>
   <div role="dialog" class="bg-white rounded-2xl shadow-2xl" id="dialog">
     <h2 id="dialogtitel">Projekt löschen</h2>
+    <div data-datumspaar="" class="grid grid-cols-2 gap-4" id="datumspaar">
+      <div class="min-w-0"><input type="datetime-local" id="startfeld" /></div>
+      <div class="min-w-0"><input type="datetime-local" id="endefeld" /></div>
+    </div>
   </div>`;
 
 function baum(mitTheme) {
@@ -493,6 +497,22 @@ const faelle = [
   ['Anmelden traegt sein Wort erst ab sm', () => {
     const s = fs.readFileSync(path.join(wurzel, 'src/pages/Landing.jsx'), 'utf8');
     return /hidden sm:inline">\{de \? 'Anmelden'/.test(s);
+  }],
+  /**
+   * Der Dialog darf nicht auseinandergehen.
+   *
+   * Datumsfelder bekommen vom Browser eine Eigenbreite nach der Schrift im
+   * Feld — mit der Pixelschrift gut 400 Pixel. Weil diese Eigenbreite
+   * zugleich die MINDESTbreite ist, schob ein Feldpaar den Inhalt des
+   * Terminfensters um 347 Pixel aus einem 512 Pixel breiten Dialog heraus.
+   * Zwei Regeln halten dagegen, und beide werden hier geprüft.
+   */
+  ['Datumsfelder dürfen schrumpfen', () => w(R, '#startfeld', 'min-width') === '0'],
+  ['und stehen im Retro untereinander', () => w(R, '#datumspaar', 'grid-template-columns') === '1fr'],
+  ['ohne Theme bleibt es bei zwei Spalten', () => w(N, '#datumspaar', 'grid-template-columns') !== '1fr'],
+  ['jeder Dialog lässt seine Kinder schrumpfen', () => {
+    const s = fs.readFileSync(path.join(wurzel, 'src/components/ui/dialog.jsx'), 'utf8');
+    return s.includes('[&>*]:min-w-0');
   }],
   ['die Spalte hat eine Kante', () => /solid/.test(w(R, '#kanbanspalte', 'border') || '')],
   ['ohne Theme bleibt alles hell', () => farbe(w(N, 'main', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],

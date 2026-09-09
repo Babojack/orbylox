@@ -1600,3 +1600,34 @@
 @media (prefers-reduced-motion: reduce) {
   [data-theme='retro'] .theme-scope::before { display: none; }
 }
+
+/* --- Was im Retro breiter wird, als es darf ------------------------------ */
+
+/**
+ * Datums- und Zeitfelder duerfen schrumpfen.
+ *
+ * Der Browser gibt ihnen eine Eigenbreite nach der Schrift im Feld. Mit der
+ * Pixelschrift sind das gut 400 Pixel — in einem Dialog von 512 Pixern stehen
+ * zwei davon nebeneinander nicht mehr drin, und weil die Eigenbreite zugleich
+ * die Mindestbreite ist, schiebt das Feld den ganzen Dialoginhalt nach
+ * rechts aus dem Kasten heraus. `min-width: 0` nimmt ihm dieses Vetorecht.
+ */
+[data-theme='retro'] .theme-scope :is(
+  input[type='date'], input[type='datetime-local'], input[type='time'],
+  input[type='month'], input[type='week']
+) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/**
+ * Und im Terminfenster stehen Start und Ende untereinander.
+ *
+ * Zwei Datumsfelder nebeneinander waeren hier je 224 Pixel breit — die
+ * Pixelschrift braucht rund 400. Untereinander hat jedes die volle Breite und
+ * bleibt lesbar. Im normalen Design bleibt es bei zwei Spalten; dort ist die
+ * Schrift schmal genug.
+ */
+[data-theme='retro'] .theme-scope [data-datumspaar] {
+  grid-template-columns: 1fr;
+}
