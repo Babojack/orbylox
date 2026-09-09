@@ -1152,6 +1152,10 @@ export default function ScrumBoard() {
               className="flex-shrink-0 w-[80vw] sm:flex-1 sm:w-auto sm:min-w-[260px] snap-center sm:snap-align-none flex"
             >
             <div
+              /* Anker fuers Retro: Die Spalte braucht dort eine eigene Flaeche,
+                 sonst steht Pergament auf Pergament und man sieht die Grenzen
+                 nicht mehr. */
+              data-kanban-column=""
               className={`flex-1 flex flex-col bg-slate-50/50 rounded-2xl border min-h-[60vh] transition-all duration-200 ${
                 forbidden ? 'border-slate-200 opacity-45' : 'border-slate-100/60'
               }`}

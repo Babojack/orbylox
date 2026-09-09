@@ -704,7 +704,7 @@ function LayoutContent({ children, currentPageName }) {
 
              <DropdownMenu open={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
                <DropdownMenuTrigger asChild>
-                 <button className="focus:outline-none">
+                 <button data-avatar="" className="focus:outline-none">
                    <Avatar className="w-8 h-8 border border-slate-100 cursor-pointer hover:ring-2 hover:ring-[#ef5a24] transition-all">
                      <AvatarImage src={currentUser?.avatar_url} />
                      <AvatarFallback className="bg-[#ef5a24]/10 text-[#ef5a24]">

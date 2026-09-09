@@ -694,6 +694,7 @@ function ProjectsListContent() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
+                  data-avatar=""
                   data-no-lift
                   className="rounded-full border-0 bg-transparent p-0 flex items-center gap-2 shrink-0"
                   aria-label={t('editProfile')}
@@ -1593,12 +1594,24 @@ function ProjectCard({
           </button>
         </div>
       )}
+      {/**
+        * Das Titelbild fuellt die Karte, es sitzt nicht als Medaillon darin.
+        *
+        * Vorher war es ein 96px-Kreis in einem grauen Kasten — von einem Foto
+        * blieb ein Ausschnitt uebrig, der meist nichts zeigte. Ueber die volle
+        * Breite erkennt man das Projekt schon am Bild, und die Karte bekommt
+        * einen Kopf statt einer Verzierung.
+        *
+        * `aspect-[3/1]` statt einer festen Hoehe: So bleibt der Ausschnitt in
+        * jeder Spaltenbreite derselbe, auf dem Handy wie auf drei Spalten.
+        */}
       {project.cover_image && !compact && (
-        <div className="w-full h-32 bg-slate-100 flex items-center justify-center p-4">
-          <img 
-            src={project.cover_image} 
+        <div className="w-full aspect-[3/1] overflow-hidden border-b-2 border-black bg-slate-100">
+          <img
+            src={project.cover_image}
             alt={project.name}
-            className="w-24 h-24 object-cover rounded-full shadow-lg"
+            loading="lazy"
+            className="w-full h-full object-cover"
           />
         </div>
       )}

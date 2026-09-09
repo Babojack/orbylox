@@ -1458,15 +1458,71 @@
  * gesaettigt — es gehoert zur Welt und faellt trotzdem auf. Pergament darauf
  * ergibt 4,6:1.
  */
-[data-theme='retro'] .theme-scope [data-menu] {
+/**
+ * Ausgenommen bleiben zwei Sorten: der Avatar (ein Bild, kein Beschriftungs-
+ * feld — Gruen daherum saehe aus wie ein vergessener Rahmen) und Knoepfe, die
+ * ihre Farbe schon mitbringen. Das Abmelden unten in der Leiste ist rot, weil
+ * es die Handlung ist, die man nicht aus Versehen tun soll; das gruen zu
+ * uebermalen haette ihm genau diese Warnung genommen.
+ */
+[data-theme='retro'] .theme-scope [data-menu],
+[data-theme='retro'] .theme-scope :is(header, aside)
+  button:not([data-avatar]):not([class*='bg-red-']):not([class*='bg-\[#ef5a24\]']) {
   background-color: #33742f;
   color: var(--r-parch);
   border: 2px solid var(--r-edge);
   box-shadow: 3px 3px 0 0 var(--r-edge);
 }
-[data-theme='retro'] .theme-scope [data-menu]:hover {
+[data-theme='retro'] .theme-scope [data-menu]:hover,
+[data-theme='retro'] .theme-scope :is(header, aside)
+  button:not([data-avatar]):not([class*='bg-red-']):not([class*='bg-\[#ef5a24\]']):hover {
   background-color: #226c1d;
   color: #fff;
+}
+/* Das Symbol IM Knopf erbt nicht, wenn es eine eigene Farbe mitbringt —
+   deshalb hier ausdrücklich. Sonst bliebe es pergamentfarben aus der
+   Holz-Regel und säße blass auf dem Grün. */
+[data-theme='retro'] .theme-scope :is(header, aside)
+  button:not([data-avatar]):not([class*='bg-red-']) [class*='text-slate-'],
+[data-theme='retro'] .theme-scope [data-menu] [class*='text-slate-'] {
+  color: var(--r-parch);
+}
+/**
+ * Der Avatar bleibt außen vor.
+ *
+ * Er ist kein Bedienelement mit Beschriftung, sondern ein Bild. Eine grüne
+ * Fläche dahinter sähe aus wie ein Rahmen, den jemand vergessen hat zu
+ * entfernen — und das Foto wird ohnehin randlos beschnitten.
+ */
+
+/* --- Das Kanban-Brett ---------------------------------------------------- */
+
+/**
+ * Drei Ebenen statt einer.
+ *
+ * Vorher war alles Pergament: der Inhaltsbereich, die Spalte, die Karte. Man
+ * sah keine Spaltengrenze mehr, und die harten Schatten der Karten ragten ins
+ * Nichts — das Brett wirkte zerfallen.
+ *
+ * Jetzt liegt die Wiese unten (wie in der Projektübersicht, so gewünscht),
+ * darauf die Spalte in vertieftem Pergament mit dunklem Rahmen, darauf die
+ * Karten im hellen Pergament. Jede Ebene ist eine Stufe heller als die
+ * darunter; damit sieht man Grenzen, ohne dass eine Linie sie ziehen müsste.
+ */
+/* `main[class]` statt `main`: Der Inhaltsbereich traegt `bg-white`, und die
+   Regel dafuer hat (0,3,0). Das Attribut hebt uns auf (0,3,1) — knapp davor,
+   ohne dass irgendwo ein `!important` noetig waere. */
+[data-theme='retro'] .theme-scope main[class] {
+  background-color: var(--r-grass);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.055) 1px, transparent 1px);
+  background-size: 16px 16px, 16px 16px;
+}
+[data-theme='retro'] .theme-scope [data-kanban-column] {
+  background-color: var(--r-parch-2);
+  border: 2px solid var(--r-edge);
+  box-shadow: 4px 4px 0 0 var(--r-edge);
 }
 
 /* --- Kleine Zutaten ----------------------------------------------------- */

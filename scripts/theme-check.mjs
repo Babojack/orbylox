@@ -113,10 +113,14 @@ const MARKUP = `
     <span class="text-slate-800" id="navtext">Dashboard</span>
     <span class="bg-sky-500" id="navpunkt"></span>
     <div class="bg-slate-100" id="navaktiv">aktiv</div>
+    <button id="schliessknopf" class="text-slate-400 hover:text-slate-600">X</button>
+    <button id="abmelden" class="w-full flex items-center gap-3 px-4 py-3 bg-red-500 rounded-xl"><span class="text-sm text-white">Abmelden</span></button>
   </aside>
   <main class="flex-1 bg-white min-h-screen flex flex-col">
     <header class="h-16 border-b border-slate-50 sticky top-0 bg-white/95 z-50">
       <h1 class="font-semibold text-slate-800" id="projektname">Website-Relaunch</h1>
+      <button id="themeknopf" class="h-9 px-3 border-2 border-black bg-white text-xs uppercase">Retro</button>
+      <button data-avatar="" id="avatarknopf" class="focus:outline-none"><img src="/a.png" /></button>
     </header>
     <div class="max-w-7xl mx-auto px-6 py-12">
       <div class="rounded-lg border-2 border-slate-200 bg-white shadow-sm" id="karte">
@@ -148,6 +152,9 @@ const MARKUP = `
       <div class="cursor-grab" id="greifen"></div>
       <button data-menu="" class="h-9 w-9 text-slate-600 hover:text-slate-900 hover:bg-slate-100" id="menue"></button>
       <div class="bg-blue-50" id="spalteblau"></div>
+      <div data-kanban-column="" class="bg-slate-50/50 rounded-2xl border min-h-[60vh]" id="kanbanspalte">
+        <div class="bg-white rounded-xl border-2 border-black" id="kanbankarte">Aufgabe</div>
+      </div>
       <section class="bg-[#f5f5f5]" id="woanders"><span class="text-[#ef5a24]" id="markentext">x</span></section>
     </div>
   </main>
@@ -382,6 +389,40 @@ const faelle = [
   ['Menü-Knopf ist grün', () => w(R, '#menue', 'background-color') === '#33742f'],
   ['und hat einen Rahmen', () => /solid/.test(w(R, '#menue', 'border') || '')],
   ['ohne Theme bleibt er schlicht', () => w(N, '#menue', 'background-color') !== '#33742f'],
+
+  /**
+   * Dasselbe für die übrigen Knöpfe oben und links.
+   *
+   * Der Retro-Schalter, der Ton, die Sprache, die Glocke, das X der
+   * Seitenleiste standen weiss auf Holz — sichtbar nur, weil weiss auf braun
+   * auffällt, nicht weil sie als Knopf erkennbar waren. Der Avatar ist
+   * ausdrücklich ausgenommen: dahinter läge das Grün als Rahmen um ein Foto.
+   */
+  ['Kopfzeilen-Knöpfe sind grün', () => w(R, '#themeknopf', 'background-color') === '#33742f'],
+  ['Knöpfe der Seitenleiste auch', () => w(R, '#schliessknopf', 'background-color') === '#33742f'],
+  ['der Avatar bleibt ausgespart', () => w(R, '#avatarknopf', 'background-color') !== '#33742f'],
+  ['und das Abmelden bleibt rot', () => w(R, '#abmelden', 'background-color') !== '#33742f'],
+  ['ohne Theme bleiben sie weiss', () => w(N, '#themeknopf', 'background-color') !== '#33742f'],
+
+  /**
+   * Das Brett: drei Ebenen, jede von der nächsten unterscheidbar.
+   *
+   * Vorher war der Inhaltsbereich, die Spalte und die Karte dasselbe
+   * Pergament — das Brett zerfiel. Geprüft wird nicht "sieht gut aus",
+   * sondern dass sich die drei Flächen paarweise überhaupt unterscheiden.
+   */
+  ['Inhaltsfläche ist Wiese', () => farbe(w(R, 'main', 'background-color'))?.join() === zuRgb(palette['--r-grass']).join()],
+  ['Spalte hebt sich von der Wiese ab', () => {
+    const s = w(R, '#kanbanspalte', 'background-color');
+    return s !== null && farbe(s)?.join() !== zuRgb(palette['--r-grass']).join();
+  }],
+  ['und die Karte von der Spalte', () => {
+    const sp = farbe(w(R, '#kanbanspalte', 'background-color'));
+    const ka = farbe(w(R, '#kanbankarte', 'background-color'));
+    return sp && ka && sp.join() !== ka.join();
+  }],
+  ['die Spalte hat eine Kante', () => /solid/.test(w(R, '#kanbanspalte', 'border') || '')],
+  ['ohne Theme bleibt das Brett hell', () => farbe(w(N, 'main', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],
 
   /**
    * Die `hover:`-Varianten.
