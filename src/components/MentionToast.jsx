@@ -12,8 +12,16 @@ import { useLanguage } from '@/components/LanguageProvider';
 export default function MentionToast({ items = [], onDismiss, onOpen }) {
   const { t } = useLanguage();
 
+  // Der Abstand nach unten hält den Platz des Assistenten frei:
+  // 16 (Rand) + 56 (Knopf) + 12 (Luft) = 84 Pixel = 5.25rem, dazu der
+  // Sicherheitsabstand des Geräts. Auf dem Handy ist die Meldung fast so
+  // breit wie der Bildschirm — sie läge sonst genau auf dem runden Knopf
+  // unten rechts. Auf Seiten ohne Assistenten schwebt sie etwas höher als
+  // früher; das fällt kaum auf und hält sie zugleich von der Streifenleiste
+  // des iPhones fern.
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col-reverse gap-2 w-[calc(100vw-2rem)] max-w-sm pointer-events-none">
+    <div className="fixed right-4 z-[100] flex flex-col-reverse gap-2 w-[calc(100vw-2rem)] max-w-sm pointer-events-none
+                    bottom-[calc(5.25rem_+_env(safe-area-inset-bottom,0px))]">
       <AnimatePresence initial={false}>
         {items.map((item) => (
           <motion.div

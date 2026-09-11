@@ -151,6 +151,8 @@ const MARKUP = `
       <input type="text" id="textfeld" />
       <div class="cursor-grab" id="greifen"></div>
       <button data-menu="" class="h-9 w-9 text-slate-600 hover:text-slate-900 hover:bg-slate-100" id="menue"></button>
+      <button data-assistant-button="" id="assistent" class="fixed z-40 grid place-items-center w-14 h-14 rounded-full right-[calc(1rem_+_env(safe-area-inset-right,0px))] bottom-[calc(1rem_+_env(safe-area-inset-bottom,0px))] border-2 border-black bg-[#ef5a24] overflow-hidden shadow-lg"></button>
+      <div id="erwaehnung" class="fixed right-4 z-[100] bottom-[calc(5.25rem_+_env(safe-area-inset-bottom,0px))] w-[calc(100vw-2rem)] max-w-sm"></div>
       <div class="bg-blue-50" id="spalteblau"></div>
       <p class="text-slate-500" id="freitext">Neuigkeiten, Ankündigungen und Team-Diskussionen.</p>
       <div class="bg-white rounded-xl" id="tafel"><p class="text-slate-500" id="tafeltext">Nebensache</p></div>
@@ -513,6 +515,36 @@ const faelle = [
   ['jeder Dialog lässt seine Kinder schrumpfen', () => {
     const s = fs.readFileSync(path.join(wurzel, 'src/components/ui/dialog.jsx'), 'utf8');
     return s.includes('[&>*]:min-w-0');
+  }],
+  /**
+   * Der Assistent schwebt unten rechts — und zwar mit Sicherheitsabstand.
+   *
+   * Auf dem iPhone liegt unten die Streifenleiste zum Wechseln der App. Ein
+   * Knopf mit festem Abstand von 16 Pixeln sitzt genau darüber: Man zielt
+   * auf die Figur und wechselt die Anwendung. `env(safe-area-inset-bottom)`
+   * kommt vom Gerät und ist auf allen anderen null — deshalb steht hier
+   * nicht "16 Pixel", sondern "eine Rechnung mit dem Geräteabstand darin".
+   */
+  ['der Assistent steht fest im Bild', () => w(R, '#assistent', 'position') === 'fixed'],
+  ['unten rechts mit Sicherheitsabstand', () => {
+    const u = w(R, '#assistent', 'bottom') || '';
+    const r = w(R, '#assistent', 'right') || '';
+    return u.includes('safe-area-inset-bottom') && r.includes('safe-area-inset-right');
+  }],
+  ['und ist gross genug zum Antippen', () => {
+    // 44 Pixel sind das Mindestmass; als frei schwebendes Ziel etwas mehr.
+    const b = w(R, '#assistent', 'width');
+    return b === '3.5rem' || b === '56px';
+  }],
+  /**
+   * Und die Erwähnungs-Meldung legt sich nicht darauf.
+   *
+   * Sie ist auf dem Handy fast so breit wie der Bildschirm und säße sonst
+   * genau auf dem Knopf. 16 + 56 + 12 = 84 Pixel = 5.25rem.
+   */
+  ['die Erwähnung hält den Knopf frei', () => {
+    const u = w(R, '#erwaehnung', 'bottom') || '';
+    return u.includes('5.25rem') && u.includes('safe-area-inset-bottom');
   }],
   ['die Spalte hat eine Kante', () => /solid/.test(w(R, '#kanbanspalte', 'border') || '')],
   ['ohne Theme bleibt alles hell', () => farbe(w(N, 'main', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],

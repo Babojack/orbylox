@@ -148,7 +148,11 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9997] flex justify-end bg-black/30"
+      /* `h-[100dvh]` neben `inset-0`: Auf dem Handy ist der feste Bereich so
+         hoch wie die Seite, nicht wie das Sichtbare — mit eingeblendeter
+         Adressleiste laege die Eingabezeile unterhalb des Bildschirmrands.
+         `dvh` misst, was man wirklich sieht. */
+      className="fixed inset-0 h-[100dvh] z-[9997] flex justify-end bg-black/30"
       style={{ pointerEvents: 'auto' }}
       onPointerDown={onClose}
     >
@@ -290,7 +294,13 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
           )}
         </div>
 
-        <div className="border-t-2 border-black p-3 shrink-0">
+        {/* Der Sicherheitsabstand gehoert unter die Eingabezeile, nicht an den
+            Rahmen: Sonst sitzt das Textfeld auf dem iPhone auf der
+            Streifenleiste. */}
+        <div
+          className="border-t-2 border-black p-3 shrink-0"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <div className="flex gap-2">
             <input
               ref={inputRef}
@@ -318,7 +328,24 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
 }
 
 /**
- * Der runde Knopf mit dem Roboter.
+ * Der runde Knopf mit der Figur — schwebend unten rechts.
+ *
+ * WARUM NICHT MEHR IN DER WERKZEUGLEISTE
+ * Dort stand er zwischen Ansichtsumschalter, Filter und Avataren und sah aus
+ * wie eine weitere Einstellung. Unten rechts ist der Platz, an dem man Hilfe
+ * sucht, ohne ihn zu suchen — und er bleibt beim Blättern stehen, statt mit
+ * der Kopfzeile aus dem Bild zu laufen.
+ *
+ * WARUM `env(safe-area-inset-…)`
+ * Auf dem iPhone liegt unten die Streifenleiste zum Wechseln der App. Ein
+ * Knopf mit festem Abstand von 16 Pixeln sitzt genau darunter: Man tippt ihn
+ * an und wechselt die Anwendung. Der Sicherheitsabstand kommt vom Gerät, und
+ * auf allen anderen ist er null.
+ *
+ * WARUM 56 STATT 44 PIXEL
+ * 44 ist das Mindestmass für einen Fingertipp — als Ziel, das frei im Bild
+ * schwebt und keine Nachbarn hat, an denen man sich ausrichtet, ist etwas
+ * mehr angemessen. Die Figur darin bekommt denselben Zuwachs.
  *
  * Bis das Modell geladen ist, steht dort die Marke — kein Loch und kein
  * Zappeln. Fehlt WebGL ganz, bleibt sie einfach stehen: Der Knopf muss
@@ -331,17 +358,22 @@ export function AssistantButton({ onClick, label }) {
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="relative grid place-items-center w-11 h-11 shrink-0 rounded-full
-                 border-2 border-black bg-[#ef5a24] overflow-hidden
+      data-assistant-button=""
+      className="fixed z-40 grid place-items-center w-14 h-14 rounded-full
+                 right-[calc(1rem_+_env(safe-area-inset-right,0px))]
+                 bottom-[calc(1rem_+_env(safe-area-inset-bottom,0px))]
+                 sm:right-[calc(1.5rem_+_env(safe-area-inset-right,0px))]
+                 sm:bottom-[calc(1.5rem_+_env(safe-area-inset-bottom,0px))]
+                 border-2 border-black bg-[#ef5a24] overflow-hidden shadow-lg
                  transition-transform hover:scale-105 active:scale-95
                  focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
     >
-      {/* Platzhalter liegt darunter und verschwindet nie — der Roboter legt
-          sich mit eigenem Hintergrund darüber, sobald er da ist. */}
-      <Sparkles className="absolute w-5 h-5 text-white" aria-hidden="true" />
+      {/* Platzhalter liegt darunter und verschwindet nie — die Figur legt
+          sich mit eigenem Hintergrund darüber, sobald sie da ist. */}
+      <Sparkles className="absolute w-6 h-6 text-white" aria-hidden="true" />
       <span className="absolute inset-0">
         <Suspense fallback={null}>
-          <AssistantBot size={44} />
+          <AssistantBot size={56} />
         </Suspense>
       </span>
     </button>

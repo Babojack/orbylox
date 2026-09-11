@@ -702,10 +702,9 @@ export default function ScrumBoard() {
               <UserIcon className="w-4 h-4" />
             </button>
           </div>
-          <AssistantButton
-            onClick={() => setAssistantOpen(true)}
-            label={language === 'de' ? 'Assistent' : 'Assistant'}
-          />
+          {/* Der Assistent steht jetzt schwebend unten rechts — siehe ganz
+              unten in dieser Datei. Hier oben sah er zwischen Umschalter und
+              Filtern aus wie eine weitere Einstellung. */}
           {/* Assignee Filter */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
             <button
@@ -1424,6 +1423,16 @@ export default function ScrumBoard() {
           })}
         </div>
       </DragDropContext>
+      )}
+
+      {/* Solange die Schublade offen ist, wird der Knopf ABGEBAUT, nicht nur
+          versteckt: Er läge sonst unter dem Schleier und würde als trüber
+          Fleck durchscheinen — und die Figur liefe unsichtbar weiter. */}
+      {!assistantOpen && (
+        <AssistantButton
+          onClick={() => setAssistantOpen(true)}
+          label={language === 'de' ? 'Assistent' : 'Assistant'}
+        />
       )}
 
       {/* Dust Effect */}
