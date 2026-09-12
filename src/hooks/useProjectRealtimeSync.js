@@ -6,7 +6,8 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { db, hasFirebaseConfig } from "@/lib/firebase";
+import { hasFirebaseConfig } from "@/lib/firebase";
+import { db } from "@/lib/firebaseData";
 
 const SCOPED_COLLECTIONS = [
   "Post",

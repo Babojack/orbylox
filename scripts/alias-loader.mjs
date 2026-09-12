@@ -35,14 +35,25 @@ export function resolve(spezifikator, kontext, weiter) {
  * die Abbildung zwischen Objekt und Dokument stimmt.
  */
 const ATTRAPPE = `
+export const app = null;
 export const db = null;
+export const storage = null;
 export const auth = null;
 export const hasFirebaseConfig = false;
 export default null;
 `;
 
+/**
+ * Beide Firebase-Module bekommen dieselbe leere Attrappe.
+ *
+ * `firebaseData.js` (Firestore und Dateispeicher) ist von `firebase.js`
+ * abgetrennt, damit es nicht im Startbündel landet — für die Prüfung heisst
+ * das: zwei Türen statt einer, durch die echtes Firebase hereinkäme.
+ */
+const FIREBASE_MODULE = ['/src/lib/firebase.js', '/src/lib/firebaseData.js'];
+
 export function load(url, kontext, weiter) {
-  if (url.endsWith('/src/lib/firebase.js')) {
+  if (FIREBASE_MODULE.some((m) => url.endsWith(m))) {
     return { format: 'module', source: ATTRAPPE, shortCircuit: true };
   }
   return weiter(url, kontext);

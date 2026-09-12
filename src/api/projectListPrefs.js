@@ -1,5 +1,6 @@
 import { doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
-import { db, hasFirebaseConfig } from "@/lib/firebase";
+import { hasFirebaseConfig } from "@/lib/firebase";
+import { db } from "@/lib/firebaseData";
 import {
   readLocalProjectListPrefs,
   writeLocalProjectListPrefs,

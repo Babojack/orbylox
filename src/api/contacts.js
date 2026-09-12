@@ -1,7 +1,8 @@
 import {
   collection, doc, addDoc, setDoc, deleteDoc, getDocs, query, where, writeBatch,
 } from 'firebase/firestore';
-import { db, hasFirebaseConfig, auth as firebaseAuth } from '@/lib/firebase';
+import { hasFirebaseConfig, auth as firebaseAuth } from '@/lib/firebase';
+import { db } from '@/lib/firebaseData';
 import { emptyContact } from '@/lib/contactsImport';
 
 /**

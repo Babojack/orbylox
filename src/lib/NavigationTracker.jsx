@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { api } from '@/api/apiClient';
 import { pagesConfig } from '@/pages.config';
 
 export default function NavigationTracker() {
@@ -39,10 +38,15 @@ export default function NavigationTracker() {
             pageName = matchedKey || null;
         }
 
+        // Der Datenzugriff wird hier nachgeladen: Er bringt Firestore mit, und
+        // dieses Protokoll laeuft nur fuer Angemeldete. Auf der Startseite
+        // wuerde es sonst 150 kB kosten, ohne je etwas zu schreiben.
         if (isAuthenticated && pageName) {
-            api.appLogs.logUserInApp(pageName).catch(() => {
-                // Silently fail - logging shouldn't break the app
-            });
+            import('@/api/apiClient')
+                .then(({ api }) => api.appLogs.logUserInApp(pageName))
+                .catch(() => {
+                    // Silently fail - logging shouldn't break the app
+                });
         }
     }, [location, isAuthenticated, Pages, mainPageKey]);
 

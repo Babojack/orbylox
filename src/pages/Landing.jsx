@@ -1,5 +1,4 @@
 import React from 'react';
-import { api } from "@/api/apiClient";
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from "@/utils";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
@@ -168,6 +167,9 @@ function LandingContent() {
     }
     setWaitlistLoading(true);
     try {
+      // Der Datenzugriff kommt erst beim Absenden — er bringt Firestore mit,
+      // und bis hierher hat noch niemand etwas gespeichert.
+      const { api } = await import("@/api/apiClient");
       await api.entities.Waitlist.create({ email: waitlistEmail.toLowerCase(), source: 'landing' });
       setWaitlistDone(true);
       setWaitlistEmail('');

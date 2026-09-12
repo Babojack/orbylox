@@ -1,8 +1,7 @@
 // Local API: uses Firestore when Firebase is configured, else localStorage. Demo users: in-memory only.
+import { db as firestoreDb, storage as firebaseStorage } from "@/lib/firebaseData";
 import {
   auth as firebaseAuth,
-  db as firestoreDb,
-  storage as firebaseStorage,
   hasFirebaseConfig,
   onAuthStateChanged,
   firebaseSignOut,

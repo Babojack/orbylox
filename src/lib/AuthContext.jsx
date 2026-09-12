@@ -1,5 +1,4 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { api } from "@/api/apiClient";
 import {
   auth,
   hasFirebaseConfig,
@@ -27,6 +26,7 @@ export const AuthProvider = ({ children }) => {
     }
     // No Firebase: use api.auth.me() (localStorage demo)
     const init = async () => {
+      const { api } = await import("@/api/apiClient");
       const currentUser = await api.auth.me();
       if (currentUser) {
         setUser(currentUser);
@@ -37,17 +37,31 @@ export const AuthProvider = ({ children }) => {
     init();
   }, []);
 
+  /**
+   * `api` wird hier nachgeladen, nicht oben importiert.
+   *
+   * Der Datenzugriff bringt Firestore mit — rund 150 kB, die sonst auf JEDER
+   * Seite im ersten Bündel stecken, auch auf der Startseite, wo niemand
+   * angemeldet ist. Gebraucht wird er erst in dem Augenblick, in dem sich
+   * jemand abmeldet oder anmelden soll. Beides sind Klicks, keine
+   * Bildaufbauten: Die Verzögerung eines Nachladens fällt dort nicht auf.
+   *
+   * Das Abmelden bei Firebase geschieht vorher und unabhängig davon — wer
+   * auf "Abmelden" drückt, ist auch dann abgemeldet, wenn das Nachladen
+   * scheitert.
+   */
   const logout = () => {
     if (hasFirebaseConfig && auth) {
       firebaseSignOut(auth);
     }
-    api.auth.logout();
     setUser(null);
     setIsAuthenticated(false);
+    import("@/api/apiClient").then(({ api }) => api.auth.logout()).catch(() => {});
   };
 
   const navigateToLogin = () => {
-    api.auth.redirectToLogin(window.location.href);
+    const ziel = window.location.href;
+    import("@/api/apiClient").then(({ api }) => api.auth.redirectToLogin(ziel)).catch(() => {});
   };
 
   return (

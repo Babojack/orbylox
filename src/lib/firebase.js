@@ -1,5 +1,4 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -11,13 +10,6 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
-import {
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  memoryLocalCache,
-} from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -38,39 +30,24 @@ if (!hasFirebaseConfig) {
 }
 
 const app = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
-const analytics =
-  app &&
-  typeof window !== "undefined" &&
-  firebaseConfig.measurementId
-    ? getAnalytics(app)
-    : null;
-const auth = app ? getAuth(app) : null;
 /**
- * Firestore mit dauerhaftem Cache im Geraetespeicher (IndexedDB).
+ * Die Zaehlung wird NACH dem Aufbau nachgeladen.
  *
- * Vorher lief alles ueber den fluechtigen Speicher: jeder Seitenaufruf holte
- * jedes Dokument komplett neu vom Server. Jetzt liegt der Bestand lokal,
- * Firestore zieht nur noch Aenderungen nach — der zweite Aufruf ist sofort da,
- * und ohne Netz laesst sich weiter lesen und schreiben (wird spaeter
- * synchronisiert).
- *
- * Mehrere offene Tabs teilen sich den Cache ueber den Tab-Manager. Faellt
- * IndexedDB aus (privater Modus in manchen Browsern), springt der fluechtige
- * Speicher ein — die App laeuft dann wie bisher.
+ * Sie misst Seitenaufrufe und wird von keiner Zeile der Anwendung gelesen —
+ * ihre 10 kB im Startbuendel verzoegerten also nur das erste Bild. Als
+ * nachgeladenes Modul im Leerlauf zaehlt sie genauso, nur spaeter.
  */
-function createDb(firebaseApp) {
-  try {
-    return initializeFirestore(firebaseApp, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-    });
-  } catch (err) {
-    console.warn("[Firestore] Dauerhafter Cache nicht verfuegbar, nutze Speicher:", err?.message || err);
-    return initializeFirestore(firebaseApp, { localCache: memoryLocalCache() });
-  }
+if (app && typeof window !== "undefined" && firebaseConfig.measurementId) {
+  const spaeter = window.requestIdleCallback || ((fn) => setTimeout(fn, 2000));
+  spaeter(() => {
+    import("firebase/analytics")
+      .then(({ getAnalytics }) => getAnalytics(app))
+      .catch(() => {});
+  });
 }
-
-const db = app ? createDb(app) : null;
-const storage = app ? getStorage(app) : null;
+const auth = app ? getAuth(app) : null;
+/* Firestore und Dateispeicher stehen in `firebaseData.js` — sie werden
+   erst nach dem Anmelden gebraucht und gehoeren nicht ins Startbuendel. */
 
 const googleProvider = app ? new GoogleAuthProvider() : null;
 
@@ -90,10 +67,7 @@ export function mapFirebaseUser(fbUser) {
 
 export {
   app,
-  analytics,
   auth,
-  db,
-  storage,
   hasFirebaseConfig,
   googleProvider,
   signInWithPopup,

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { collection, onSnapshot, or, query, where } from "firebase/firestore";
-import { db, hasFirebaseConfig } from "@/lib/firebase";
+import { hasFirebaseConfig } from "@/lib/firebase";
+import { db } from "@/lib/firebaseData";
 
 function normalizeEmail(e) {
   return String(e || "").trim().toLowerCase();

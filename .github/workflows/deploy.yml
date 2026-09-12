@@ -77,6 +77,12 @@ jobs:
       - name: Fristen prüfen
         run: npm run check:deadlines
 
+      # Hält fest, was die erste Seite wiegt. Ein versehentlich fester Import
+      # zieht eine ganze Seite samt Bibliotheken zurück ins Startbündel — das
+      # sieht man im Quelltext nicht, auf dem Handy aber sofort.
+      - name: Startbündel prüfen
+        run: npm run check:bundle
+
       # Dieser Schritt sagt jetzt, WORAN es liegt.
       #
       # Vorher stand hier `ssh-keyscan … 2>/dev/null`: Der Befehl schlägt fehl,
