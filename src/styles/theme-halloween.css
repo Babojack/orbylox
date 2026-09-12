@@ -1,0 +1,1540 @@
+/**
+ * Halloween — die gemütliche Fassung.
+ *
+ * Kein Gruselkabinett: Der Abend ist dunkel, aber warm. Die Vorlage sind drei
+ * Dinge — ein violetter Nachthimmel mit Mond, ein Rahmen aus altem Holz, und
+ * Karten aus vergilbtem Papier. Daraus wird hier eine Oberfläche, in der man
+ * stundenlang arbeiten kann, ohne dass die Augen brennen.
+ *
+ * WIE ES ANGESCHLOSSEN IST
+ * Genau wie das Retro: `data-theme='halloween'` am <html>, `.theme-scope` am
+ * <body>. Kein Bauteil weiss davon. Die Regeln bilden die Tailwind-Klassen
+ * der Anwendung auf die neue Palette ab — deshalb sind es so viele: rund
+ * 1.600 feste Farbangaben in 75 Dateien lassen sich nicht einzeln anfassen.
+ *
+ * WORAUF ES BEIM "GEMÜTLICH" ANKOMMT
+ *  - Kein reines Schwarz und kein reines Weiss. Der dunkelste Ton ist ein
+ *    tiefes Violett, der hellste ein warmes Pergament.
+ *  - Licht kommt von OBEN LINKS wie von einem Mond und aus den Flächen selbst
+ *    (ein Hauch Kerzenschein nach innen). Flächen leuchten, statt zu blenden.
+ *  - Schatten sind weich und warm, nicht hart und schwarz. Das Retro hat
+ *    seinen 6px-Versatz — hier ist es ein Schein.
+ *  - Ecken sind leicht gerundet. Nichts sticht.
+ *
+ * DIE SPINNWEBEN
+ * stehen ganz unten, als eigener Abschnitt. Sie sind selbst gezeichnet
+ * (SVG als Data-URL) und liegen nur in Ecken grosser Flächen — auf jeder
+ * Karte wären sie Dekoration statt Atmosphäre.
+ */
+
+[data-theme='halloween'] {
+  /* Die Nacht */
+  --h-night:     #1b1033;   /* Grundfläche, tiefes Mitternachtsviolett */
+  --h-night-2:   #241645;   /* eine Stufe heller: Bereiche im Vordergrund */
+  --h-moon-halo: #3a2360;   /* der Hof um den Mond */
+
+  /* Das Papier (die Karten) */
+  --h-parch:     #f6e3c5;
+  --h-parch-2:   #ead0a6;   /* vertieft: Spalten, Kacheln */
+  --h-ink:       #2a1a12;   /* Text auf Papier */
+  --h-ink-dim:   #6b503a;
+
+  /* Das Holz (Kopfzeile, Seitenleiste, Rahmen) */
+  --h-wood:      #6b3f1d;
+  --h-wood-2:    #8a5a2b;
+  --h-wood-dark: #3d220f;
+
+  /* Das Licht */
+  --h-pumpkin:   #ef7a2a;   /* Kürbis — und zugleich die Marke */
+  --h-pumpkin-2: #c85a17;
+  --h-candle:    #ffc95c;   /* Kerze hinter dem Fenster */
+
+  /* Auf der Nacht lesbar */
+  --h-mist:      #ece6f7;   /* heller Text */
+  --h-lilac:     #bda9e0;   /* zurückgenommener Text */
+  --h-web:       #d9d3bf;   /* Spinnweben */
+}
+
+/* --- Die Nacht als Grundfläche ------------------------------------------ */
+
+/**
+ * Zwei Lichter und ein Sternenstaub.
+ *
+ * Der grosse, weiche Schein oben ist der Mond; der wärmere unten rechts ist
+ * das Kürbislicht, der kleine unten links eine Kerze. Alle drei sind Verläufe
+ * ohne Kanten — sie sollen nicht als Kreise erkennbar sein, sondern nur dafür
+ * sorgen, dass die Fläche nicht überall gleich dunkel ist. Genau das macht den
+ * Unterschied zwischen "dunkles Design" und "Abend".
+ *
+ * WARUM DER MOND NICHT MEHR GANZ LINKS STEHT
+ * Bei 12% lag er hinter der Seitenleiste (256px, also gut 17% bei üblicher
+ * Fensterbreite) und war schlicht nicht zu sehen: Der Nachthimmel wirkte
+ * flach. Jetzt steht er über dem Inhalt, wo er auch leuchten kann.
+ */
+[data-theme='halloween'] body,
+[data-theme='halloween'] .theme-scope {
+  background-color: var(--h-night);
+  background-image:
+    radial-gradient(58rem 38rem at 34% -14%, rgba(196, 172, 255, 0.22), transparent 62%),
+    radial-gradient(46rem 34rem at 96% 106%, rgba(239, 122, 42, 0.20), transparent 62%),
+    radial-gradient(34rem 26rem at 4% 98%, rgba(255, 201, 92, 0.10), transparent 60%);
+  background-attachment: fixed;
+  color: var(--h-mist);
+}
+
+[data-theme='halloween'] .theme-scope main[class] {
+  background-color: transparent;
+}
+
+/* --- Flächen: Papier im Kerzenlicht -------------------------------------- */
+
+/**
+ * Karten sind Papier, kein Weiss.
+ *
+ * `inset 0 1px 0 rgba(255,255,255,.5)` ist die feine helle Kante oben: So
+ * sieht ein Blatt aus, auf das Licht von oben fällt. Der weiche Schatten
+ * darunter hebt es vom Nachthimmel ab, ohne es auszuschneiden.
+ */
+[data-theme='halloween'] .theme-scope .bg-white,
+[data-theme='halloween'] .theme-scope .bg-card,
+[data-theme='halloween'] .theme-scope .bg-popover,
+[data-theme='halloween'] .theme-scope .bg-background,
+[data-theme='halloween'] .theme-scope .bg-secondary,
+[data-theme='halloween'] .theme-scope .bg-muted,
+[data-theme='halloween'] .theme-scope .bg-accent,
+[data-theme='halloween'] .theme-scope [class*='bg-white/'] {
+  background-color: var(--h-parch);
+  color: var(--h-ink);
+  border-color: var(--h-wood-2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 42px rgba(255, 201, 92, 0.10),
+    0 10px 26px rgba(10, 4, 24, 0.38);
+}
+
+[data-theme='halloween'] .theme-scope .bg-\[\#f5f5f5\] {
+  background-color: var(--h-parch-2);
+  color: var(--h-ink);
+}
+[data-theme='halloween'] .theme-scope .bg-black {
+  background-color: var(--h-wood-dark);
+  color: var(--h-parch);
+}
+[data-theme='halloween'] .theme-scope .bg-\[\#ef5a24\] {
+  background-color: var(--h-pumpkin);
+  color: #2a1a12;
+}
+
+/* --- Kopfzeile und Seitenleiste: altes Holz ------------------------------ */
+
+/**
+ * `[class]` hebt die Spezifität über `.bg-white` (0,3,0 gegen 0,2,1) —
+ * derselbe Kniff wie im Retro, und aus demselben Grund: Beide tragen
+ * `bg-white`, sollen aber Holz sein.
+ */
+[data-theme='halloween'] .theme-scope header[class],
+[data-theme='halloween'] .theme-scope aside[class] {
+  background-color: var(--h-wood);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 40%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 7px);
+  color: var(--h-parch);
+  border-color: var(--h-wood-dark);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+/**
+ * Schrift auf dem HOLZ wird hell — aber nur die, die wirklich auf dem Holz
+ * liegt.
+ *
+ * Der erste Anlauf faerbte alles in Kopfzeile und Seitenleiste pergamentfarben,
+ * auch die Beschriftung der Menuepunkte. Die sitzen aber selbst auf Pergament:
+ * Pergament auf Pergament — die Leiste sah aus wie eine Reihe leerer Kaesten.
+ * Ausgenommen wird deshalb, was eine eigene Flaeche mitbringt.
+ *
+ * WARUM `:is(header, aside) :is(…) *` UND NICHT NUR `:is(…) *`
+ * Der zweite Anlauf schrieb `:not(:is(FLAECHEN) *)` — "nicht innerhalb einer
+ * Flaeche". Damit war ALLES in der Seitenleiste ausgenommen, denn die
+ * Seitenleiste selbst traegt `bg-white`. Sichtbar wurde es an der Unterzeile
+ * neben dem Logo: dunkelbraun auf dunklem Holz, praktisch unsichtbar. Der
+ * Nachsatz muss also innerhalb der Leiste beginnen, nicht bei ihr.
+ *
+ * WARUM EIN EINZIGES `:not()`
+ * Zwei aufeinanderfolgende `:not(:is(…))` bringen den Selektor-Motor von
+ * jsdom zum Stolpern — und mit ihm `npm run check:theme`, das diese Datei
+ * ohne Browser prueft.
+ */
+[data-theme='halloween'] .theme-scope :is(header, aside)
+  :is([class*='text-slate-'], [class*='text-gray-'], .text-black):not(:is(.bg-white, .bg-card, [class*='bg-slate-'], [class*="bg-[#"], :is(header, aside) :is(.bg-white, .bg-card, [class*='bg-slate-'], [class*="bg-[#"]) *)) {
+  color: var(--h-parch);
+}
+
+
+/* --- Die Farbfamilien ------------------------------------------------------
+ *
+ * Zwei Regeln je Familie, wie im Retro: helle Stufen (50-300) bleiben hell
+ * und tragen dunkle Schrift, kraeftige (400+) werden voll und tragen helle.
+ * Ausgeschriebene Stufen statt Teilstring — `bg-slate-50` ist sonst auch
+ * `bg-slate-500`.
+ */
+[data-theme='halloween'] .theme-scope .bg-slate-50,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-50/'],
+[data-theme='halloween'] .theme-scope .bg-slate-100,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-100/'],
+[data-theme='halloween'] .theme-scope .bg-slate-200,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-200/'],
+[data-theme='halloween'] .theme-scope .bg-slate-300,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-300/'] {
+  background-color: #d9c9b3 !important;
+  color: #483018;
+}
+[data-theme='halloween'] .theme-scope .bg-slate-400,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-400/'],
+[data-theme='halloween'] .theme-scope .bg-slate-500,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-500/'],
+[data-theme='halloween'] .theme-scope .bg-slate-600,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-600/'],
+[data-theme='halloween'] .theme-scope .bg-slate-700,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-700/'],
+[data-theme='halloween'] .theme-scope .bg-slate-800,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-800/'],
+[data-theme='halloween'] .theme-scope .bg-slate-900,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-900/'],
+[data-theme='halloween'] .theme-scope .bg-slate-950,
+[data-theme='halloween'] .theme-scope [class*='bg-slate-950/'] {
+  background-color: #2b1b3f !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-gray-50,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-50/'],
+[data-theme='halloween'] .theme-scope .bg-gray-100,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-100/'],
+[data-theme='halloween'] .theme-scope .bg-gray-200,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-200/'],
+[data-theme='halloween'] .theme-scope .bg-gray-300,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-300/'] {
+  background-color: #d7c9b4 !important;
+  color: #483018;
+}
+[data-theme='halloween'] .theme-scope .bg-gray-400,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-400/'],
+[data-theme='halloween'] .theme-scope .bg-gray-500,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-500/'],
+[data-theme='halloween'] .theme-scope .bg-gray-600,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-600/'],
+[data-theme='halloween'] .theme-scope .bg-gray-700,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-700/'],
+[data-theme='halloween'] .theme-scope .bg-gray-800,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-800/'],
+[data-theme='halloween'] .theme-scope .bg-gray-900,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-900/'],
+[data-theme='halloween'] .theme-scope .bg-gray-950,
+[data-theme='halloween'] .theme-scope [class*='bg-gray-950/'] {
+  background-color: #2b1b3f !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-zinc-50,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-50/'],
+[data-theme='halloween'] .theme-scope .bg-zinc-100,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-100/'],
+[data-theme='halloween'] .theme-scope .bg-zinc-200,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-200/'],
+[data-theme='halloween'] .theme-scope .bg-zinc-300,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-300/'] {
+  background-color: #d7c9b4 !important;
+  color: #483018;
+}
+[data-theme='halloween'] .theme-scope .bg-zinc-400,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-400/'],
+[data-theme='halloween'] .theme-scope .bg-zinc-500,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-500/'],
+[data-theme='halloween'] .theme-scope .bg-zinc-600,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-600/'],
+[data-theme='halloween'] .theme-scope .bg-zinc-700,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-700/'],
+[data-theme='halloween'] .theme-scope .bg-zinc-800,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-800/'],
+[data-theme='halloween'] .theme-scope .bg-zinc-900,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-900/'],
+[data-theme='halloween'] .theme-scope .bg-zinc-950,
+[data-theme='halloween'] .theme-scope [class*='bg-zinc-950/'] {
+  background-color: #2b1b3f !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-neutral-50,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-50/'],
+[data-theme='halloween'] .theme-scope .bg-neutral-100,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-100/'],
+[data-theme='halloween'] .theme-scope .bg-neutral-200,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-200/'],
+[data-theme='halloween'] .theme-scope .bg-neutral-300,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-300/'] {
+  background-color: #d7c9b4 !important;
+  color: #483018;
+}
+[data-theme='halloween'] .theme-scope .bg-neutral-400,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-400/'],
+[data-theme='halloween'] .theme-scope .bg-neutral-500,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-500/'],
+[data-theme='halloween'] .theme-scope .bg-neutral-600,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-600/'],
+[data-theme='halloween'] .theme-scope .bg-neutral-700,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-700/'],
+[data-theme='halloween'] .theme-scope .bg-neutral-800,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-800/'],
+[data-theme='halloween'] .theme-scope .bg-neutral-900,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-900/'],
+[data-theme='halloween'] .theme-scope .bg-neutral-950,
+[data-theme='halloween'] .theme-scope [class*='bg-neutral-950/'] {
+  background-color: #2b1b3f !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-stone-50,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-50/'],
+[data-theme='halloween'] .theme-scope .bg-stone-100,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-100/'],
+[data-theme='halloween'] .theme-scope .bg-stone-200,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-200/'],
+[data-theme='halloween'] .theme-scope .bg-stone-300,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-300/'] {
+  background-color: #dbc7b1 !important;
+  color: #482d18;
+}
+[data-theme='halloween'] .theme-scope .bg-stone-400,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-400/'],
+[data-theme='halloween'] .theme-scope .bg-stone-500,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-500/'],
+[data-theme='halloween'] .theme-scope .bg-stone-600,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-600/'],
+[data-theme='halloween'] .theme-scope .bg-stone-700,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-700/'],
+[data-theme='halloween'] .theme-scope .bg-stone-800,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-800/'],
+[data-theme='halloween'] .theme-scope .bg-stone-900,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-900/'],
+[data-theme='halloween'] .theme-scope .bg-stone-950,
+[data-theme='halloween'] .theme-scope [class*='bg-stone-950/'] {
+  background-color: #2b1b3f !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-red-50,
+[data-theme='halloween'] .theme-scope [class*='bg-red-50/'],
+[data-theme='halloween'] .theme-scope .bg-red-100,
+[data-theme='halloween'] .theme-scope [class*='bg-red-100/'],
+[data-theme='halloween'] .theme-scope .bg-red-200,
+[data-theme='halloween'] .theme-scope [class*='bg-red-200/'],
+[data-theme='halloween'] .theme-scope .bg-red-300,
+[data-theme='halloween'] .theme-scope [class*='bg-red-300/'] {
+  background-color: #e4a796 !important;
+  color: #482218;
+}
+[data-theme='halloween'] .theme-scope .bg-red-400,
+[data-theme='halloween'] .theme-scope [class*='bg-red-400/'],
+[data-theme='halloween'] .theme-scope .bg-red-500,
+[data-theme='halloween'] .theme-scope [class*='bg-red-500/'],
+[data-theme='halloween'] .theme-scope .bg-red-600,
+[data-theme='halloween'] .theme-scope [class*='bg-red-600/'],
+[data-theme='halloween'] .theme-scope .bg-red-700,
+[data-theme='halloween'] .theme-scope [class*='bg-red-700/'],
+[data-theme='halloween'] .theme-scope .bg-red-800,
+[data-theme='halloween'] .theme-scope [class*='bg-red-800/'],
+[data-theme='halloween'] .theme-scope .bg-red-900,
+[data-theme='halloween'] .theme-scope [class*='bg-red-900/'],
+[data-theme='halloween'] .theme-scope .bg-red-950,
+[data-theme='halloween'] .theme-scope [class*='bg-red-950/'] {
+  background-color: #a8331f !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-rose-50,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-50/'],
+[data-theme='halloween'] .theme-scope .bg-rose-100,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-100/'],
+[data-theme='halloween'] .theme-scope .bg-rose-200,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-200/'],
+[data-theme='halloween'] .theme-scope .bg-rose-300,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-300/'] {
+  background-color: #e1a8aa !important;
+  color: #481c1e;
+}
+[data-theme='halloween'] .theme-scope .bg-rose-400,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-400/'],
+[data-theme='halloween'] .theme-scope .bg-rose-500,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-500/'],
+[data-theme='halloween'] .theme-scope .bg-rose-600,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-600/'],
+[data-theme='halloween'] .theme-scope .bg-rose-700,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-700/'],
+[data-theme='halloween'] .theme-scope .bg-rose-800,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-800/'],
+[data-theme='halloween'] .theme-scope .bg-rose-900,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-900/'],
+[data-theme='halloween'] .theme-scope .bg-rose-950,
+[data-theme='halloween'] .theme-scope [class*='bg-rose-950/'] {
+  background-color: #a62f45 !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-orange-50,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-50/'],
+[data-theme='halloween'] .theme-scope .bg-orange-100,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-100/'],
+[data-theme='halloween'] .theme-scope .bg-orange-200,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-200/'],
+[data-theme='halloween'] .theme-scope .bg-orange-300,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-300/'] {
+  background-color: #e8b48e !important;
+  color: #482a18;
+}
+[data-theme='halloween'] .theme-scope .bg-orange-400,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-400/'],
+[data-theme='halloween'] .theme-scope .bg-orange-500,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-500/'],
+[data-theme='halloween'] .theme-scope .bg-orange-600,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-600/'],
+[data-theme='halloween'] .theme-scope .bg-orange-700,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-700/'],
+[data-theme='halloween'] .theme-scope .bg-orange-800,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-800/'],
+[data-theme='halloween'] .theme-scope .bg-orange-900,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-900/'],
+[data-theme='halloween'] .theme-scope .bg-orange-950,
+[data-theme='halloween'] .theme-scope [class*='bg-orange-950/'] {
+  background-color: #c85a17 !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-amber-50,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-50/'],
+[data-theme='halloween'] .theme-scope .bg-amber-100,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-100/'],
+[data-theme='halloween'] .theme-scope .bg-amber-200,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-200/'],
+[data-theme='halloween'] .theme-scope .bg-amber-300,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-300/'] {
+  background-color: #e8ca96 !important;
+  color: #483318;
+}
+[data-theme='halloween'] .theme-scope .bg-amber-400,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-400/'],
+[data-theme='halloween'] .theme-scope .bg-amber-500,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-500/'],
+[data-theme='halloween'] .theme-scope .bg-amber-600,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-600/'],
+[data-theme='halloween'] .theme-scope .bg-amber-700,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-700/'],
+[data-theme='halloween'] .theme-scope .bg-amber-800,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-800/'],
+[data-theme='halloween'] .theme-scope .bg-amber-900,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-900/'],
+[data-theme='halloween'] .theme-scope .bg-amber-950,
+[data-theme='halloween'] .theme-scope [class*='bg-amber-950/'] {
+  background-color: #9c6712 !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-yellow-50,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-50/'],
+[data-theme='halloween'] .theme-scope .bg-yellow-100,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-100/'],
+[data-theme='halloween'] .theme-scope .bg-yellow-200,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-200/'],
+[data-theme='halloween'] .theme-scope .bg-yellow-300,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-300/'] {
+  background-color: #e6d7a0 !important;
+  color: #483818;
+}
+[data-theme='halloween'] .theme-scope .bg-yellow-400,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-400/'],
+[data-theme='halloween'] .theme-scope .bg-yellow-500,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-500/'],
+[data-theme='halloween'] .theme-scope .bg-yellow-600,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-600/'],
+[data-theme='halloween'] .theme-scope .bg-yellow-700,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-700/'],
+[data-theme='halloween'] .theme-scope .bg-yellow-800,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-800/'],
+[data-theme='halloween'] .theme-scope .bg-yellow-900,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-900/'],
+[data-theme='halloween'] .theme-scope .bg-yellow-950,
+[data-theme='halloween'] .theme-scope [class*='bg-yellow-950/'] {
+  background-color: #8a6f11 !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-green-50,
+[data-theme='halloween'] .theme-scope [class*='bg-green-50/'],
+[data-theme='halloween'] .theme-scope .bg-green-100,
+[data-theme='halloween'] .theme-scope [class*='bg-green-100/'],
+[data-theme='halloween'] .theme-scope .bg-green-200,
+[data-theme='halloween'] .theme-scope [class*='bg-green-200/'],
+[data-theme='halloween'] .theme-scope .bg-green-300,
+[data-theme='halloween'] .theme-scope [class*='bg-green-300/'] {
+  background-color: #b0d19d !important;
+  color: #2b4018;
+}
+[data-theme='halloween'] .theme-scope .bg-green-400,
+[data-theme='halloween'] .theme-scope [class*='bg-green-400/'],
+[data-theme='halloween'] .theme-scope .bg-green-500,
+[data-theme='halloween'] .theme-scope [class*='bg-green-500/'],
+[data-theme='halloween'] .theme-scope .bg-green-600,
+[data-theme='halloween'] .theme-scope [class*='bg-green-600/'],
+[data-theme='halloween'] .theme-scope .bg-green-700,
+[data-theme='halloween'] .theme-scope [class*='bg-green-700/'],
+[data-theme='halloween'] .theme-scope .bg-green-800,
+[data-theme='halloween'] .theme-scope [class*='bg-green-800/'],
+[data-theme='halloween'] .theme-scope .bg-green-900,
+[data-theme='halloween'] .theme-scope [class*='bg-green-900/'],
+[data-theme='halloween'] .theme-scope .bg-green-950,
+[data-theme='halloween'] .theme-scope [class*='bg-green-950/'] {
+  background-color: #33702b !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-emerald-50,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-50/'],
+[data-theme='halloween'] .theme-scope .bg-emerald-100,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-100/'],
+[data-theme='halloween'] .theme-scope .bg-emerald-200,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-200/'],
+[data-theme='halloween'] .theme-scope .bg-emerald-300,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-300/'] {
+  background-color: #acd0af !important;
+  color: #244024;
+}
+[data-theme='halloween'] .theme-scope .bg-emerald-400,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-400/'],
+[data-theme='halloween'] .theme-scope .bg-emerald-500,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-500/'],
+[data-theme='halloween'] .theme-scope .bg-emerald-600,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-600/'],
+[data-theme='halloween'] .theme-scope .bg-emerald-700,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-700/'],
+[data-theme='halloween'] .theme-scope .bg-emerald-800,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-800/'],
+[data-theme='halloween'] .theme-scope .bg-emerald-900,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-900/'],
+[data-theme='halloween'] .theme-scope .bg-emerald-950,
+[data-theme='halloween'] .theme-scope [class*='bg-emerald-950/'] {
+  background-color: #236f4f !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-lime-50,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-50/'],
+[data-theme='halloween'] .theme-scope .bg-lime-100,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-100/'],
+[data-theme='halloween'] .theme-scope .bg-lime-200,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-200/'],
+[data-theme='halloween'] .theme-scope .bg-lime-300,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-300/'] {
+  background-color: #cfd89e !important;
+  color: #404018;
+}
+[data-theme='halloween'] .theme-scope .bg-lime-400,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-400/'],
+[data-theme='halloween'] .theme-scope .bg-lime-500,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-500/'],
+[data-theme='halloween'] .theme-scope .bg-lime-600,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-600/'],
+[data-theme='halloween'] .theme-scope .bg-lime-700,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-700/'],
+[data-theme='halloween'] .theme-scope .bg-lime-800,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-800/'],
+[data-theme='halloween'] .theme-scope .bg-lime-900,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-900/'],
+[data-theme='halloween'] .theme-scope .bg-lime-950,
+[data-theme='halloween'] .theme-scope [class*='bg-lime-950/'] {
+  background-color: #5b7a16 !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-teal-50,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-50/'],
+[data-theme='halloween'] .theme-scope .bg-teal-100,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-100/'],
+[data-theme='halloween'] .theme-scope .bg-teal-200,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-200/'],
+[data-theme='halloween'] .theme-scope .bg-teal-300,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-300/'] {
+  background-color: #b1d1c3 !important;
+  color: #244035;
+}
+[data-theme='halloween'] .theme-scope .bg-teal-400,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-400/'],
+[data-theme='halloween'] .theme-scope .bg-teal-500,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-500/'],
+[data-theme='halloween'] .theme-scope .bg-teal-600,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-600/'],
+[data-theme='halloween'] .theme-scope .bg-teal-700,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-700/'],
+[data-theme='halloween'] .theme-scope .bg-teal-800,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-800/'],
+[data-theme='halloween'] .theme-scope .bg-teal-900,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-900/'],
+[data-theme='halloween'] .theme-scope .bg-teal-950,
+[data-theme='halloween'] .theme-scope [class*='bg-teal-950/'] {
+  background-color: #1f6f6c !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-cyan-50,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-50/'],
+[data-theme='halloween'] .theme-scope .bg-cyan-100,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-100/'],
+[data-theme='halloween'] .theme-scope .bg-cyan-200,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-200/'],
+[data-theme='halloween'] .theme-scope .bg-cyan-300,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-300/'] {
+  background-color: #b5cbcd !important;
+  color: #24363c;
+}
+[data-theme='halloween'] .theme-scope .bg-cyan-400,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-400/'],
+[data-theme='halloween'] .theme-scope .bg-cyan-500,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-500/'],
+[data-theme='halloween'] .theme-scope .bg-cyan-600,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-600/'],
+[data-theme='halloween'] .theme-scope .bg-cyan-700,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-700/'],
+[data-theme='halloween'] .theme-scope .bg-cyan-800,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-800/'],
+[data-theme='halloween'] .theme-scope .bg-cyan-900,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-900/'],
+[data-theme='halloween'] .theme-scope .bg-cyan-950,
+[data-theme='halloween'] .theme-scope [class*='bg-cyan-950/'] {
+  background-color: #1a6b80 !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-sky-50,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-50/'],
+[data-theme='halloween'] .theme-scope .bg-sky-100,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-100/'],
+[data-theme='halloween'] .theme-scope .bg-sky-200,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-200/'],
+[data-theme='halloween'] .theme-scope .bg-sky-300,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-300/'] {
+  background-color: #b7c3d0 !important;
+  color: #242c3c;
+}
+[data-theme='halloween'] .theme-scope .bg-sky-400,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-400/'],
+[data-theme='halloween'] .theme-scope .bg-sky-500,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-500/'],
+[data-theme='halloween'] .theme-scope .bg-sky-600,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-600/'],
+[data-theme='halloween'] .theme-scope .bg-sky-700,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-700/'],
+[data-theme='halloween'] .theme-scope .bg-sky-800,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-800/'],
+[data-theme='halloween'] .theme-scope .bg-sky-900,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-900/'],
+[data-theme='halloween'] .theme-scope .bg-sky-950,
+[data-theme='halloween'] .theme-scope [class*='bg-sky-950/'] {
+  background-color: #1d5f8f !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-blue-50,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-50/'],
+[data-theme='halloween'] .theme-scope .bg-blue-100,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-100/'],
+[data-theme='halloween'] .theme-scope .bg-blue-200,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-200/'],
+[data-theme='halloween'] .theme-scope .bg-blue-300,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-300/'] {
+  background-color: #b9b7d2 !important;
+  color: #241d3c;
+}
+[data-theme='halloween'] .theme-scope .bg-blue-400,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-400/'],
+[data-theme='halloween'] .theme-scope .bg-blue-500,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-500/'],
+[data-theme='halloween'] .theme-scope .bg-blue-600,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-600/'],
+[data-theme='halloween'] .theme-scope .bg-blue-700,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-700/'],
+[data-theme='halloween'] .theme-scope .bg-blue-800,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-800/'],
+[data-theme='halloween'] .theme-scope .bg-blue-900,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-900/'],
+[data-theme='halloween'] .theme-scope .bg-blue-950,
+[data-theme='halloween'] .theme-scope [class*='bg-blue-950/'] {
+  background-color: #2a4f9e !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-indigo-50,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-50/'],
+[data-theme='halloween'] .theme-scope .bg-indigo-100,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-100/'],
+[data-theme='halloween'] .theme-scope .bg-indigo-200,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-200/'],
+[data-theme='halloween'] .theme-scope .bg-indigo-300,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-300/'] {
+  background-color: #c3b5d3 !important;
+  color: #2f1c3c;
+}
+[data-theme='halloween'] .theme-scope .bg-indigo-400,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-400/'],
+[data-theme='halloween'] .theme-scope .bg-indigo-500,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-500/'],
+[data-theme='halloween'] .theme-scope .bg-indigo-600,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-600/'],
+[data-theme='halloween'] .theme-scope .bg-indigo-700,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-700/'],
+[data-theme='halloween'] .theme-scope .bg-indigo-800,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-800/'],
+[data-theme='halloween'] .theme-scope .bg-indigo-900,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-900/'],
+[data-theme='halloween'] .theme-scope .bg-indigo-950,
+[data-theme='halloween'] .theme-scope [class*='bg-indigo-950/'] {
+  background-color: #4141a4 !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-violet-50,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-50/'],
+[data-theme='halloween'] .theme-scope .bg-violet-100,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-100/'],
+[data-theme='halloween'] .theme-scope .bg-violet-200,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-200/'],
+[data-theme='halloween'] .theme-scope .bg-violet-300,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-300/'] {
+  background-color: #cfb7d6 !important;
+  color: #381c3c;
+}
+[data-theme='halloween'] .theme-scope .bg-violet-400,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-400/'],
+[data-theme='halloween'] .theme-scope .bg-violet-500,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-500/'],
+[data-theme='halloween'] .theme-scope .bg-violet-600,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-600/'],
+[data-theme='halloween'] .theme-scope .bg-violet-700,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-700/'],
+[data-theme='halloween'] .theme-scope .bg-violet-800,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-800/'],
+[data-theme='halloween'] .theme-scope .bg-violet-900,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-900/'],
+[data-theme='halloween'] .theme-scope .bg-violet-950,
+[data-theme='halloween'] .theme-scope [class*='bg-violet-950/'] {
+  background-color: #5c37aa !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-purple-50,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-50/'],
+[data-theme='halloween'] .theme-scope .bg-purple-100,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-100/'],
+[data-theme='halloween'] .theme-scope .bg-purple-200,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-200/'],
+[data-theme='halloween'] .theme-scope .bg-purple-300,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-300/'] {
+  background-color: #d8b7d6 !important;
+  color: #411c3c;
+}
+[data-theme='halloween'] .theme-scope .bg-purple-400,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-400/'],
+[data-theme='halloween'] .theme-scope .bg-purple-500,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-500/'],
+[data-theme='halloween'] .theme-scope .bg-purple-600,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-600/'],
+[data-theme='halloween'] .theme-scope .bg-purple-700,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-700/'],
+[data-theme='halloween'] .theme-scope .bg-purple-800,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-800/'],
+[data-theme='halloween'] .theme-scope .bg-purple-900,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-900/'],
+[data-theme='halloween'] .theme-scope .bg-purple-950,
+[data-theme='halloween'] .theme-scope [class*='bg-purple-950/'] {
+  background-color: #6a37a6 !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-fuchsia-50,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-50/'],
+[data-theme='halloween'] .theme-scope .bg-fuchsia-100,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-100/'],
+[data-theme='halloween'] .theme-scope .bg-fuchsia-200,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-200/'],
+[data-theme='halloween'] .theme-scope .bg-fuchsia-300,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-300/'] {
+  background-color: #e0b7d0 !important;
+  color: #481c36;
+}
+[data-theme='halloween'] .theme-scope .bg-fuchsia-400,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-400/'],
+[data-theme='halloween'] .theme-scope .bg-fuchsia-500,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-500/'],
+[data-theme='halloween'] .theme-scope .bg-fuchsia-600,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-600/'],
+[data-theme='halloween'] .theme-scope .bg-fuchsia-700,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-700/'],
+[data-theme='halloween'] .theme-scope .bg-fuchsia-800,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-800/'],
+[data-theme='halloween'] .theme-scope .bg-fuchsia-900,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-900/'],
+[data-theme='halloween'] .theme-scope .bg-fuchsia-950,
+[data-theme='halloween'] .theme-scope [class*='bg-fuchsia-950/'] {
+  background-color: #8b2b8f !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .bg-pink-50,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-50/'],
+[data-theme='halloween'] .theme-scope .bg-pink-100,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-100/'],
+[data-theme='halloween'] .theme-scope .bg-pink-200,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-200/'],
+[data-theme='halloween'] .theme-scope .bg-pink-300,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-300/'] {
+  background-color: #e3b4bf !important;
+  color: #481c26;
+}
+[data-theme='halloween'] .theme-scope .bg-pink-400,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-400/'],
+[data-theme='halloween'] .theme-scope .bg-pink-500,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-500/'],
+[data-theme='halloween'] .theme-scope .bg-pink-600,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-600/'],
+[data-theme='halloween'] .theme-scope .bg-pink-700,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-700/'],
+[data-theme='halloween'] .theme-scope .bg-pink-800,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-800/'],
+[data-theme='halloween'] .theme-scope .bg-pink-900,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-900/'],
+[data-theme='halloween'] .theme-scope .bg-pink-950,
+[data-theme='halloween'] .theme-scope [class*='bg-pink-950/'] {
+  background-color: #9b2a5c !important;
+  color: #fff;
+}
+[data-theme='halloween'] .theme-scope .text-slate-50,
+[data-theme='halloween'] .theme-scope [class*='text-slate-50/'],
+[data-theme='halloween'] .theme-scope .text-slate-100,
+[data-theme='halloween'] .theme-scope [class*='text-slate-100/'],
+[data-theme='halloween'] .theme-scope .text-slate-200,
+[data-theme='halloween'] .theme-scope [class*='text-slate-200/'],
+[data-theme='halloween'] .theme-scope .text-slate-300,
+[data-theme='halloween'] .theme-scope [class*='text-slate-300/'],
+[data-theme='halloween'] .theme-scope .text-gray-50,
+[data-theme='halloween'] .theme-scope [class*='text-gray-50/'],
+[data-theme='halloween'] .theme-scope .text-gray-100,
+[data-theme='halloween'] .theme-scope [class*='text-gray-100/'],
+[data-theme='halloween'] .theme-scope .text-gray-200,
+[data-theme='halloween'] .theme-scope [class*='text-gray-200/'],
+[data-theme='halloween'] .theme-scope .text-gray-300,
+[data-theme='halloween'] .theme-scope [class*='text-gray-300/'],
+[data-theme='halloween'] .theme-scope .text-zinc-50,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-50/'],
+[data-theme='halloween'] .theme-scope .text-zinc-100,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-100/'],
+[data-theme='halloween'] .theme-scope .text-zinc-200,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-200/'],
+[data-theme='halloween'] .theme-scope .text-zinc-300,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-300/'],
+[data-theme='halloween'] .theme-scope .text-neutral-50,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-50/'],
+[data-theme='halloween'] .theme-scope .text-neutral-100,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-100/'],
+[data-theme='halloween'] .theme-scope .text-neutral-200,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-200/'],
+[data-theme='halloween'] .theme-scope .text-neutral-300,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-300/'],
+[data-theme='halloween'] .theme-scope .text-stone-50,
+[data-theme='halloween'] .theme-scope [class*='text-stone-50/'],
+[data-theme='halloween'] .theme-scope .text-stone-100,
+[data-theme='halloween'] .theme-scope [class*='text-stone-100/'],
+[data-theme='halloween'] .theme-scope .text-stone-200,
+[data-theme='halloween'] .theme-scope [class*='text-stone-200/'],
+[data-theme='halloween'] .theme-scope .text-stone-300,
+[data-theme='halloween'] .theme-scope [class*='text-stone-300/'],
+[data-theme='halloween'] .theme-scope .text-red-50,
+[data-theme='halloween'] .theme-scope [class*='text-red-50/'],
+[data-theme='halloween'] .theme-scope .text-red-100,
+[data-theme='halloween'] .theme-scope [class*='text-red-100/'],
+[data-theme='halloween'] .theme-scope .text-red-200,
+[data-theme='halloween'] .theme-scope [class*='text-red-200/'],
+[data-theme='halloween'] .theme-scope .text-red-300,
+[data-theme='halloween'] .theme-scope [class*='text-red-300/'],
+[data-theme='halloween'] .theme-scope .text-rose-50,
+[data-theme='halloween'] .theme-scope [class*='text-rose-50/'],
+[data-theme='halloween'] .theme-scope .text-rose-100,
+[data-theme='halloween'] .theme-scope [class*='text-rose-100/'],
+[data-theme='halloween'] .theme-scope .text-rose-200,
+[data-theme='halloween'] .theme-scope [class*='text-rose-200/'],
+[data-theme='halloween'] .theme-scope .text-rose-300,
+[data-theme='halloween'] .theme-scope [class*='text-rose-300/'],
+[data-theme='halloween'] .theme-scope .text-orange-50,
+[data-theme='halloween'] .theme-scope [class*='text-orange-50/'],
+[data-theme='halloween'] .theme-scope .text-orange-100,
+[data-theme='halloween'] .theme-scope [class*='text-orange-100/'],
+[data-theme='halloween'] .theme-scope .text-orange-200,
+[data-theme='halloween'] .theme-scope [class*='text-orange-200/'],
+[data-theme='halloween'] .theme-scope .text-orange-300,
+[data-theme='halloween'] .theme-scope [class*='text-orange-300/'],
+[data-theme='halloween'] .theme-scope .text-amber-50,
+[data-theme='halloween'] .theme-scope [class*='text-amber-50/'],
+[data-theme='halloween'] .theme-scope .text-amber-100,
+[data-theme='halloween'] .theme-scope [class*='text-amber-100/'],
+[data-theme='halloween'] .theme-scope .text-amber-200,
+[data-theme='halloween'] .theme-scope [class*='text-amber-200/'],
+[data-theme='halloween'] .theme-scope .text-amber-300,
+[data-theme='halloween'] .theme-scope [class*='text-amber-300/'],
+[data-theme='halloween'] .theme-scope .text-yellow-50,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-50/'],
+[data-theme='halloween'] .theme-scope .text-yellow-100,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-100/'],
+[data-theme='halloween'] .theme-scope .text-yellow-200,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-200/'],
+[data-theme='halloween'] .theme-scope .text-yellow-300,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-300/'],
+[data-theme='halloween'] .theme-scope .text-green-50,
+[data-theme='halloween'] .theme-scope [class*='text-green-50/'],
+[data-theme='halloween'] .theme-scope .text-green-100,
+[data-theme='halloween'] .theme-scope [class*='text-green-100/'],
+[data-theme='halloween'] .theme-scope .text-green-200,
+[data-theme='halloween'] .theme-scope [class*='text-green-200/'],
+[data-theme='halloween'] .theme-scope .text-green-300,
+[data-theme='halloween'] .theme-scope [class*='text-green-300/'],
+[data-theme='halloween'] .theme-scope .text-emerald-50,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-50/'],
+[data-theme='halloween'] .theme-scope .text-emerald-100,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-100/'],
+[data-theme='halloween'] .theme-scope .text-emerald-200,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-200/'],
+[data-theme='halloween'] .theme-scope .text-emerald-300,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-300/'],
+[data-theme='halloween'] .theme-scope .text-lime-50,
+[data-theme='halloween'] .theme-scope [class*='text-lime-50/'],
+[data-theme='halloween'] .theme-scope .text-lime-100,
+[data-theme='halloween'] .theme-scope [class*='text-lime-100/'],
+[data-theme='halloween'] .theme-scope .text-lime-200,
+[data-theme='halloween'] .theme-scope [class*='text-lime-200/'],
+[data-theme='halloween'] .theme-scope .text-lime-300,
+[data-theme='halloween'] .theme-scope [class*='text-lime-300/'],
+[data-theme='halloween'] .theme-scope .text-teal-50,
+[data-theme='halloween'] .theme-scope [class*='text-teal-50/'],
+[data-theme='halloween'] .theme-scope .text-teal-100,
+[data-theme='halloween'] .theme-scope [class*='text-teal-100/'],
+[data-theme='halloween'] .theme-scope .text-teal-200,
+[data-theme='halloween'] .theme-scope [class*='text-teal-200/'],
+[data-theme='halloween'] .theme-scope .text-teal-300,
+[data-theme='halloween'] .theme-scope [class*='text-teal-300/'],
+[data-theme='halloween'] .theme-scope .text-cyan-50,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-50/'],
+[data-theme='halloween'] .theme-scope .text-cyan-100,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-100/'],
+[data-theme='halloween'] .theme-scope .text-cyan-200,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-200/'],
+[data-theme='halloween'] .theme-scope .text-cyan-300,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-300/'],
+[data-theme='halloween'] .theme-scope .text-sky-50,
+[data-theme='halloween'] .theme-scope [class*='text-sky-50/'],
+[data-theme='halloween'] .theme-scope .text-sky-100,
+[data-theme='halloween'] .theme-scope [class*='text-sky-100/'],
+[data-theme='halloween'] .theme-scope .text-sky-200,
+[data-theme='halloween'] .theme-scope [class*='text-sky-200/'],
+[data-theme='halloween'] .theme-scope .text-sky-300,
+[data-theme='halloween'] .theme-scope [class*='text-sky-300/'],
+[data-theme='halloween'] .theme-scope .text-blue-50,
+[data-theme='halloween'] .theme-scope [class*='text-blue-50/'],
+[data-theme='halloween'] .theme-scope .text-blue-100,
+[data-theme='halloween'] .theme-scope [class*='text-blue-100/'],
+[data-theme='halloween'] .theme-scope .text-blue-200,
+[data-theme='halloween'] .theme-scope [class*='text-blue-200/'],
+[data-theme='halloween'] .theme-scope .text-blue-300,
+[data-theme='halloween'] .theme-scope [class*='text-blue-300/'],
+[data-theme='halloween'] .theme-scope .text-indigo-50,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-50/'],
+[data-theme='halloween'] .theme-scope .text-indigo-100,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-100/'],
+[data-theme='halloween'] .theme-scope .text-indigo-200,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-200/'],
+[data-theme='halloween'] .theme-scope .text-indigo-300,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-300/'],
+[data-theme='halloween'] .theme-scope .text-violet-50,
+[data-theme='halloween'] .theme-scope [class*='text-violet-50/'],
+[data-theme='halloween'] .theme-scope .text-violet-100,
+[data-theme='halloween'] .theme-scope [class*='text-violet-100/'],
+[data-theme='halloween'] .theme-scope .text-violet-200,
+[data-theme='halloween'] .theme-scope [class*='text-violet-200/'],
+[data-theme='halloween'] .theme-scope .text-violet-300,
+[data-theme='halloween'] .theme-scope [class*='text-violet-300/'],
+[data-theme='halloween'] .theme-scope .text-purple-50,
+[data-theme='halloween'] .theme-scope [class*='text-purple-50/'],
+[data-theme='halloween'] .theme-scope .text-purple-100,
+[data-theme='halloween'] .theme-scope [class*='text-purple-100/'],
+[data-theme='halloween'] .theme-scope .text-purple-200,
+[data-theme='halloween'] .theme-scope [class*='text-purple-200/'],
+[data-theme='halloween'] .theme-scope .text-purple-300,
+[data-theme='halloween'] .theme-scope [class*='text-purple-300/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-50,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-50/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-100,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-100/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-200,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-200/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-300,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-300/'],
+[data-theme='halloween'] .theme-scope .text-pink-50,
+[data-theme='halloween'] .theme-scope [class*='text-pink-50/'],
+[data-theme='halloween'] .theme-scope .text-pink-100,
+[data-theme='halloween'] .theme-scope [class*='text-pink-100/'],
+[data-theme='halloween'] .theme-scope .text-pink-200,
+[data-theme='halloween'] .theme-scope [class*='text-pink-200/'],
+[data-theme='halloween'] .theme-scope .text-pink-300,
+[data-theme='halloween'] .theme-scope [class*='text-pink-300/'] {
+  color: var(--h-parch);
+}
+[data-theme='halloween'] .theme-scope .text-slate-400,
+[data-theme='halloween'] .theme-scope [class*='text-slate-400/'],
+[data-theme='halloween'] .theme-scope .text-slate-500,
+[data-theme='halloween'] .theme-scope [class*='text-slate-500/'],
+[data-theme='halloween'] .theme-scope .text-slate-600,
+[data-theme='halloween'] .theme-scope [class*='text-slate-600/'],
+[data-theme='halloween'] .theme-scope .text-gray-400,
+[data-theme='halloween'] .theme-scope [class*='text-gray-400/'],
+[data-theme='halloween'] .theme-scope .text-gray-500,
+[data-theme='halloween'] .theme-scope [class*='text-gray-500/'],
+[data-theme='halloween'] .theme-scope .text-gray-600,
+[data-theme='halloween'] .theme-scope [class*='text-gray-600/'],
+[data-theme='halloween'] .theme-scope .text-zinc-400,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-400/'],
+[data-theme='halloween'] .theme-scope .text-zinc-500,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-500/'],
+[data-theme='halloween'] .theme-scope .text-zinc-600,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-600/'],
+[data-theme='halloween'] .theme-scope .text-neutral-400,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-400/'],
+[data-theme='halloween'] .theme-scope .text-neutral-500,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-500/'],
+[data-theme='halloween'] .theme-scope .text-neutral-600,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-600/'],
+[data-theme='halloween'] .theme-scope .text-stone-400,
+[data-theme='halloween'] .theme-scope [class*='text-stone-400/'],
+[data-theme='halloween'] .theme-scope .text-stone-500,
+[data-theme='halloween'] .theme-scope [class*='text-stone-500/'],
+[data-theme='halloween'] .theme-scope .text-stone-600,
+[data-theme='halloween'] .theme-scope [class*='text-stone-600/'],
+[data-theme='halloween'] .theme-scope .text-red-400,
+[data-theme='halloween'] .theme-scope [class*='text-red-400/'],
+[data-theme='halloween'] .theme-scope .text-red-500,
+[data-theme='halloween'] .theme-scope [class*='text-red-500/'],
+[data-theme='halloween'] .theme-scope .text-red-600,
+[data-theme='halloween'] .theme-scope [class*='text-red-600/'],
+[data-theme='halloween'] .theme-scope .text-rose-400,
+[data-theme='halloween'] .theme-scope [class*='text-rose-400/'],
+[data-theme='halloween'] .theme-scope .text-rose-500,
+[data-theme='halloween'] .theme-scope [class*='text-rose-500/'],
+[data-theme='halloween'] .theme-scope .text-rose-600,
+[data-theme='halloween'] .theme-scope [class*='text-rose-600/'],
+[data-theme='halloween'] .theme-scope .text-orange-400,
+[data-theme='halloween'] .theme-scope [class*='text-orange-400/'],
+[data-theme='halloween'] .theme-scope .text-orange-500,
+[data-theme='halloween'] .theme-scope [class*='text-orange-500/'],
+[data-theme='halloween'] .theme-scope .text-orange-600,
+[data-theme='halloween'] .theme-scope [class*='text-orange-600/'],
+[data-theme='halloween'] .theme-scope .text-amber-400,
+[data-theme='halloween'] .theme-scope [class*='text-amber-400/'],
+[data-theme='halloween'] .theme-scope .text-amber-500,
+[data-theme='halloween'] .theme-scope [class*='text-amber-500/'],
+[data-theme='halloween'] .theme-scope .text-amber-600,
+[data-theme='halloween'] .theme-scope [class*='text-amber-600/'],
+[data-theme='halloween'] .theme-scope .text-yellow-400,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-400/'],
+[data-theme='halloween'] .theme-scope .text-yellow-500,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-500/'],
+[data-theme='halloween'] .theme-scope .text-yellow-600,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-600/'],
+[data-theme='halloween'] .theme-scope .text-green-400,
+[data-theme='halloween'] .theme-scope [class*='text-green-400/'],
+[data-theme='halloween'] .theme-scope .text-green-500,
+[data-theme='halloween'] .theme-scope [class*='text-green-500/'],
+[data-theme='halloween'] .theme-scope .text-green-600,
+[data-theme='halloween'] .theme-scope [class*='text-green-600/'],
+[data-theme='halloween'] .theme-scope .text-emerald-400,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-400/'],
+[data-theme='halloween'] .theme-scope .text-emerald-500,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-500/'],
+[data-theme='halloween'] .theme-scope .text-emerald-600,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-600/'],
+[data-theme='halloween'] .theme-scope .text-lime-400,
+[data-theme='halloween'] .theme-scope [class*='text-lime-400/'],
+[data-theme='halloween'] .theme-scope .text-lime-500,
+[data-theme='halloween'] .theme-scope [class*='text-lime-500/'],
+[data-theme='halloween'] .theme-scope .text-lime-600,
+[data-theme='halloween'] .theme-scope [class*='text-lime-600/'],
+[data-theme='halloween'] .theme-scope .text-teal-400,
+[data-theme='halloween'] .theme-scope [class*='text-teal-400/'],
+[data-theme='halloween'] .theme-scope .text-teal-500,
+[data-theme='halloween'] .theme-scope [class*='text-teal-500/'],
+[data-theme='halloween'] .theme-scope .text-teal-600,
+[data-theme='halloween'] .theme-scope [class*='text-teal-600/'],
+[data-theme='halloween'] .theme-scope .text-cyan-400,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-400/'],
+[data-theme='halloween'] .theme-scope .text-cyan-500,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-500/'],
+[data-theme='halloween'] .theme-scope .text-cyan-600,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-600/'],
+[data-theme='halloween'] .theme-scope .text-sky-400,
+[data-theme='halloween'] .theme-scope [class*='text-sky-400/'],
+[data-theme='halloween'] .theme-scope .text-sky-500,
+[data-theme='halloween'] .theme-scope [class*='text-sky-500/'],
+[data-theme='halloween'] .theme-scope .text-sky-600,
+[data-theme='halloween'] .theme-scope [class*='text-sky-600/'],
+[data-theme='halloween'] .theme-scope .text-blue-400,
+[data-theme='halloween'] .theme-scope [class*='text-blue-400/'],
+[data-theme='halloween'] .theme-scope .text-blue-500,
+[data-theme='halloween'] .theme-scope [class*='text-blue-500/'],
+[data-theme='halloween'] .theme-scope .text-blue-600,
+[data-theme='halloween'] .theme-scope [class*='text-blue-600/'],
+[data-theme='halloween'] .theme-scope .text-indigo-400,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-400/'],
+[data-theme='halloween'] .theme-scope .text-indigo-500,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-500/'],
+[data-theme='halloween'] .theme-scope .text-indigo-600,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-600/'],
+[data-theme='halloween'] .theme-scope .text-violet-400,
+[data-theme='halloween'] .theme-scope [class*='text-violet-400/'],
+[data-theme='halloween'] .theme-scope .text-violet-500,
+[data-theme='halloween'] .theme-scope [class*='text-violet-500/'],
+[data-theme='halloween'] .theme-scope .text-violet-600,
+[data-theme='halloween'] .theme-scope [class*='text-violet-600/'],
+[data-theme='halloween'] .theme-scope .text-purple-400,
+[data-theme='halloween'] .theme-scope [class*='text-purple-400/'],
+[data-theme='halloween'] .theme-scope .text-purple-500,
+[data-theme='halloween'] .theme-scope [class*='text-purple-500/'],
+[data-theme='halloween'] .theme-scope .text-purple-600,
+[data-theme='halloween'] .theme-scope [class*='text-purple-600/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-400,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-400/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-500,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-500/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-600,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-600/'],
+[data-theme='halloween'] .theme-scope .text-pink-400,
+[data-theme='halloween'] .theme-scope [class*='text-pink-400/'],
+[data-theme='halloween'] .theme-scope .text-pink-500,
+[data-theme='halloween'] .theme-scope [class*='text-pink-500/'],
+[data-theme='halloween'] .theme-scope .text-pink-600,
+[data-theme='halloween'] .theme-scope [class*='text-pink-600/'] {
+  color: var(--h-ink-dim);
+}
+[data-theme='halloween'] .theme-scope .text-slate-700,
+[data-theme='halloween'] .theme-scope [class*='text-slate-700/'],
+[data-theme='halloween'] .theme-scope .text-slate-800,
+[data-theme='halloween'] .theme-scope [class*='text-slate-800/'],
+[data-theme='halloween'] .theme-scope .text-slate-900,
+[data-theme='halloween'] .theme-scope [class*='text-slate-900/'],
+[data-theme='halloween'] .theme-scope .text-slate-950,
+[data-theme='halloween'] .theme-scope [class*='text-slate-950/'],
+[data-theme='halloween'] .theme-scope .text-gray-700,
+[data-theme='halloween'] .theme-scope [class*='text-gray-700/'],
+[data-theme='halloween'] .theme-scope .text-gray-800,
+[data-theme='halloween'] .theme-scope [class*='text-gray-800/'],
+[data-theme='halloween'] .theme-scope .text-gray-900,
+[data-theme='halloween'] .theme-scope [class*='text-gray-900/'],
+[data-theme='halloween'] .theme-scope .text-gray-950,
+[data-theme='halloween'] .theme-scope [class*='text-gray-950/'],
+[data-theme='halloween'] .theme-scope .text-zinc-700,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-700/'],
+[data-theme='halloween'] .theme-scope .text-zinc-800,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-800/'],
+[data-theme='halloween'] .theme-scope .text-zinc-900,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-900/'],
+[data-theme='halloween'] .theme-scope .text-zinc-950,
+[data-theme='halloween'] .theme-scope [class*='text-zinc-950/'],
+[data-theme='halloween'] .theme-scope .text-neutral-700,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-700/'],
+[data-theme='halloween'] .theme-scope .text-neutral-800,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-800/'],
+[data-theme='halloween'] .theme-scope .text-neutral-900,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-900/'],
+[data-theme='halloween'] .theme-scope .text-neutral-950,
+[data-theme='halloween'] .theme-scope [class*='text-neutral-950/'],
+[data-theme='halloween'] .theme-scope .text-stone-700,
+[data-theme='halloween'] .theme-scope [class*='text-stone-700/'],
+[data-theme='halloween'] .theme-scope .text-stone-800,
+[data-theme='halloween'] .theme-scope [class*='text-stone-800/'],
+[data-theme='halloween'] .theme-scope .text-stone-900,
+[data-theme='halloween'] .theme-scope [class*='text-stone-900/'],
+[data-theme='halloween'] .theme-scope .text-stone-950,
+[data-theme='halloween'] .theme-scope [class*='text-stone-950/'],
+[data-theme='halloween'] .theme-scope .text-red-700,
+[data-theme='halloween'] .theme-scope [class*='text-red-700/'],
+[data-theme='halloween'] .theme-scope .text-red-800,
+[data-theme='halloween'] .theme-scope [class*='text-red-800/'],
+[data-theme='halloween'] .theme-scope .text-red-900,
+[data-theme='halloween'] .theme-scope [class*='text-red-900/'],
+[data-theme='halloween'] .theme-scope .text-red-950,
+[data-theme='halloween'] .theme-scope [class*='text-red-950/'],
+[data-theme='halloween'] .theme-scope .text-rose-700,
+[data-theme='halloween'] .theme-scope [class*='text-rose-700/'],
+[data-theme='halloween'] .theme-scope .text-rose-800,
+[data-theme='halloween'] .theme-scope [class*='text-rose-800/'],
+[data-theme='halloween'] .theme-scope .text-rose-900,
+[data-theme='halloween'] .theme-scope [class*='text-rose-900/'],
+[data-theme='halloween'] .theme-scope .text-rose-950,
+[data-theme='halloween'] .theme-scope [class*='text-rose-950/'],
+[data-theme='halloween'] .theme-scope .text-orange-700,
+[data-theme='halloween'] .theme-scope [class*='text-orange-700/'],
+[data-theme='halloween'] .theme-scope .text-orange-800,
+[data-theme='halloween'] .theme-scope [class*='text-orange-800/'],
+[data-theme='halloween'] .theme-scope .text-orange-900,
+[data-theme='halloween'] .theme-scope [class*='text-orange-900/'],
+[data-theme='halloween'] .theme-scope .text-orange-950,
+[data-theme='halloween'] .theme-scope [class*='text-orange-950/'],
+[data-theme='halloween'] .theme-scope .text-amber-700,
+[data-theme='halloween'] .theme-scope [class*='text-amber-700/'],
+[data-theme='halloween'] .theme-scope .text-amber-800,
+[data-theme='halloween'] .theme-scope [class*='text-amber-800/'],
+[data-theme='halloween'] .theme-scope .text-amber-900,
+[data-theme='halloween'] .theme-scope [class*='text-amber-900/'],
+[data-theme='halloween'] .theme-scope .text-amber-950,
+[data-theme='halloween'] .theme-scope [class*='text-amber-950/'],
+[data-theme='halloween'] .theme-scope .text-yellow-700,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-700/'],
+[data-theme='halloween'] .theme-scope .text-yellow-800,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-800/'],
+[data-theme='halloween'] .theme-scope .text-yellow-900,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-900/'],
+[data-theme='halloween'] .theme-scope .text-yellow-950,
+[data-theme='halloween'] .theme-scope [class*='text-yellow-950/'],
+[data-theme='halloween'] .theme-scope .text-green-700,
+[data-theme='halloween'] .theme-scope [class*='text-green-700/'],
+[data-theme='halloween'] .theme-scope .text-green-800,
+[data-theme='halloween'] .theme-scope [class*='text-green-800/'],
+[data-theme='halloween'] .theme-scope .text-green-900,
+[data-theme='halloween'] .theme-scope [class*='text-green-900/'],
+[data-theme='halloween'] .theme-scope .text-green-950,
+[data-theme='halloween'] .theme-scope [class*='text-green-950/'],
+[data-theme='halloween'] .theme-scope .text-emerald-700,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-700/'],
+[data-theme='halloween'] .theme-scope .text-emerald-800,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-800/'],
+[data-theme='halloween'] .theme-scope .text-emerald-900,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-900/'],
+[data-theme='halloween'] .theme-scope .text-emerald-950,
+[data-theme='halloween'] .theme-scope [class*='text-emerald-950/'],
+[data-theme='halloween'] .theme-scope .text-lime-700,
+[data-theme='halloween'] .theme-scope [class*='text-lime-700/'],
+[data-theme='halloween'] .theme-scope .text-lime-800,
+[data-theme='halloween'] .theme-scope [class*='text-lime-800/'],
+[data-theme='halloween'] .theme-scope .text-lime-900,
+[data-theme='halloween'] .theme-scope [class*='text-lime-900/'],
+[data-theme='halloween'] .theme-scope .text-lime-950,
+[data-theme='halloween'] .theme-scope [class*='text-lime-950/'],
+[data-theme='halloween'] .theme-scope .text-teal-700,
+[data-theme='halloween'] .theme-scope [class*='text-teal-700/'],
+[data-theme='halloween'] .theme-scope .text-teal-800,
+[data-theme='halloween'] .theme-scope [class*='text-teal-800/'],
+[data-theme='halloween'] .theme-scope .text-teal-900,
+[data-theme='halloween'] .theme-scope [class*='text-teal-900/'],
+[data-theme='halloween'] .theme-scope .text-teal-950,
+[data-theme='halloween'] .theme-scope [class*='text-teal-950/'],
+[data-theme='halloween'] .theme-scope .text-cyan-700,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-700/'],
+[data-theme='halloween'] .theme-scope .text-cyan-800,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-800/'],
+[data-theme='halloween'] .theme-scope .text-cyan-900,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-900/'],
+[data-theme='halloween'] .theme-scope .text-cyan-950,
+[data-theme='halloween'] .theme-scope [class*='text-cyan-950/'],
+[data-theme='halloween'] .theme-scope .text-sky-700,
+[data-theme='halloween'] .theme-scope [class*='text-sky-700/'],
+[data-theme='halloween'] .theme-scope .text-sky-800,
+[data-theme='halloween'] .theme-scope [class*='text-sky-800/'],
+[data-theme='halloween'] .theme-scope .text-sky-900,
+[data-theme='halloween'] .theme-scope [class*='text-sky-900/'],
+[data-theme='halloween'] .theme-scope .text-sky-950,
+[data-theme='halloween'] .theme-scope [class*='text-sky-950/'],
+[data-theme='halloween'] .theme-scope .text-blue-700,
+[data-theme='halloween'] .theme-scope [class*='text-blue-700/'],
+[data-theme='halloween'] .theme-scope .text-blue-800,
+[data-theme='halloween'] .theme-scope [class*='text-blue-800/'],
+[data-theme='halloween'] .theme-scope .text-blue-900,
+[data-theme='halloween'] .theme-scope [class*='text-blue-900/'],
+[data-theme='halloween'] .theme-scope .text-blue-950,
+[data-theme='halloween'] .theme-scope [class*='text-blue-950/'],
+[data-theme='halloween'] .theme-scope .text-indigo-700,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-700/'],
+[data-theme='halloween'] .theme-scope .text-indigo-800,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-800/'],
+[data-theme='halloween'] .theme-scope .text-indigo-900,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-900/'],
+[data-theme='halloween'] .theme-scope .text-indigo-950,
+[data-theme='halloween'] .theme-scope [class*='text-indigo-950/'],
+[data-theme='halloween'] .theme-scope .text-violet-700,
+[data-theme='halloween'] .theme-scope [class*='text-violet-700/'],
+[data-theme='halloween'] .theme-scope .text-violet-800,
+[data-theme='halloween'] .theme-scope [class*='text-violet-800/'],
+[data-theme='halloween'] .theme-scope .text-violet-900,
+[data-theme='halloween'] .theme-scope [class*='text-violet-900/'],
+[data-theme='halloween'] .theme-scope .text-violet-950,
+[data-theme='halloween'] .theme-scope [class*='text-violet-950/'],
+[data-theme='halloween'] .theme-scope .text-purple-700,
+[data-theme='halloween'] .theme-scope [class*='text-purple-700/'],
+[data-theme='halloween'] .theme-scope .text-purple-800,
+[data-theme='halloween'] .theme-scope [class*='text-purple-800/'],
+[data-theme='halloween'] .theme-scope .text-purple-900,
+[data-theme='halloween'] .theme-scope [class*='text-purple-900/'],
+[data-theme='halloween'] .theme-scope .text-purple-950,
+[data-theme='halloween'] .theme-scope [class*='text-purple-950/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-700,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-700/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-800,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-800/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-900,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-900/'],
+[data-theme='halloween'] .theme-scope .text-fuchsia-950,
+[data-theme='halloween'] .theme-scope [class*='text-fuchsia-950/'],
+[data-theme='halloween'] .theme-scope .text-pink-700,
+[data-theme='halloween'] .theme-scope [class*='text-pink-700/'],
+[data-theme='halloween'] .theme-scope .text-pink-800,
+[data-theme='halloween'] .theme-scope [class*='text-pink-800/'],
+[data-theme='halloween'] .theme-scope .text-pink-900,
+[data-theme='halloween'] .theme-scope [class*='text-pink-900/'],
+[data-theme='halloween'] .theme-scope .text-pink-950,
+[data-theme='halloween'] .theme-scope [class*='text-pink-950/'] {
+  color: var(--h-ink);
+}
+
+/**
+ * Dunkle Schrift auf dunkler Flaeche — dieselben zwei Faelle wie im Retro.
+ *
+ *   `bg-slate-900 text-slate-500`  — beides am selben Element (Videokonferenz)
+ *   `bg-amber-400` aussen, `text-slate-900` innen (Canvas-Werkzeugleiste)
+ *
+ * Eine Farbe wie `text-slate-500` heisst "unwichtig" und ist dafuer dunkelgrau.
+ * Auf einer gesaettigten Flaeche kehrt sich das um: Dort muss "unwichtig"
+ * heller sein, nicht dunkler. Gemessen ohne diese Regel: 2,13:1 und 3,48:1.
+ *
+ * Die Liste ist Zeichen fuer Zeichen dieselbe wie im Retro — sie beschreibt
+ * nicht das Aussehen, sondern welche Tailwind-Stufen dunkel sind. Waeren es
+ * zwei verschiedene Listen, wuerde eine davon beim naechsten Mal vergessen.
+ */
+[data-theme='halloween'] .theme-scope :is(.bg-slate-400,.bg-slate-500,.bg-slate-600,.bg-slate-700,.bg-slate-800,.bg-slate-900,.bg-slate-950,.bg-gray-400,.bg-gray-500,.bg-gray-600,.bg-gray-700,.bg-gray-800,.bg-gray-900,.bg-gray-950,.bg-zinc-400,.bg-zinc-500,.bg-zinc-600,.bg-zinc-700,.bg-zinc-800,.bg-zinc-900,.bg-zinc-950,.bg-neutral-400,.bg-neutral-500,.bg-neutral-600,.bg-neutral-700,.bg-neutral-800,.bg-neutral-900,.bg-neutral-950,.bg-stone-400,.bg-stone-500,.bg-stone-600,.bg-stone-700,.bg-stone-800,.bg-stone-900,.bg-stone-950,.bg-red-400,.bg-red-500,.bg-red-600,.bg-red-700,.bg-red-800,.bg-red-900,.bg-red-950,.bg-rose-400,.bg-rose-500,.bg-rose-600,.bg-rose-700,.bg-rose-800,.bg-rose-900,.bg-rose-950,.bg-orange-400,.bg-orange-500,.bg-orange-600,.bg-orange-700,.bg-orange-800,.bg-orange-900,.bg-orange-950,.bg-amber-400,.bg-amber-500,.bg-amber-600,.bg-amber-700,.bg-amber-800,.bg-amber-900,.bg-amber-950,.bg-yellow-400,.bg-yellow-500,.bg-yellow-600,.bg-yellow-700,.bg-yellow-800,.bg-yellow-900,.bg-yellow-950,.bg-green-400,.bg-green-500,.bg-green-600,.bg-green-700,.bg-green-800,.bg-green-900,.bg-green-950,.bg-emerald-400,.bg-emerald-500,.bg-emerald-600,.bg-emerald-700,.bg-emerald-800,.bg-emerald-900,.bg-emerald-950,.bg-lime-400,.bg-lime-500,.bg-lime-600,.bg-lime-700,.bg-lime-800,.bg-lime-900,.bg-lime-950,.bg-teal-400,.bg-teal-500,.bg-teal-600,.bg-teal-700,.bg-teal-800,.bg-teal-900,.bg-teal-950,.bg-cyan-400,.bg-cyan-500,.bg-cyan-600,.bg-cyan-700,.bg-cyan-800,.bg-cyan-900,.bg-cyan-950,.bg-sky-400,.bg-sky-500,.bg-sky-600,.bg-sky-700,.bg-sky-800,.bg-sky-900,.bg-sky-950,.bg-blue-400,.bg-blue-500,.bg-blue-600,.bg-blue-700,.bg-blue-800,.bg-blue-900,.bg-blue-950,.bg-indigo-400,.bg-indigo-500,.bg-indigo-600,.bg-indigo-700,.bg-indigo-800,.bg-indigo-900,.bg-indigo-950,.bg-violet-400,.bg-violet-500,.bg-violet-600,.bg-violet-700,.bg-violet-800,.bg-violet-900,.bg-violet-950,.bg-purple-400,.bg-purple-500,.bg-purple-600,.bg-purple-700,.bg-purple-800,.bg-purple-900,.bg-purple-950,.bg-fuchsia-400,.bg-fuchsia-500,.bg-fuchsia-600,.bg-fuchsia-700,.bg-fuchsia-800,.bg-fuchsia-900,.bg-fuchsia-950,.bg-pink-400,.bg-pink-500,.bg-pink-600,.bg-pink-700,.bg-pink-800,.bg-pink-900,.bg-pink-950) :is(.text-black,.text-slate-400,.text-slate-500,.text-slate-600,.text-slate-700,.text-slate-800,.text-slate-900,.text-slate-950,.text-gray-400,.text-gray-500,.text-gray-600,.text-gray-700,.text-gray-800,.text-gray-900,.text-gray-950,.text-zinc-400,.text-zinc-500,.text-zinc-600,.text-zinc-700,.text-zinc-800,.text-zinc-900,.text-zinc-950,.text-neutral-400,.text-neutral-500,.text-neutral-600,.text-neutral-700,.text-neutral-800,.text-neutral-900,.text-neutral-950,.text-stone-400,.text-stone-500,.text-stone-600,.text-stone-700,.text-stone-800,.text-stone-900,.text-stone-950,.text-red-500,.text-red-600,.text-red-700,.text-red-800,.text-red-900,.text-red-950,.text-rose-500,.text-rose-600,.text-rose-700,.text-rose-800,.text-rose-900,.text-rose-950,.text-orange-500,.text-orange-600,.text-orange-700,.text-orange-800,.text-orange-900,.text-orange-950,.text-amber-500,.text-amber-600,.text-amber-700,.text-amber-800,.text-amber-900,.text-amber-950,.text-yellow-500,.text-yellow-600,.text-yellow-700,.text-yellow-800,.text-yellow-900,.text-yellow-950,.text-green-500,.text-green-600,.text-green-700,.text-green-800,.text-green-900,.text-green-950,.text-emerald-500,.text-emerald-600,.text-emerald-700,.text-emerald-800,.text-emerald-900,.text-emerald-950,.text-lime-500,.text-lime-600,.text-lime-700,.text-lime-800,.text-lime-900,.text-lime-950,.text-teal-500,.text-teal-600,.text-teal-700,.text-teal-800,.text-teal-900,.text-teal-950,.text-cyan-500,.text-cyan-600,.text-cyan-700,.text-cyan-800,.text-cyan-900,.text-cyan-950,.text-sky-500,.text-sky-600,.text-sky-700,.text-sky-800,.text-sky-900,.text-sky-950,.text-blue-500,.text-blue-600,.text-blue-700,.text-blue-800,.text-blue-900,.text-blue-950,.text-indigo-500,.text-indigo-600,.text-indigo-700,.text-indigo-800,.text-indigo-900,.text-indigo-950,.text-violet-500,.text-violet-600,.text-violet-700,.text-violet-800,.text-violet-900,.text-violet-950,.text-purple-500,.text-purple-600,.text-purple-700,.text-purple-800,.text-purple-900,.text-purple-950,.text-fuchsia-500,.text-fuchsia-600,.text-fuchsia-700,.text-fuchsia-800,.text-fuchsia-900,.text-fuchsia-950,.text-pink-500,.text-pink-600,.text-pink-700,.text-pink-800,.text-pink-900,.text-pink-950),
+[data-theme='halloween'] .theme-scope :is(.bg-slate-400,.bg-slate-500,.bg-slate-600,.bg-slate-700,.bg-slate-800,.bg-slate-900,.bg-slate-950,.bg-gray-400,.bg-gray-500,.bg-gray-600,.bg-gray-700,.bg-gray-800,.bg-gray-900,.bg-gray-950,.bg-zinc-400,.bg-zinc-500,.bg-zinc-600,.bg-zinc-700,.bg-zinc-800,.bg-zinc-900,.bg-zinc-950,.bg-neutral-400,.bg-neutral-500,.bg-neutral-600,.bg-neutral-700,.bg-neutral-800,.bg-neutral-900,.bg-neutral-950,.bg-stone-400,.bg-stone-500,.bg-stone-600,.bg-stone-700,.bg-stone-800,.bg-stone-900,.bg-stone-950,.bg-red-400,.bg-red-500,.bg-red-600,.bg-red-700,.bg-red-800,.bg-red-900,.bg-red-950,.bg-rose-400,.bg-rose-500,.bg-rose-600,.bg-rose-700,.bg-rose-800,.bg-rose-900,.bg-rose-950,.bg-orange-400,.bg-orange-500,.bg-orange-600,.bg-orange-700,.bg-orange-800,.bg-orange-900,.bg-orange-950,.bg-amber-400,.bg-amber-500,.bg-amber-600,.bg-amber-700,.bg-amber-800,.bg-amber-900,.bg-amber-950,.bg-yellow-400,.bg-yellow-500,.bg-yellow-600,.bg-yellow-700,.bg-yellow-800,.bg-yellow-900,.bg-yellow-950,.bg-green-400,.bg-green-500,.bg-green-600,.bg-green-700,.bg-green-800,.bg-green-900,.bg-green-950,.bg-emerald-400,.bg-emerald-500,.bg-emerald-600,.bg-emerald-700,.bg-emerald-800,.bg-emerald-900,.bg-emerald-950,.bg-lime-400,.bg-lime-500,.bg-lime-600,.bg-lime-700,.bg-lime-800,.bg-lime-900,.bg-lime-950,.bg-teal-400,.bg-teal-500,.bg-teal-600,.bg-teal-700,.bg-teal-800,.bg-teal-900,.bg-teal-950,.bg-cyan-400,.bg-cyan-500,.bg-cyan-600,.bg-cyan-700,.bg-cyan-800,.bg-cyan-900,.bg-cyan-950,.bg-sky-400,.bg-sky-500,.bg-sky-600,.bg-sky-700,.bg-sky-800,.bg-sky-900,.bg-sky-950,.bg-blue-400,.bg-blue-500,.bg-blue-600,.bg-blue-700,.bg-blue-800,.bg-blue-900,.bg-blue-950,.bg-indigo-400,.bg-indigo-500,.bg-indigo-600,.bg-indigo-700,.bg-indigo-800,.bg-indigo-900,.bg-indigo-950,.bg-violet-400,.bg-violet-500,.bg-violet-600,.bg-violet-700,.bg-violet-800,.bg-violet-900,.bg-violet-950,.bg-purple-400,.bg-purple-500,.bg-purple-600,.bg-purple-700,.bg-purple-800,.bg-purple-900,.bg-purple-950,.bg-fuchsia-400,.bg-fuchsia-500,.bg-fuchsia-600,.bg-fuchsia-700,.bg-fuchsia-800,.bg-fuchsia-900,.bg-fuchsia-950,.bg-pink-400,.bg-pink-500,.bg-pink-600,.bg-pink-700,.bg-pink-800,.bg-pink-900,.bg-pink-950):is(.text-black,.text-slate-400,.text-slate-500,.text-slate-600,.text-slate-700,.text-slate-800,.text-slate-900,.text-slate-950,.text-gray-400,.text-gray-500,.text-gray-600,.text-gray-700,.text-gray-800,.text-gray-900,.text-gray-950,.text-zinc-400,.text-zinc-500,.text-zinc-600,.text-zinc-700,.text-zinc-800,.text-zinc-900,.text-zinc-950,.text-neutral-400,.text-neutral-500,.text-neutral-600,.text-neutral-700,.text-neutral-800,.text-neutral-900,.text-neutral-950,.text-stone-400,.text-stone-500,.text-stone-600,.text-stone-700,.text-stone-800,.text-stone-900,.text-stone-950,.text-red-500,.text-red-600,.text-red-700,.text-red-800,.text-red-900,.text-red-950,.text-rose-500,.text-rose-600,.text-rose-700,.text-rose-800,.text-rose-900,.text-rose-950,.text-orange-500,.text-orange-600,.text-orange-700,.text-orange-800,.text-orange-900,.text-orange-950,.text-amber-500,.text-amber-600,.text-amber-700,.text-amber-800,.text-amber-900,.text-amber-950,.text-yellow-500,.text-yellow-600,.text-yellow-700,.text-yellow-800,.text-yellow-900,.text-yellow-950,.text-green-500,.text-green-600,.text-green-700,.text-green-800,.text-green-900,.text-green-950,.text-emerald-500,.text-emerald-600,.text-emerald-700,.text-emerald-800,.text-emerald-900,.text-emerald-950,.text-lime-500,.text-lime-600,.text-lime-700,.text-lime-800,.text-lime-900,.text-lime-950,.text-teal-500,.text-teal-600,.text-teal-700,.text-teal-800,.text-teal-900,.text-teal-950,.text-cyan-500,.text-cyan-600,.text-cyan-700,.text-cyan-800,.text-cyan-900,.text-cyan-950,.text-sky-500,.text-sky-600,.text-sky-700,.text-sky-800,.text-sky-900,.text-sky-950,.text-blue-500,.text-blue-600,.text-blue-700,.text-blue-800,.text-blue-900,.text-blue-950,.text-indigo-500,.text-indigo-600,.text-indigo-700,.text-indigo-800,.text-indigo-900,.text-indigo-950,.text-violet-500,.text-violet-600,.text-violet-700,.text-violet-800,.text-violet-900,.text-violet-950,.text-purple-500,.text-purple-600,.text-purple-700,.text-purple-800,.text-purple-900,.text-purple-950,.text-fuchsia-500,.text-fuchsia-600,.text-fuchsia-700,.text-fuchsia-800,.text-fuchsia-900,.text-fuchsia-950,.text-pink-500,.text-pink-600,.text-pink-700,.text-pink-800,.text-pink-900,.text-pink-950) {
+  color: var(--h-parch);
+}
+
+/**
+ * Die Markenfarbe als SCHRIFT muss tiefer sein als als Flaeche.
+ *
+ * `text-[#ef5a24]` auf Pergament ergibt 2,4:1 — im Chat und im Menue steht
+ * genau das (`bg-[#ef5a24]/10` mit oranger Schrift darauf). Als FLAECHE
+ * bleibt der Kuerbis unangetastet; er ist die Marke.
+ */
+[data-theme='halloween'] .theme-scope .text-\[\#ef5a24\] { color: #9c3a0f; }
+
+
+/* --- Text auf der Nacht --------------------------------------------------- */
+
+/**
+ * Was frei auf dem Nachthimmel steht, wird hell.
+ *
+ * Dieselbe Rechnung wie beim Gras im Retro, nur umgekehrt: Dort war der Grund
+ * mittelhell und die Schrift musste dunkel werden, hier ist er dunkel und die
+ * Schrift muss hell werden. Das `:not(...)` nimmt alles aus, was eine eigene
+ * Fläche mitbringt — in einer Karte liegt kein Nachthimmel hinter der Schrift.
+ */
+[data-theme='halloween'] .theme-scope main :is(.text-slate-50,.text-slate-100,.text-slate-200,.text-slate-300,.text-slate-400,.text-slate-500,.text-slate-600,.text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300,.text-gray-400,.text-gray-500,.text-gray-600,.text-zinc-50,.text-zinc-100,.text-zinc-200,.text-zinc-300,.text-zinc-400,.text-zinc-500,.text-zinc-600,.text-neutral-50,.text-neutral-100,.text-neutral-200,.text-neutral-300,.text-neutral-400,.text-neutral-500,.text-neutral-600,.text-stone-50,.text-stone-100,.text-stone-200,.text-stone-300,.text-stone-400,.text-stone-500,.text-stone-600,.text-red-50,.text-red-100,.text-red-200,.text-red-300,.text-red-400,.text-red-500,.text-red-600,.text-rose-50,.text-rose-100,.text-rose-200,.text-rose-300,.text-rose-400,.text-rose-500,.text-rose-600,.text-orange-50,.text-orange-100,.text-orange-200,.text-orange-300,.text-orange-400,.text-orange-500,.text-orange-600,.text-amber-50,.text-amber-100,.text-amber-200,.text-amber-300,.text-amber-400,.text-amber-500,.text-amber-600,.text-yellow-50,.text-yellow-100,.text-yellow-200,.text-yellow-300,.text-yellow-400,.text-yellow-500,.text-yellow-600,.text-green-50,.text-green-100,.text-green-200,.text-green-300,.text-green-400,.text-green-500,.text-green-600,.text-emerald-50,.text-emerald-100,.text-emerald-200,.text-emerald-300,.text-emerald-400,.text-emerald-500,.text-emerald-600,.text-lime-50,.text-lime-100,.text-lime-200,.text-lime-300,.text-lime-400,.text-lime-500,.text-lime-600,.text-teal-50,.text-teal-100,.text-teal-200,.text-teal-300,.text-teal-400,.text-teal-500,.text-teal-600,.text-cyan-50,.text-cyan-100,.text-cyan-200,.text-cyan-300,.text-cyan-400,.text-cyan-500,.text-cyan-600,.text-sky-50,.text-sky-100,.text-sky-200,.text-sky-300,.text-sky-400,.text-sky-500,.text-sky-600,.text-blue-50,.text-blue-100,.text-blue-200,.text-blue-300,.text-blue-400,.text-blue-500,.text-blue-600,.text-indigo-50,.text-indigo-100,.text-indigo-200,.text-indigo-300,.text-indigo-400,.text-indigo-500,.text-indigo-600,.text-violet-50,.text-violet-100,.text-violet-200,.text-violet-300,.text-violet-400,.text-violet-500,.text-violet-600,.text-purple-50,.text-purple-100,.text-purple-200,.text-purple-300,.text-purple-400,.text-purple-500,.text-purple-600,.text-fuchsia-50,.text-fuchsia-100,.text-fuchsia-200,.text-fuchsia-300,.text-fuchsia-400,.text-fuchsia-500,.text-fuchsia-600,.text-pink-50,.text-pink-100,.text-pink-200,.text-pink-300,.text-pink-400,.text-pink-500,.text-pink-600,.text-black):not(:is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-'],main :is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-']) *)) {
+  color: var(--h-mist);
+}
+[data-theme='halloween'] .theme-scope main :is(.text-slate-400,.text-slate-500,.text-gray-400,.text-gray-500):not(:is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-'],main :is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-']) *)) {
+  color: var(--h-lilac);
+}
+[data-theme='halloween'] .theme-scope main h1:not(:is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-'],main :is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-']) *)),
+[data-theme='halloween'] .theme-scope main h2:not(:is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-'],main :is(.bg-white,.bg-card,.bg-popover,.bg-secondary,.bg-muted,.bg-accent,[data-kanban-column],[role='dialog'],[class*="bg-[#"],[class*='bg-slate-'],[class*='bg-gray-'],[class*='bg-zinc-'],[class*='bg-neutral-'],[class*='bg-stone-'],[class*='bg-red-'],[class*='bg-rose-'],[class*='bg-orange-'],[class*='bg-amber-'],[class*='bg-yellow-'],[class*='bg-green-'],[class*='bg-emerald-'],[class*='bg-lime-'],[class*='bg-teal-'],[class*='bg-cyan-'],[class*='bg-sky-'],[class*='bg-blue-'],[class*='bg-indigo-'],[class*='bg-violet-'],[class*='bg-purple-'],[class*='bg-fuchsia-'],[class*='bg-pink-']) *)) {
+  color: var(--h-mist);
+  text-shadow: 0 0 26px rgba(186, 160, 255, 0.35);
+}
+
+/* --- Rahmen und Linien ---------------------------------------------------- */
+
+[data-theme='halloween'] .theme-scope [class*='border-slate-'],
+[data-theme='halloween'] .theme-scope [class*='border-gray-'],
+[data-theme='halloween'] .theme-scope .border-black,
+[data-theme='halloween'] .theme-scope .border,
+[data-theme='halloween'] .theme-scope .border-2 {
+  border-color: var(--h-wood-2);
+}
+[data-theme='halloween'] .theme-scope .divide-black > * + *,
+[data-theme='halloween'] .theme-scope [class*='divide-slate-'] > * + * {
+  border-color: var(--h-wood-2);
+}
+
+/* Ecken werden weich. Ein Abend hat keine scharfen Kanten. */
+[data-theme='halloween'] .theme-scope :is(.rounded-none, .rounded-sm, .rounded, .rounded-md) {
+  border-radius: 0.4rem;
+}
+
+/* --- Eingaben -------------------------------------------------------------- */
+
+[data-theme='halloween'] .theme-scope :is(input, textarea, select) {
+  background-color: var(--h-parch);
+  color: var(--h-ink);
+  border-color: var(--h-wood-2);
+}
+[data-theme='halloween'] .theme-scope ::placeholder { color: #9a8062; }
+[data-theme='halloween'] .theme-scope :is(input, textarea, select):focus {
+  border-color: var(--h-pumpkin);
+  box-shadow: 0 0 0 3px rgba(239, 122, 42, 0.25);
+}
+
+/* --- Verläufe: kein Regenbogen in der Nacht -------------------------------- */
+
+[data-theme='halloween'] .theme-scope [class*='bg-gradient-'] {
+  background-image: linear-gradient(135deg, var(--h-moon-halo), var(--h-night-2)) !important;
+  color: var(--h-mist);
+}
+
+/* --- Bilder bleiben Bilder ------------------------------------------------- */
+
+[data-theme='halloween'] .theme-scope img { image-rendering: auto; }
+
+/* --- Das Kanban-Brett ------------------------------------------------------ */
+
+/**
+ * Die Spalte ist der Tisch, die Karten liegen darauf.
+ *
+ * `!important`, weil die Spalte `bg-slate-50/50` traegt und damit in die
+ * Farbfamilien-Regel oben faellt — die ist ihrerseits `!important`, sonst
+ * kaeme sie gegen Tailwind nicht an. Ohne diese Zeile haetten Tisch und
+ * Karten fast denselben Ton, und man saehe nicht mehr, wo eine Karte
+ * aufhoert.
+ */
+[data-theme='halloween'] .theme-scope [data-kanban-column] {
+  background-color: #d3b892 !important;
+  border: 2px solid var(--h-wood-2);
+  box-shadow: 0 12px 30px rgba(10, 4, 24, 0.45);
+}
+
+/**
+ * Der Spaltenkopf: Pergament mit einem Hauch der Statusfarbe.
+ *
+ * Die vier Spalten tragen `bg-slate-100`, `bg-blue-50`, `bg-[#f5f5f5]` und
+ * `bg-green-50` — im hellen Erscheinungsbild ein zarter Hinweis, hier auf dem
+ * Nachthimmel aber vier bunte Balken, die den Abend zerschneiden. Statt die
+ * Farben zu streichen (dann saehen alle Spalten gleich aus und der Hinweis
+ * waere weg), wird Pergament DARUEBER gelegt: als Verlauf, damit die
+ * Hintergrundfarbe darunter durchscheint. Die Familie bleibt erkennbar,
+ * gedaempft auf einen Hauch.
+ */
+[data-theme='halloween'] .theme-scope [data-kanban-column] > div:first-child {
+  background-image: linear-gradient(rgba(246, 227, 197, 0.58), rgba(246, 227, 197, 0.58));
+  box-shadow: inset 0 -2px 0 rgba(61, 34, 15, 0.22);
+}
+[data-theme='halloween'] .theme-scope [data-kanban-board] {
+  background-color: rgba(0, 0, 0, 0.16);
+  border: 2px solid rgba(138, 90, 43, 0.5);
+  border-radius: 0.6rem;
+  padding: 12px;
+}
+
+/* --- Der Weg ins Menü ------------------------------------------------------ */
+
+[data-theme='halloween'] .theme-scope [data-menu],
+[data-theme='halloween'] .theme-scope :is(header, aside)
+  button:not([data-avatar]):not([class*='bg-red-']):not([class*='bg-\[#ef5a24\]']) {
+  background-color: var(--h-pumpkin);
+  color: #2a1a12;
+  border: 2px solid var(--h-wood-dark);
+  box-shadow: 0 0 18px rgba(239, 122, 42, 0.45);
+}
+[data-theme='halloween'] .theme-scope :is(header, aside)
+  button:not([data-avatar]):not([class*='bg-red-']) [class*='text-slate-'] {
+  color: #2a1a12;
+}
+
+/* --- Beim Überfahren (nur mit Zeiger) -------------------------------------- */
+
+/**
+ * Wie im Retro: Auf einem Handy gibt es kein Schweben, und ein Hover-Stil
+ * dort kostet den ersten Tipp.
+ */
+@media (hover: hover) and (pointer: fine) {
+  [data-theme='halloween'] .theme-scope .hover\:bg-black:hover {
+    background-color: var(--h-wood-dark);
+    color: var(--h-parch);
+  }
+  [data-theme='halloween'] .theme-scope .hover\:bg-white:hover {
+    background-color: var(--h-parch);
+    color: var(--h-ink);
+  }
+  [data-theme='halloween'] .theme-scope .hover\:bg-slate-50:hover,
+  [data-theme='halloween'] .theme-scope .hover\:bg-slate-100:hover,
+  [data-theme='halloween'] .theme-scope .hover\:bg-slate-200:hover,
+  [data-theme='halloween'] .theme-scope .hover\:bg-gray-100:hover,
+  [data-theme='halloween'] .theme-scope .hover\:bg-accent:hover {
+    background-color: var(--h-parch-2);
+    color: var(--h-ink);
+  }
+  [data-theme='halloween'] .theme-scope .hover\:text-white:hover { color: #fff; }
+  [data-theme='halloween'] .theme-scope .hover\:text-slate-900:hover,
+  [data-theme='halloween'] .theme-scope .hover\:text-slate-700:hover,
+  [data-theme='halloween'] .theme-scope .hover\:text-slate-600:hover { color: var(--h-ink); }
+  [data-theme='halloween'] .theme-scope [data-menu]:hover,
+  [data-theme='halloween'] .theme-scope :is(header, aside)
+    button:not([data-avatar]):not([class*='bg-red-']):not([class*='bg-\[#ef5a24\]']):hover {
+    background-color: var(--h-candle);
+    box-shadow: 0 0 26px rgba(255, 201, 92, 0.6);
+  }
+}
+
+/* --- Auswahl und Tastaturfokus --------------------------------------------- */
+
+[data-theme='halloween'] .theme-scope ::selection {
+  background: var(--h-candle);
+  color: var(--h-ink);
+}
+[data-theme='halloween'] .theme-scope :focus-visible {
+  outline: 2px solid var(--h-candle);
+  outline-offset: 2px;
+}
+
+
+/* ==========================================================================
+   SPINNWEBEN
+   ==========================================================================
+
+   Selbst gezeichnet, als SVG direkt in dieser Datei (Data-URL): kein
+   zusaetzlicher Abruf, keine Datei, die beim Ausliefern vergessen werden
+   kann — und die Farbe steht im Bild statt in einer zweiten Quelle.
+
+   WO SIE HAENGEN, UND WO NICHT
+   Nur an grossen, ruhigen Flaechen: Seitenleiste, Dialoge, Kanban-Spalten,
+   Schublade des Assistenten. NICHT auf jeder Karte — ein Netz in jeder Ecke
+   waere Tapete, und Tapete sieht man nach zwei Minuten nicht mehr an. So
+   bleibt es eine Entdeckung.
+
+   Sie liegen als HINTERGRUNDBILD, nicht als Element: Damit fangen sie keine
+   Klicks ab, tauchen in keinem Bildschirmleser auf und kosten kein einziges
+   zusaetzliches DOM-Element.
+*/
+
+/* Seitenleiste: oben links, wo das Holz am dunkelsten ist. */
+[data-theme='halloween'] .theme-scope aside[class] {
+  background-image:
+    url("data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'>%20<g%20fill='none'%20stroke='%23d9d3bf'%20stroke-width='1.2'%20stroke-linecap='round'%20opacity='0.5'>%20<path%20d='M0%200%2064%208%20M0%200%2064%2026%20M0%200%2048%2048%20M0%200%2026%2064%20M0%200%208%2064'/>%20<path%20d='M13%200%20Q10%2010%200%2013'/><path%20d='M25%200%20Q18%2018%200%2025'/>%20<path%20d='M39%200%20Q28%2028%200%2039'/><path%20d='M53%200%20Q38%2038%200%2053'/>%20</g></svg>"),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 40%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 7px);
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-position: top left, top left, top left;
+  background-size: 92px 92px, auto, auto;
+}
+
+/* Dialoge: Netz links oben, Spinne rechts oben am Faden. */
+[data-theme='halloween'] .theme-scope [role='dialog'] {
+  background-image: url("data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'>%20<g%20fill='none'%20stroke='%23d9d3bf'%20stroke-width='1.1'%20stroke-linecap='round'%20opacity='0.55'>%20<path%20d='M0%200%2064%208%20M0%200%2064%2026%20M0%200%2048%2048%20M0%200%2026%2064%20M0%200%208%2064'/>%20<path%20d='M13%200%20Q10%2010%200%2013'/><path%20d='M25%200%20Q18%2018%200%2025'/>%20<path%20d='M39%200%20Q28%2028%200%2039'/><path%20d='M53%200%20Q38%2038%200%2053'/>%20</g></svg>"), url("data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2040%2064'>%20<g%20stroke='%23d9d3bf'%20stroke-width='1.1'%20fill='none'%20stroke-linecap='round'%20opacity='0.5'>%20<path%20d='M20%200%20V34'/>%20<path%20d='M12%2040%20Q4%2036%203%2044%20M12%2044%20Q3%2046%204%2054%20M28%2040%20Q36%2036%2037%2044%20M28%2044%20Q37%2046%2036%2054'/>%20</g>%20<g%20fill='%23d9d3bf'%20opacity='0.55'><ellipse%20cx='20'%20cy='42'%20rx='5.5'%20ry='6.5'/><circle%20cx='20'%20cy='35.5'%20r='3'/></g>%20</svg>");
+  background-repeat: no-repeat, no-repeat;
+  background-position: top left, top 0 right 22px;
+  background-size: 76px 76px, 34px 54px;
+}
+
+/**
+ * Kanban-Spalten: oben rechts — aber im Kartenbereich, nicht an der Spalte.
+ *
+ * An der Spalte selbst lag das Netz hinter dem Spaltenkopf, und der ist
+ * deckend: Man sah nichts. Der Kartenbereich beginnt darunter und ist
+ * durchsichtig, also hängt das Netz dort in der Ecke — und schaut zwischen
+ * den Karten hervor, statt sie zu überdecken.
+ */
+[data-theme='halloween'] .theme-scope [data-kanban-column] > div:last-child {
+  background-image: url("data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'>%20<g%20fill='none'%20stroke='%23d9d3bf'%20stroke-width='1.1'%20stroke-linecap='round'%20opacity='0.55'%20transform='translate(64,0)%20scale(-1,1)'>%20<path%20d='M0%200%2064%208%20M0%200%2064%2026%20M0%200%2048%2048%20M0%200%2026%2064%20M0%200%208%2064'/>%20<path%20d='M13%200%20Q10%2010%200%2013'/><path%20d='M25%200%20Q18%2018%200%2025'/>%20<path%20d='M39%200%20Q28%2028%200%2039'/><path%20d='M53%200%20Q38%2038%200%2053'/>%20</g></svg>");
+  background-repeat: no-repeat;
+  background-position: top right;
+  background-size: 64px 64px;
+}
+
+/* Die Schublade des Assistenten (sie ist die einzige Flaeche mit `border-l-2`). */
+[data-theme='halloween'] .theme-scope .border-l-2 {
+  background-image: url("data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'>%20<g%20fill='none'%20stroke='%23d9d3bf'%20stroke-width='1.1'%20stroke-linecap='round'%20opacity='0.55'>%20<path%20d='M0%200%2064%208%20M0%200%2064%2026%20M0%200%2048%2048%20M0%200%2026%2064%20M0%200%208%2064'/>%20<path%20d='M13%200%20Q10%2010%200%2013'/><path%20d='M25%200%20Q18%2018%200%2025'/>%20<path%20d='M39%200%20Q28%2028%200%2039'/><path%20d='M53%200%20Q38%2038%200%2053'/>%20</g></svg>");
+  background-repeat: no-repeat;
+  background-position: top left;
+  background-size: 70px 70px;
+}

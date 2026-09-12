@@ -20,7 +20,19 @@ const SCOPE_CLASS = 'theme-scope';
 const THEME_EVENT = 'orbylox:theme';
 
 const KEY = 'orbylox_theme';
-export const THEMES = ['default', 'retro'];
+export const THEMES = ['default', 'retro', 'halloween'];
+
+/**
+ * Die Themes in der Reihenfolge, in der sie im Umschalter stehen.
+ *
+ * Der Schluessel steht im Speicher und darf sich nie aendern; die
+ * Beschriftung darf. `kurz` ist das, was neben dem Symbol Platz hat.
+ */
+export const THEME_LISTE = [
+  { id: 'default',   de: 'Normal',    en: 'Normal',    kurz: { de: 'Design', en: 'Theme' } },
+  { id: 'retro',     de: 'Retro',     en: 'Retro',     kurz: { de: 'Retro', en: 'Retro' } },
+  { id: 'halloween', de: 'Halloween', en: 'Halloween', kurz: { de: 'Spooky', en: 'Spooky' } },
+];
 
 export function readTheme() {
   if (typeof window === 'undefined') return 'default';

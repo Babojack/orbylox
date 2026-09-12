@@ -1,7 +1,10 @@
 /**
- * Prüft das Retro-Theme gegen das GEBAUTE CSS.
+ * Prüft die Themes gegen das GEBAUTE CSS.
  *
  *   npm run build && npm run check:theme
+ *
+ * Geprüft werden das Retro und das Halloween. Das Standard-Aussehen kommt als
+ * Gegenprobe vor: An ihm muss sich NICHTS ändern.
  *
  * WARUM ES DIESE DATEI GIBT
  * Das Theme ist reines CSS. Es lässt sich nicht durch einen Aufruf testen,
@@ -56,16 +59,74 @@ const css = fs.readFileSync(path.join(assets, cssDatei), 'utf8');
 
 /* ------------------------------------------------------------- Kaskade */
 
+/**
+ * Spezifität nach Vorschrift — einschliesslich `:is()`, `:not()` und `:where()`.
+ *
+ * WARUM DAS NICHT MIT EINEM REGULÄREN AUSDRUCK GEHT
+ * Der erste Anlauf zählte jede Klammer und jedes `[…]` mit, auch die in einem
+ * `:not(:is(…))`. Die Regel für Überschriften auf dem Nachthimmel enthält
+ * darin rund fünfzig Attributselektoren — sie kam damit auf eine Spezifität,
+ * die im Browser niemand hat, und schlug hier Regeln, gegen die sie in
+ * Wirklichkeit verliert. Die Prüfung meldete daraufhin Fehler, die es nicht
+ * gab, und hätte umgekehrt echte übersehen.
+ *
+ * Die Vorschrift ist einfach: `:is()`, `:not()` und `:has()` zählen so viel
+ * wie ihr STÄRKSTES Argument, `:where()` gar nichts. Also einmal von Hand
+ * durch die Klammern gehen.
+ */
 function spezifitaet(sel) {
   const s = sel.replace(/\\./g, 'x');
-  const ids = (s.match(/#[\w-]+/g) || []).length;
-  const klassen =
-    (s.match(/\.[\w-]+/g) || []).length +
-    (s.match(/\[[^\]]*\]/g) || []).length +
-    (s.match(/:(?!:)(?!not\()[\w-]+/g) || []).length;
-  const elemente = (
-    s.replace(/\[[^\]]*\]/g, '').match(/(^|[\s>+~(])([a-zA-Z][\w-]*)/g) || []
-  ).length;
+  let ids = 0; let klassen = 0; let elemente = 0;
+
+  /** Findet die zur Klammer bei `i` gehörende schliessende Klammer. */
+  const zu = (txt, i) => {
+    let t = 0;
+    for (let k = i; k < txt.length; k += 1) {
+      if (txt[k] === '(') t += 1;
+      else if (txt[k] === ')') { t -= 1; if (t === 0) return k; }
+    }
+    return txt.length;
+  };
+  /** Zerlegt einen Argumentteil an Kommas der OBERSTEN Ebene. */
+  const teile = (txt) => {
+    const raus = []; let t = 0; let letzt = 0;
+    for (let k = 0; k < txt.length; k += 1) {
+      if (txt[k] === '(') t += 1;
+      else if (txt[k] === ')') t -= 1;
+      else if (txt[k] === ',' && t === 0) { raus.push(txt.slice(letzt, k)); letzt = k + 1; }
+    }
+    raus.push(txt.slice(letzt));
+    return raus.filter((x) => x.trim());
+  };
+
+  let rest = '';
+  for (let i = 0; i < s.length; i += 1) {
+    const m = /^:(is|not|has|where|matches|any)\(/i.exec(s.slice(i));
+    if (!m) { rest += s[i]; continue; }
+    const auf = i + m[0].length - 1;
+    const ab = zu(s, auf);
+    const inhalt = s.slice(auf + 1, ab);
+    if (!/^where$/i.test(m[1])) {
+      const beste = Math.max(0, ...teile(inhalt).map((a) => spezifitaet(a)));
+      ids += Math.floor(beste / 10000);
+      klassen += Math.floor((beste % 10000) / 100);
+      elemente += beste % 100;
+    }
+    i = ab;
+  }
+
+  ids += (rest.match(/#[\w-]+/g) || []).length;
+  klassen +=
+    (rest.match(/\.[\w-]+/g) || []).length +
+    (rest.match(/\[[^\]]*\]/g) || []).length +
+    // übrige Pseudoklassen (`:hover`, `:focus-visible`, …) zählen wie Klassen,
+    // Pseudoelemente (`::before`) wie Elemente.
+    (rest.match(/(?<!:):(?!:)[\w-]+/g) || []).length;
+  elemente +=
+    (rest.replace(/\[[^\]]*\]/g, '').replace(/:{1,2}[\w-]+/g, ' ')
+      .match(/(^|[\s>+~])([a-zA-Z][\w-]*)/g) || []).length +
+    (rest.match(/::[\w-]+/g) || []).length;
+
   return ids * 10000 + klassen * 100 + elemente;
 }
 
@@ -111,6 +172,8 @@ function gewinner(el, prop) {
 const MARKUP = `
   <aside class="w-64 border-r border-slate-100 flex flex-col fixed h-full bg-white z-50">
     <span class="text-slate-800" id="navtext">Dashboard</span>
+    <div><span class="text-[9px] text-slate-500" id="navunterzeile">Free project management</span></div>
+    <a class="flex items-center gap-3 px-4 py-3 border-2 border-black bg-white text-black" id="navpunkt2">Feed</a>
     <span class="bg-sky-500" id="navpunkt"></span>
     <div class="bg-slate-100" id="navaktiv">aktiv</div>
     <button id="schliessknopf" class="text-slate-400 hover:text-slate-600">X</button>
@@ -154,11 +217,18 @@ const MARKUP = `
       <button data-assistant-button="" id="assistent" class="fixed z-40 grid place-items-center w-14 h-14 rounded-full right-[calc(1rem_+_env(safe-area-inset-right,0px))] bottom-[calc(1rem_+_env(safe-area-inset-bottom,0px))] border-2 border-black bg-[#ef5a24] overflow-hidden shadow-lg"></button>
       <div id="erwaehnung" class="fixed right-4 z-[100] bottom-[calc(5.25rem_+_env(safe-area-inset-bottom,0px))] w-[calc(100vw-2rem)] max-w-sm"></div>
       <div class="bg-blue-50" id="spalteblau"></div>
+      <div class="bg-green-50" id="spaltegruen"></div>
+      <h2 class="text-2xl font-black" id="seitentitel">Kanban Board</h2>
       <p class="text-slate-500" id="freitext">Neuigkeiten, Ankündigungen und Team-Diskussionen.</p>
       <div class="bg-white rounded-xl" id="tafel"><p class="text-slate-500" id="tafeltext">Nebensache</p></div>
       <div data-kanban-board="" class="flex gap-3 overflow-auto pb-4 flex-1" id="brett">
         <div data-kanban-column="" class="bg-slate-50/50 rounded-2xl border min-h-[60vh]" id="kanbanspalte">
-          <div class="bg-white rounded-xl border-2 border-black" id="kanbankarte">Aufgabe</div>
+          <div class="p-4 border-b border-slate-100 rounded-t-2xl bg-green-50" id="spaltenkopf">
+            <h3 class="font-semibold text-slate-700" id="spaltentitel">Fertig</h3>
+          </div>
+          <div class="flex-1 p-2 space-y-2" id="spaltenrumpf">
+            <div class="bg-white rounded-xl border-2 border-black" id="kanbankarte">Aufgabe</div>
+          </div>
         </div>
       </div>
       <section class="bg-[#f5f5f5]" id="woanders"><span class="text-[#ef5a24]" id="markentext">x</span></section>
@@ -172,16 +242,18 @@ const MARKUP = `
     </div>
   </div>`;
 
-function baum(mitTheme) {
+/** `theme` ist 'retro', 'halloween' oder null für das Standard-Aussehen. */
+function baum(theme) {
   const dom = new JSDOM(
-    `<!doctype html><html${mitTheme ? ' data-theme="retro"' : ''}>` +
-      `<body class="${mitTheme ? 'theme-scope' : ''}">${MARKUP}</body></html>`,
+    `<!doctype html><html${theme ? ` data-theme="${theme}"` : ''}>` +
+      `<body class="${theme ? 'theme-scope' : ''}">${MARKUP}</body></html>`,
   );
   return dom.window.document;
 }
 
-const R = baum(true);
-const N = baum(false);
+const R = baum('retro');
+const N = baum(null);
+const H = baum('halloween');
 const w = (doc, sel, prop) => {
   const el = sel.startsWith('#') ? doc.getElementById(sel.slice(1)) : doc.querySelector(sel);
   const g = gewinner(el, prop);
@@ -199,10 +271,19 @@ const w = (doc, sel, prop) => {
  * Kaskade geschickt und ausgerechnet.
  */
 
-const palette = Object.fromEntries(
-  [...fs.readFileSync(path.join(wurzel, 'src/styles/theme-retro.css'), 'utf8')
-      .matchAll(/(--r-[\w-]+):\s*(#[0-9a-fA-F]{6})/g)].map((m) => [m[1], m[2]]),
+const themeCss = (name) => fs.readFileSync(path.join(wurzel, `src/styles/theme-${name}.css`), 'utf8');
+
+const paletteVon = (quelle, praefix) => Object.fromEntries(
+  [...quelle.matchAll(new RegExp(`(--${praefix}-[\\w-]+):\\s*(#[0-9a-fA-F]{6})`, 'g'))]
+    .map((m) => [m[1], m[2]]),
 );
+
+const palette = paletteVon(themeCss('retro'), 'r');
+const paletteH = paletteVon(themeCss('halloween'), 'h');
+/* Ein gemeinsames Nachschlagewerk: Die Präfixe `--r-` und `--h-` können sich
+   nicht in die Quere kommen, also braucht `farbe()` nicht zu wissen, welches
+   Theme gerade gemessen wird. */
+const alleFarben = { ...palette, ...paletteH };
 
 const zuRgb = (h) => {
   h = h.replace('#', '');
@@ -217,7 +298,7 @@ function farbe(wert) {
   if (!wert) return null;
   const w = wert.trim();
   const v = /^var\((--[\w-]+)/.exec(w);
-  if (v) return palette[v[1]] ? zuRgb(palette[v[1]]) : null;
+  if (v) return alleFarben[v[1]] ? zuRgb(alleFarben[v[1]]) : null;
   if (w.startsWith('#')) return zuRgb(w);
   const m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)\s*(?:[,/]\s*([\d.]+|var\([^)]*\)))?\s*\)/.exec(w);
   if (m) return [+m[1], +m[2], +m[3], m[4] && !m[4].startsWith('var') ? parseFloat(m[4]) : 1];
@@ -280,23 +361,35 @@ const BEKANNT = new Set([
 ]);
 const SCHWELLE = 3.5;
 
-function messen(klassen, mitTheme) {
-  const dom = new JSDOM(`<!doctype html><html${mitTheme ? ' data-theme="retro"' : ''}>` +
-    `<body class="${mitTheme ? 'theme-scope' : ''}"><span id="x" class="${klassen}"></span></body></html>`);
+function messen(klassen, theme) {
+  const dom = new JSDOM(`<!doctype html><html${theme ? ` data-theme="${theme}"` : ''}>` +
+    `<body class="${theme ? 'theme-scope' : ''}"><span id="x" class="${klassen}"></span></body></html>`);
   const el = dom.window.document.getElementById('x');
   return { bg: farbe(gewinner(el, 'background-color')?.wert), fg: farbe(gewinner(el, 'color')?.wert) };
 }
 
-const PERGAMENT = zuRgb(palette['--r-parch']);
-const schwach = [];
-for (const [key, k] of kombis) {
-  if (BEKANNT.has(key)) continue;
-  const r = messen(`${k.b} ${k.t}`, true);
-  if (!r.bg || !r.fg) continue;
-  const grund = ueber(r.bg, PERGAMENT);
-  const wert = kontrast(grund, ueber(r.fg, grund));
-  if (wert < SCHWELLE) schwach.push({ ...k, wert: wert.toFixed(2) });
+/**
+ * Derselbe Rundgang, einmal je Theme.
+ *
+ * Als Untergrund für halbdurchsichtige Flächen dient das Pergament des
+ * jeweiligen Themes: Wo etwas durchscheint, liegt fast immer eine Karte
+ * darunter, nicht die Grundfläche.
+ */
+function rundgang(theme, pergament) {
+  const raus = [];
+  for (const [key, k] of kombis) {
+    if (BEKANNT.has(key)) continue;
+    const r = messen(`${k.b} ${k.t}`, theme);
+    if (!r.bg || !r.fg) continue;
+    const grund = ueber(r.bg, pergament);
+    const wert = kontrast(grund, ueber(r.fg, grund));
+    if (wert < SCHWELLE) raus.push({ ...k, wert: wert.toFixed(2) });
+  }
+  return raus;
 }
+
+const schwach = rundgang('retro', zuRgb(palette['--r-parch']));
+const schwachH = rundgang('halloween', zuRgb(paletteH['--h-parch']));
 
 /* ------------------------------------------------------------- Prüfungen */
 
@@ -609,10 +702,168 @@ const faelle = [
     return Math.max(...c.slice(0, 3)) - Math.min(...c.slice(0, 3)) > 40 && c[2] > c[0];
   }],
 
-  // Der Kontrast-Rundgang
-  [`${kombis.size} Klassenpaare über ${SCHWELLE}:1`, () => schwach.length === 0],
+  /* ==================================================================
+     HALLOWEEN
+     ==================================================================
 
-  // Bewegung bleibt unangetastet — das war die ausdrückliche Bedingung.
+     Dieselbe Rechnung, andere Richtung: Im Retro ist der Grund mittelhell
+     und die Schrift muss dunkel werden, hier ist er dunkel und die Schrift
+     muss hell werden. Die Fehler, die dabei passiert sind, stehen jeweils
+     an der Zusicherung, die sie festhält.
+  */
+
+  // Flächen
+  ['HW: Grundfläche wird Nacht', () => farbe(w(H, 'body', 'background-color'))?.join() === zuRgb(paletteH['--h-night']).join()],
+  ['HW: Seitenleiste wird Holz', () => w(H, 'aside', 'background-color') === 'var(--h-wood)'],
+  ['HW: Kopfzeile wird Holz', () => w(H, 'header', 'background-color') === 'var(--h-wood)'],
+  ['HW: Karte wird Pergament', () => w(H, '#karte', 'background-color') === 'var(--h-parch)'],
+  ['HW: Dialog wird Pergament', () => w(H, '#dialog', 'background-color') === 'var(--h-parch)'],
+  ['HW: Eingabe wird Pergament', () => w(H, '#feld', 'background-color') === 'var(--h-parch)'],
+  ['HW: Marke bleibt Kürbis', () => w(H, '#cta', 'background-color') === 'var(--h-pumpkin)'],
+  ['HW: der Inhaltsbereich lässt die Nacht durch', () => w(H, 'main', 'background-color') === 'transparent'],
+  ['HW: Verlauf wird glatte Fläche', () => /linear-gradient\(135deg/.test(w(H, '#verlauf', 'background-image') || '')],
+
+  /**
+   * Schrift auf dem Holz — und der Fehler, an dem es zweimal hing.
+   *
+   * Erst war ALLES in der Leiste pergamentfarben, auch die Beschriftung der
+   * Menuepunkte, die selbst auf Pergament sitzt: eine Reihe leerer Kaesten.
+   * Dann war das Gegenteil der Fall — der Nachsatz nahm alles aus, was in
+   * einer Flaeche liegt, und weil die Leiste SELBST `bg-white` traegt, war
+   * das ihr gesamter Inhalt. Die Unterzeile neben dem Logo stand dunkelbraun
+   * auf dunklem Holz.
+   *
+   * Beide Zusicherungen zusammen halten die Regel in der Mitte fest.
+   */
+  ['HW: freier Text auf Holz wird hell', () => w(H, '#navtext', 'color') === 'var(--h-parch)'],
+  ['HW: auch die kleine Unterzeile', () => w(H, '#navunterzeile', 'color') === 'var(--h-parch)'],
+  ['HW: Menüpunkt auf eigenem Pergament bleibt dunkel', () => {
+    const c = farbe(w(H, '#navpunkt2', 'color'));
+    const p = zuRgb(paletteH['--h-parch']);
+    return !!c && c.join() !== p.join();
+  }],
+  ['HW: Text in der Kopfzeile wird hell', () => w(H, '#projektname', 'color') === 'var(--h-parch)'],
+
+  /**
+   * Überschriften auf dem Nachthimmel.
+   *
+   * Auch hier hatte der Nachsatz `:not(:is(FLAECHEN) *)` statt
+   * `:not(:is(FLAECHEN, main :is(FLAECHEN) *))` gestanden — und weil `main`
+   * `bg-white` traegt, galt er fuer den gesamten Seiteninhalt. Die
+   * Ueberschrift "Kanban Board" stand dunkelbraun auf der Nacht und war
+   * praktisch unsichtbar.
+   */
+  ['HW: Überschrift auf der Nacht wird hell', () => w(H, '#seitentitel', 'color') === 'var(--h-mist)'],
+  ['HW: freier Text auf der Nacht wird hell', () => w(H, '#freitext', 'color') === 'var(--h-lilac)'],
+  ['HW: in der Karte bleibt er gedämpft', () => w(H, '#tafeltext', 'color') === 'var(--h-ink-dim)'],
+  ['HW: Kartentitel wird Tinte', () => w(H, '#kartentitel', 'color') === 'var(--h-ink)'],
+
+  /**
+   * Das Brett: drei unterscheidbare Ebenen, wie im Retro.
+   *
+   * Die Spalte traegt `bg-slate-50/50` und faellt damit in den Farbblock,
+   * der `!important` ist. Ohne eine eigene wichtige Regel haetten Tisch und
+   * Karten fast denselben Ton gehabt.
+   */
+  ['HW: Spalte hebt sich von der Karte ab', () => {
+    const sp = farbe(w(H, '#kanbanspalte', 'background-color'));
+    const ka = farbe(w(H, '#kanbankarte', 'background-color'));
+    return sp && ka && sp.join() !== ka.join() && kontrast(sp, ka) > 1.15;
+  }],
+  ['HW: und der Spaltenkopf bekommt seinen Pergament-Schleier', () => /linear-gradient/.test(w(H, '#spaltenkopf', 'background-image') || '')],
+
+  /**
+   * Helle Stufen dürfen ihren Farbton behalten — sonst ist der Hinweis weg,
+   * welche Spalte welche ist. Sie sind aber gedämpft und warm unterlegt:
+   * Eisblau neben Kürbis ist das Gegenteil von gemütlich.
+   */
+  ['HW: helles Blau bleibt vom Grün unterscheidbar', () => {
+    const b = zuRgb(w(H, '#spalteblau', 'background-color') || '#000');
+    const g = zuRgb(w(H, '#spaltegruen', 'background-color') || '#000');
+    return b.join() !== g.join() && b[2] > b[1] && g[1] > g[2];
+  }],
+  /**
+   * ... und sie sind gedämpft, nicht grell.
+   *
+   * Zwei Grenzen: Unter einer Spanne von 10 zwischen stärkstem und
+   * schwächstem Kanal wäre die Farbe verschwunden, über 70 leuchtete sie
+   * neben dem Kürbis wie eine Bonbonfarbe. Und sie müssen dunkler sein als
+   * das Karten-Pergament — die Karte soll obenauf liegen, nicht der
+   * Spaltenkopf. Roh aus Tailwind sind die 50er-Stufen fast weiss und
+   * verletzen beides.
+   */
+  ['HW: helle Stufen sind gedämpft, nicht grell', () => {
+    const p = zuRgb(paletteH['--h-parch']);
+    return ['#spalteblau', '#spaltegruen'].every((id) => {
+      const c = zuRgb(w(H, id, 'background-color') || '#000');
+      const spanne = Math.max(...c.slice(0, 3)) - Math.min(...c.slice(0, 3));
+      return spanne >= 10 && spanne <= 70 && leuchte(c) < leuchte(p);
+    });
+  }],
+  ['HW: bg-slate-500 bleibt dunkel', () => w(H, '#dunkel', 'background-color') === '#2b1b3f'],
+
+  /**
+   * Die Spinnweben.
+   *
+   * Sie stehen als SVG in einer Data-URL. Beim ersten Anlauf blieb das `#`
+   * vor dem Farbwert unkodiert — der Browser liest ab dort einen
+   * Fragmentbezeichner, das Bild bricht mitten im `stroke` ab und es war
+   * nichts zu sehen. Geprueft wird deshalb genau das: kein rohes `#` in
+   * einer dieser URLs, und die Netze haengen an den Stellen, die gemeint
+   * waren.
+   */
+  ['HW: Spinnweben ohne rohes # in der Data-URL', () => {
+    const q = themeCss('halloween');
+    const urls = [...q.matchAll(/url\("(data:image\/svg\+xml,[^"]*)"\)/g)].map((m) => m[1]);
+    return urls.length >= 4 && urls.every((u) => !u.slice('data:image/svg+xml,'.length).includes('#'));
+  }],
+  ['HW: und mit %23 statt dessen', () => /stroke='%23d9d3bf'/.test(themeCss('halloween'))],
+  ['HW: Netz in der Seitenleiste', () => /data:image\/svg/.test(w(H, 'aside', 'background-image') || '')],
+  ['HW: Netz im Dialog', () => /data:image\/svg/.test(w(H, '#dialog', 'background-image') || '')],
+  /**
+   * Am Kartenbereich, nicht an der Spalte: An der Spalte lag das Netz hinter
+   * dem deckenden Spaltenkopf und war nicht zu sehen.
+   */
+  ['HW: Netz im Kartenbereich der Spalte', () => /data:image\/svg/.test(w(H, '#spaltenrumpf', 'background-image') || '')],
+
+  // Gegenprobe: ohne Theme ändert Halloween nichts
+  ['HW: ohne Theme bleibt die Fläche hell', () => farbe(w(N, 'body', 'background-color'))?.join() !== zuRgb(paletteH['--h-night']).join()],
+  ['HW: und im Retro auch nicht Nacht', () => farbe(w(R, 'body', 'background-color'))?.join() !== zuRgb(paletteH['--h-night']).join()],
+  ['HW: keine Pixelschrift im Halloween', () => !/Press Start 2P/.test(w(H, '#cta', 'font-family') || '')],
+  ['HW: und kein eigener Mauszeiger', () => !/data:image\/png/.test(w(H, 'body', 'cursor') || '')],
+
+  /**
+   * Der Umschalter kennt alle drei — und in derselben Reihenfolge.
+   *
+   * Die Kennungen stehen in den Konten der Leute (`applyTheme` schreibt sie
+   * fort). Faellt eine aus der Liste, landet jemand beim naechsten Aufruf
+   * still im Standard-Aussehen.
+   */
+  ['HW: drei Themes in der Liste', () => {
+    const t = fs.readFileSync(path.join(wurzel, 'src/lib/theme.js'), 'utf8');
+    return /THEMES\s*=\s*\[[^\]]*'default'[^\]]*'retro'[^\]]*'halloween'[^\]]*\]/.test(t);
+  }],
+  ['HW: und alle drei im Umschalter', () => {
+    const t = fs.readFileSync(path.join(wurzel, 'src/lib/theme.js'), 'utf8');
+    const s = fs.readFileSync(path.join(wurzel, 'src/components/common/ThemeSwitch.jsx'), 'utf8');
+    const ids = [...t.matchAll(/id:\s*'([\w-]+)'/g)].map((m) => m[1]);
+    return ids.join() === 'default,retro,halloween' && s.includes('THEME_LISTE.map');
+  }],
+  ['HW: das Stylesheet wird geladen', () => fs.readFileSync(path.join(wurzel, 'src/main.jsx'), 'utf8').includes('theme-halloween.css')],
+  ['HW: Musik bleibt beim Retro', () => {
+    // Gemuetlich heisst still, solange niemand danach fragt.
+    const s = fs.readFileSync(path.join(wurzel, 'src/components/common/ThemeSwitch.jsx'), 'utf8');
+    return /id === 'retro'\).*musikStarten\(\).*musikStoppen\(\)/s.test(s);
+  }],
+  ['HW: Theme rührt keine Übergänge an', () => !/transition|transform:/.test(
+    themeCss('halloween').replace(/\/\*[\s\S]*?\*\//g, '').replace(/url\("[^"]*"\)/g, ''),
+  )],
+
+  // Der Kontrast-Rundgang
+  [`${kombis.size} Klassenpaare über ${SCHWELLE}:1 (Retro)`, () => schwach.length === 0],
+  [`${kombis.size} Klassenpaare über ${SCHWELLE}:1 (Halloween)`, () => schwachH.length === 0],
+
+  // Bewegung bleibt unangetastet — das war die ausdrückliche Bedingung (Retro).
   [
     'Theme rührt keine Übergänge an',
     () => !/transition|transform/.test(
@@ -634,9 +885,10 @@ for (const [name, pruefen] of faelle) {
   if (!ok) fehler++;
 }
 
-if (schwach.length) {
-  console.log('\nZu schwacher Kontrast:');
-  for (const t of schwach.sort((a, b) => a.wert - b.wert)) {
+for (const [wo, liste] of [['Retro', schwach], ['Halloween', schwachH]]) {
+  if (!liste.length) continue;
+  console.log(`\nZu schwacher Kontrast (${wo}):`);
+  for (const t of liste.sort((a, b) => a.wert - b.wert)) {
     console.log(`  ${String(t.wert).padStart(5)}  ${t.b} + ${t.t}   ${t.f}:${t.zeile}`);
   }
 }

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
 import '@/styles/theme-retro.css'
+import '@/styles/theme-halloween.css'
 import { initTheme } from '@/lib/theme';
 
 // Vor dem ersten Rendern, sonst blitzt das falsche Kleid kurz auf.
