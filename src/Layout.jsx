@@ -6,7 +6,6 @@ import { formatDistanceToNow } from "date-fns";
 import { de as dateFnsDe, enUS as dateFnsEn } from "date-fns/locale";
 import { 
   LayoutGrid,
-  LayoutDashboard,
   ListTodo, 
   FileText, 
   Shapes, 
@@ -23,8 +22,7 @@ import {
   CalendarDays,
   CreditCard,
   Lightbulb,
-  Rocket,
-  Video
+  Rocket
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -42,6 +40,19 @@ import {
   teamActivityPathForEntity,
 } from "@/hooks/useProjectRealtimeSync";
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
+import { SlidersHorizontal } from "lucide-react";
+import { sichtbareIds, modulVon } from "@/lib/menuModules";
+import { SYMBOL_VON } from "@/lib/menuIcons";
+import { useMenuPrefs } from "@/hooks/useMenuPrefs";
+/**
+ * Der Bearbeiten-Modus wird nachgeladen.
+ *
+ * Er bringt die Zieh-Bibliothek mit (rund 30 kB). Die liegt bereits als
+ * eigener Brocken vor, weil das Kanban-Brett sie benutzt — aber sie gehoert
+ * nicht in den Alltagsweg jeder Seite, nur weil das Menue sich anpassen
+ * laesst. Wer nie anpasst, laedt sie nie.
+ */
+const MenuEditor = React.lazy(() => import("@/components/layout/MenuEditor"));
 import VoiceAgent from "@/components/VoiceAgent";
 import TextToTicketPopup from "@/components/TextToTicketPopup";
 import { PageTransition } from "@/components/PageTransition";
@@ -144,6 +155,22 @@ function LayoutContent({ children, currentPageName }) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(() => {
     return typeof window !== 'undefined' && window.innerWidth >= 1024;
   });
+  /**
+   * Eingeklappt heisst auf dem Rechner NICHT mehr "weg".
+   *
+   * Bisher fuhr die Leiste vollstaendig aus dem Bild, und wer zwischen
+   * Aufgaben und Dateien wechseln wollte, musste sie jedes Mal wieder
+   * aufklappen. Jetzt bleibt ein schmaler Streifen mit denselben Symbolen
+   * stehen — ein Klick statt drei.
+   *
+   * Auf dem Handy bleibt es beim Ausblenden: 64 Pixel dauerhaft vom
+   * Bildschirm abzuziehen waere dort teuer, und der Menue-Knopf oben ist
+   * ohnehin naeher am Daumen.
+   */
+  const schmal = !isSidebarOpen;
+  /** Der Anpass-Modus. Bewusst kein gespeicherter Zustand: Man richtet ein
+      und arbeitet weiter, nicht umgekehrt. */
+  const [menueBearbeiten, setMenueBearbeiten] = React.useState(false);
   const [lastSeenPosts, setLastSeenPosts] = React.useState(() => {
     try {
       return JSON.parse(localStorage.getItem('lastSeenPosts') || '{}');
@@ -158,6 +185,8 @@ function LayoutContent({ children, currentPageName }) {
   const [mentionToasts, setMentionToasts] = React.useState([]);
   const [teamActivityItems, setTeamActivityItems] = React.useState([]);
   const isAdmin = getAdminEmails().includes((currentUser?.email || "").toLowerCase());
+  /** Welche Module in welcher Reihenfolge — pro Person, auf allen Geraeten. */
+  const { menu, modulVerschieben } = useMenuPrefs(currentUser);
 
   React.useEffect(() => {
     setTeamActivityItems([]);
@@ -456,19 +485,30 @@ function LayoutContent({ children, currentPageName }) {
     return null;
   }
 
-  const navItems = [
-    { icon: LayoutDashboard, label: t('dashboard'), path: "Dashboard", color: "bg-sky-500" },
-    { icon: LayoutGrid, label: t('overview'), path: "SocialBoard", badge: newPostsCount, color: "bg-[#ef5a24]" },
-    { icon: ListTodo, label: t('tasks'), path: "ScrumBoard", color: "bg-emerald-500" },
-    { icon: FileText, label: t('docs'), path: "Docs", color: "bg-amber-500" },
-    { icon: Shapes, label: t('canvas'), path: "Canvas", color: "bg-[#ef5a24]" },
-    { icon: FolderOpen, label: t('files'), path: "FileHub", color: "bg-orange-500" },
-    { icon: CalendarDays, label: t('calendar'), path: "Calendar", color: "bg-teal-500" },
-    { icon: MessageSquare, label: t('chat'), path: "Chat", badge: newMessagesCount, color: "bg-blue-500" },
-    { icon: Video, label: language === 'de' ? "Meeting" : "Meeting", path: "Meeting", color: "bg-rose-500" },
-    { icon: Rocket, label: "Startup Builder", path: "StartupBuilder", disabled: true, alpha: true, color: "bg-rose-500" },
-    { icon: Puzzle, label: language === 'de' ? "Unsere Tools" : "Our Tools", path: "Integrations", color: "bg-cyan-500" },
-  ];
+  /**
+   * Das Menue kommt aus dem Verzeichnis, nicht mehr aus einer festen Liste.
+   *
+   * `sichtbareIds` liefert die Kennungen in der Reihenfolge, die diese Person
+   * eingerichtet hat; alles Weitere (Symbol, Beschriftung, Zaehler) haengt
+   * hier dran. Neue Module tauchen von allein auf — siehe `normalizeMenu`.
+   */
+  const zaehler = { posts: newPostsCount, messages: newMessagesCount };
+  const navItems = sichtbareIds(menu).map((id) => {
+    const m = modulVon(id);
+    const beschriftung = m.labelKey
+      ? t(m.labelKey)
+      : (typeof m.label === 'string' ? m.label : (m.label?.[language] || m.label?.de));
+    return {
+      id,
+      icon: SYMBOL_VON[id],
+      label: beschriftung,
+      path: m.path,
+      color: m.color,
+      disabled: m.disabled,
+      alpha: m.alpha,
+      badge: m.badge ? zaehler[m.badge] : undefined,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-white flex text-slate-900 font-sans selection:bg-[#ef5a24]/10 transition-colors duration-300 ease-out">
@@ -481,8 +521,14 @@ function LayoutContent({ children, currentPageName }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 border-r border-slate-100 flex flex-col fixed lg:fixed h-full bg-white z-50 transition-transform duration-300 ease-out motion-reduce:transition-none`}>
-        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-50">
+      {/*
+        Zwei Zustaende auf dem Rechner, zwei auf dem Handy:
+        offen = 256 Pixel mit Beschriftung, eingeklappt = 64 Pixel nur
+        Symbole (`lg:w-16 lg:translate-x-0`). Auf dem Handy faehrt sie wie
+        bisher ganz heraus, dort ist jeder Pixel teurer als ein Klick.
+      */}
+      <aside className={`${isSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:w-16 lg:translate-x-0'} border-r border-slate-100 flex flex-col fixed h-full bg-white z-50 transition-all duration-300 ease-out motion-reduce:transition-none`}>
+        <div className={`h-16 flex items-center border-b border-slate-50 ${schmal ? 'lg:justify-center lg:px-0 justify-between px-6' : 'justify-between px-6'}`}>
           {/* Logo in der Seitenleiste fuehrt zurueck zur Projektuebersicht */}
           <Link
             to={createPageUrl('ProjectsList')}
@@ -490,7 +536,7 @@ function LayoutContent({ children, currentPageName }) {
             title={t('allProjects')}
           >
             <OrbyloxMark className="w-7 h-7 shrink-0 transition-transform group-hover:-rotate-6" />
-            <div className="min-w-0">
+            <div className={`min-w-0 ${schmal ? 'lg:hidden' : ''}`}>
               <div className="text-sm font-extrabold tracking-tight leading-none text-slate-900">
                 RBYLOX
               </div>
@@ -499,25 +545,42 @@ function LayoutContent({ children, currentPageName }) {
               </div>
             </div>
           </Link>
+          {/* Im Streifen gibt es kein X: Zumachen kann man nichts mehr, und
+              ein Knopf, der nur auf dem Handy etwas tut, verwirrt am Rechner. */}
           <button 
             type="button"
             onPointerDown={closeSidebar}
-            className="h-10 w-10 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+            className={`h-10 w-10 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 ${schmal ? 'lg:hidden' : ''}`}
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <nav className="flex-1 py-3 px-3 overflow-y-auto">
-            <div className="flex flex-col gap-2">
+        <nav className={`flex-1 py-3 overflow-y-auto ${schmal ? 'lg:px-2 px-3' : 'px-3'}`}>
+            {/* Der Anpass-Modus ersetzt die Liste, statt sie zu ergaenzen:
+                Ziehen und Navigieren im selben Bild wuerde heissen, dass jeder
+                Zug auch ein Klick sein kann. */}
+            {menueBearbeiten && !schmal && (
+              <React.Suspense fallback={<p className="text-xs text-slate-500 px-1 py-2">…</p>}>
+                <MenuEditor
+                  menu={menu}
+                  onVerschieben={modulVerschieben}
+                  onFertig={() => setMenueBearbeiten(false)}
+                  de={language === 'de'}
+                  t={t}
+                />
+              </React.Suspense>
+            )}
+            <div className={`flex flex-col gap-2 ${menueBearbeiten && !schmal ? 'hidden' : ''}`}>
               {navItems.map((item) => {
                 const isActive = location.pathname.includes(item.path);
                 const isDisabled = !!item.disabled;
                 const alpha = !!item.alpha;
                 // TaskNow: alle Einträge weiß mit schwarzem Rahmen, aktiv = orange.
                 const navClassName = `
-                      relative flex items-center gap-3 px-4 py-3 border-2 border-black
+                      relative flex items-center border-2 border-black
                       font-bold uppercase tracking-wide text-sm transition-colors group
+                      ${schmal ? 'lg:justify-center lg:px-0 lg:h-11 gap-3 px-4 py-3' : 'gap-3 px-4 py-3'}
                       ${isDisabled
                         ? 'opacity-40 cursor-not-allowed'
                         : isActive
@@ -527,35 +590,50 @@ function LayoutContent({ children, currentPageName }) {
                 const navBody = (
                   <>
                     <item.icon className="w-5 h-5 relative z-10 shrink-0" />
-                    <span className="text-sm font-bold uppercase tracking-wide relative z-10 flex-1">
+                    {/* Im Streifen bleibt nur das Symbol. Der Name steht im
+                        `title` und erscheint als Sprechblase des Browsers —
+                        eine eigene Sprechblase zu bauen hiesse, sie auch auf
+                        Tastatur, Beruehrung und Bildschirmleser richtig
+                        hinzubekommen; das kann der Browser besser. */}
+                    <span className={`text-sm font-bold uppercase tracking-wide relative z-10 flex-1 ${schmal ? 'lg:hidden' : ''}`}>
                       {item.label}
                     </span>
                     {alpha ? (
-                      <span className="px-1.5 py-0.5 border border-current text-[8px] font-extrabold tracking-wider relative z-10">
+                      <span className={`px-1.5 py-0.5 border border-current text-[8px] font-extrabold tracking-wider relative z-10 ${schmal ? 'lg:hidden' : ''}`}>
                         ALPHA
                       </span>
                     ) : item.beta ? (
-                      <span className="px-1.5 py-0.5 border border-current text-[8px] font-bold relative z-10">
+                      <span className={`px-1.5 py-0.5 border border-current text-[8px] font-bold relative z-10 ${schmal ? 'lg:hidden' : ''}`}>
                         Beta
                       </span>
                     ) : null}
+                    {/* Der Zaehler schrumpft im Streifen zum Punkt: Die Zahl
+                        waere neben einem 20-Pixel-Symbol nicht mehr zu lesen,
+                        die Tatsache "da ist etwas Neues" schon. */}
                     {item.badge > 0 && (
-                      <span className="min-w-5 h-5 px-1.5 bg-[#ef5a24] text-white text-[10px] font-bold flex items-center justify-center relative z-10">
-                        {item.badge > 9 ? '9+' : item.badge}
-                      </span>
+                      <>
+                        <span className={`min-w-5 h-5 px-1.5 bg-[#ef5a24] text-white text-[10px] font-bold flex items-center justify-center relative z-10 ${schmal ? 'lg:hidden' : ''}`}>
+                          {item.badge > 9 ? '9+' : item.badge}
+                        </span>
+                        {schmal && (
+                          <span className="hidden lg:block absolute top-1 right-1 w-2 h-2 bg-[#ef5a24] border border-black rounded-full" />
+                        )}
+                      </>
                     )}
                   </>
                 );
                 return isDisabled ? (
-                  <div key={item.label} className={navClassName}>
+                  <div key={item.id} className={navClassName} title={item.label}>
                     {navBody}
                   </div>
                 ) : (
                   <Link
-                    key={item.label}
+                    key={item.id}
                     to={createPageUrl(item.path) + location.search}
                     onClick={() => window.innerWidth < 1024 && setIsSidebarOpen(false)}
                     className={navClassName}
+                    title={item.label}
+                    aria-label={item.label}
                   >
                     {navBody}
                   </Link>
@@ -564,35 +642,57 @@ function LayoutContent({ children, currentPageName }) {
             </div>
           </nav>
 
-        <div className="p-3 border-t border-slate-100 space-y-2">
+        <div className={`border-t border-slate-100 space-y-2 ${schmal ? 'lg:p-2 p-3' : 'p-3'}`}>
+               {/* Der Weg in den Anpass-Modus. Er steht AUSSERHALB der Liste:
+                   Wer alle Module in den Kasten zieht, muss trotzdem wieder
+                   herauskommen. */}
+               <button
+                 type="button"
+                 onClick={() => { setIsSidebarOpen(true); setMenueBearbeiten((x) => !x); }}
+                 title={language === 'de' ? 'Menü anpassen' : 'Customise menu'}
+                 aria-label={language === 'de' ? 'Menü anpassen' : 'Customise menu'}
+                 className={`w-full flex items-center border-2 border-black font-bold uppercase tracking-wide text-sm transition-colors
+                   ${schmal ? 'lg:justify-center lg:px-0 lg:h-11 gap-3 px-4 py-3' : 'gap-3 px-4 py-3'}
+                   ${menueBearbeiten ? 'bg-[#ef5a24] text-white border-[#ef5a24]' : 'bg-white text-black hover:bg-black hover:text-white'}`}
+               >
+                  <SlidersHorizontal className="w-5 h-5 shrink-0" />
+                  <span className={`text-sm ${schmal ? 'lg:hidden' : ''}`}>
+                    {menueBearbeiten
+                      ? (language === 'de' ? 'Fertig' : 'Done')
+                      : (language === 'de' ? 'Menü anpassen' : 'Customise menu')}
+                  </span>
+               </button>
                <Link 
                  to={createPageUrl('ProjectsList')}
                  onClick={() => window.innerWidth < 1024 && setIsSidebarOpen(false)}
-                 className="flex items-center gap-3 px-4 py-3 bg-black text-white border-2 border-black font-bold uppercase tracking-wide text-sm hover:bg-white hover:text-black transition-colors group"
+                 title={t('allProjects')}
+                 className={`flex items-center bg-black text-white border-2 border-black font-bold uppercase tracking-wide text-sm hover:bg-white hover:text-black transition-colors group ${schmal ? 'lg:justify-center lg:px-0 lg:h-11 gap-3 px-4 py-3' : 'gap-3 px-4 py-3'}`}
                >
-                  <FolderOpen className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
-                  <span className="text-sm font-medium text-white">{t('allProjects')}</span>
+                  <FolderOpen className="w-5 h-5 shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                  <span className={`text-sm font-medium ${schmal ? 'lg:hidden' : ''}`}>{t('allProjects')}</span>
                </Link>
                <Link 
                  to={createPageUrl('Settings') + location.search} 
                  onClick={() => window.innerWidth < 1024 && setIsSidebarOpen(false)}
-                 className="flex items-center gap-3 px-4 py-3 bg-slate-500 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:-translate-y-0.5 group"
+                 title={t('settings')}
+                 className={`flex items-center bg-slate-500 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:-translate-y-0.5 group ${schmal ? 'lg:justify-center lg:px-0 lg:h-11 gap-3 px-4 py-3' : 'gap-3 px-4 py-3'}`}
                >
-                  <Settings className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
-                  <span className="text-sm font-medium text-white">{t('settings')}</span>
+                  <Settings className="w-5 h-5 text-white shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                  <span className={`text-sm font-medium text-white ${schmal ? 'lg:hidden' : ''}`}>{t('settings')}</span>
                </Link>
                <button 
                  onClick={() => signOutAndLeave(queryClient, createPageUrl('login'))} 
-                 className="w-full flex items-center gap-3 px-4 py-3 bg-red-500 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:-translate-y-0.5 group"
+                 title={t('logout')}
+                 className={`w-full flex items-center bg-red-500 rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:-translate-y-0.5 group ${schmal ? 'lg:justify-center lg:px-0 lg:h-11 gap-3 px-4 py-3' : 'gap-3 px-4 py-3'}`}
                >
-                  <LogOut className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
-                  <span className="text-sm font-medium text-white">{t('logout')}</span>
+                  <LogOut className="w-5 h-5 text-white shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                  <span className={`text-sm font-medium text-white ${schmal ? 'lg:hidden' : ''}`}>{t('logout')}</span>
                </button>
           </div>
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 min-w-0 ${isSidebarOpen ? 'lg:ml-64' : 'ml-0'} bg-white min-h-screen flex flex-col transition-[margin] duration-300 ease-out motion-reduce:transition-none`}>
+      <main className={`flex-1 min-w-0 ml-0 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-16'} bg-white min-h-screen flex flex-col transition-[margin] duration-300 ease-out motion-reduce:transition-none`}>
         {/* Header */}
         <header className="h-16 border-b border-slate-50 flex items-center justify-between px-4 md:px-8 sticky top-0 bg-white/95 backdrop-blur-sm z-50 transition-colors duration-300 ease-out motion-reduce:transition-none">
           <div className="flex items-center gap-2 md:gap-4 min-w-0">

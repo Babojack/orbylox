@@ -83,6 +83,12 @@ jobs:
       - name: Startbündel prüfen
         run: npm run check:bundle
 
+      # Die Menü-Anordnung steht in den Konten der Leute. Ein umbenanntes
+      # Modul oder eine verrutschte Reihenfolge fällt hier auf, nicht erst,
+      # wenn jemandem sein eingerichtetes Menü durcheinandergerät.
+      - name: Menü prüfen
+        run: npm run check:menu
+
       # Dieser Schritt sagt jetzt, WORAN es liegt.
       #
       # Vorher stand hier `ssh-keyscan … 2>/dev/null`: Der Befehl schlägt fehl,
