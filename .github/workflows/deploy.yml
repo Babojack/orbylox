@@ -89,6 +89,12 @@ jobs:
       - name: Menü prüfen
         run: npm run check:menu
 
+      # Dateien und Notizen teilen sich die Ordner-Sammlung. Hier faellt auf,
+      # wenn ein Ordner im falschen Bereich landet oder die vorhandenen
+      # Ordner ohne Art-Feld aus dem Dateibereich verschwinden.
+      - name: Ordner prüfen
+        run: npm run check:folders
+
       # Dieser Schritt sagt jetzt, WORAN es liegt.
       #
       # Vorher stand hier `ssh-keyscan … 2>/dev/null`: Der Befehl schlägt fehl,

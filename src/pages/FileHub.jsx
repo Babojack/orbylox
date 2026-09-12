@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { api } from "@/api/apiClient";
 import { previewablePdfUrl, describeFileUrl, checkFileReachable } from "@/lib/fileUrls";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ART, ordnerFuer } from '@/lib/ordner';
 import { Folder, File, UploadCloud, MoreVertical, Download, Trash2, FileImage, FileText, FolderPlus, CloudUpload, Eye, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -65,7 +66,16 @@ export default function FileHub() {
     enabled: !!projectId
   });
 
-  const { data: folders } = useQuery({
+  /**
+   * ALLE Ordner holen, hier filtern.
+   *
+   * Wichtig: Notizen und Dateien benutzen denselben Abfrageschluessel
+   * `['folders', projectId]`. Wuerde diese Seite bereits gefiltert
+   * zwischenspeichern, faende die Notizen-Seite im Speicher eine Liste ohne
+   * ihre eigenen Ordner — und umgekehrt. Im Speicher liegt deshalb immer der
+   * volle Bestand; getrennt wird erst beim Anzeigen.
+   */
+  const { data: alleOrdner } = useQuery({
     queryKey: ['folders', projectId],
     queryFn: async () => {
       return api.entities.Folder.listByProject(projectId, '-created_date');
@@ -137,10 +147,22 @@ export default function FileHub() {
     }
   });
 
+  /**
+   * Nur die Ordner dieses Bereichs.
+   *
+   * Alte Ordner tragen keine Art — sie wurden hier angelegt, als es nirgends
+   * sonst welche gab, und gelten deshalb als Datei-Ordner. `ordnerFuer`
+   * entscheidet das an einer Stelle fuer beide Seiten.
+   */
+  const folders = React.useMemo(() => ordnerFuer(alleOrdner, ART.DATEIEN), [alleOrdner]);
+
   const createFolderMutation = useMutation({
     mutationFn: (folderName) => api.entities.Folder.create({
       name: folderName,
-      project_id: projectId
+      project_id: projectId,
+      // Seit es auch in den Notizen Ordner gibt, teilen sich beide Bereiche
+      // die Sammlung `Folder`. Ohne diese Zeile taucht der Ordner drueben auf.
+      kind: ART.DATEIEN,
     }),
     onMutate: async (folderName) => {
       await queryClient.cancelQueries(['folders', projectId]);

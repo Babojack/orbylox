@@ -8,6 +8,7 @@
     "check:bundle": "node scripts/bundle-check.mjs",
     "check:clips": "node scripts/clips-check.mjs",
     "check:deadlines": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/alias-loader.mjs\", pathToFileURL(\"./\"));' scripts/deadline-check.mjs",
+    "check:folders": "node scripts/folder-check.mjs",
     "check:menu": "node scripts/menu-check.mjs",
     "check:theme": "node scripts/theme-check.mjs",
     "dev": "vite",

@@ -3,7 +3,7 @@ import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { StickyNote, Plus, Trash2, Pin, PinOff, Search, Palette, MoreVertical, Copy } from 'lucide-react';
+import { StickyNote, Plus, Trash2, Pin, PinOff, Search, Palette, MoreVertical, Copy, Folder, FolderPlus, ChevronLeft } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { askDelete } from '@/lib/confirmDelete';
+import { ART, ordnerFuer, inhaltVon, anzahlIn, nameVon, namePruefen } from '@/lib/ordner';
 
 const NOTE_COLORS = [
   { name: 'Default', bg: 'bg-white', border: 'border-slate-200', text: 'text-slate-800' },
@@ -74,6 +75,14 @@ export default function Docs() {
     const [editTitle, setEditTitle] = useState("");
     const viewMode = 'grid';
     const [searchQuery, setSearchQuery] = useState('');
+    /** In welchem Ordner wir gerade stehen. null = oberste Ebene. */
+    const [ordnerId, setOrdnerId] = useState(null);
+    const [ordnerDialog, setOrdnerDialog] = useState(false);
+    const [ordnerName, setOrdnerName] = useState('');
+    const [ordnerFehler, setOrdnerFehler] = useState(null);
+    /** Welche Notiz gerade gezogen wird, und worueber sie schwebt. */
+    const [ziehendeNotiz, setZiehendeNotiz] = useState(null);
+    const [zielOrdner, setZielOrdner] = useState(null);
     const [showTypeSelector, setShowTypeSelector] = useState(false);
     const debounceTimer = React.useRef(null);
     /**
@@ -119,6 +128,75 @@ export default function Docs() {
     enabled: !!projectId
   });
 
+  /**
+   * Die Ordner dieses Projekts — nur die der Notizen.
+   *
+   * Dateien und Notizen teilen sich die Sammlung `Folder`; welche Sorte
+   * gemeint ist, entscheidet `kind`. Die Trennung passiert in `ordnerFuer`
+   * und ist dort auch geprüft.
+   */
+  const { data: alleOrdner = [] } = useQuery({
+    queryKey: ['folders', projectId],
+    queryFn: () => api.entities.Folder.listByProject(projectId, '-created_date'),
+    enabled: !!projectId,
+  });
+  const ordner = React.useMemo(() => ordnerFuer(alleOrdner, ART.NOTIZEN), [alleOrdner]);
+
+  const ordnerAnlegen = useMutation({
+    mutationFn: (name) => api.entities.Folder.create({
+      name,
+      project_id: projectId,
+      // Ohne diese Zeile taucht der Ordner im Dateibereich auf.
+      kind: ART.NOTIZEN,
+    }),
+    onSuccess: () => {
+      setOrdnerDialog(false);
+      setOrdnerName('');
+      setOrdnerFehler(null);
+      queryClient.invalidateQueries(['folders', projectId]);
+    },
+    onError: (err) => setOrdnerFehler(String(err?.message || err)),
+  });
+
+  /** Prueft den Namen und legt an — oder sagt, warum nicht. */
+  const ordnerAbschicken = () => {
+    const ergebnis = namePruefen(ordnerName, alleOrdner, ART.NOTIZEN);
+    if (!ergebnis.ok) {
+      setOrdnerFehler({
+        leer: 'Bitte einen Namen eingeben.',
+        zu_lang: 'Der Name ist zu lang.',
+        doppelt: 'Diesen Ordner gibt es hier schon.',
+      }[ergebnis.grund] || 'Der Name geht so nicht.');
+      return;
+    }
+    ordnerAnlegen.mutate(ergebnis.name);
+  };
+
+  const ordnerLoeschen = useMutation({
+    mutationFn: (id) => api.entities.Folder.delete(id),
+    onSuccess: () => queryClient.invalidateQueries(['folders', projectId]),
+  });
+
+  /**
+   * Eine Notiz in einen Ordner legen (oder heraus).
+   *
+   * Optimistisch: Die Karte springt sofort, statt auf den Server zu warten.
+   * Beim Ziehen ist das der Unterschied zwischen "es hat funktioniert" und
+   * "hat es funktioniert?".
+   */
+  const notizVerschieben = useMutation({
+    mutationFn: ({ docId, folderId }) => api.entities.Document.update(docId, { folder_id: folderId }),
+    onMutate: async ({ docId, folderId }) => {
+      await queryClient.cancelQueries(['docs', projectId]);
+      const vorher = queryClient.getQueryData(['docs', projectId]);
+      queryClient.setQueryData(['docs', projectId], (alt) =>
+        (alt || []).map((d) => (d.id === docId ? { ...d, folder_id: folderId } : d)));
+      return { vorher };
+    },
+    onError: (err, werte, ctx) => queryClient.setQueryData(['docs', projectId], ctx?.vorher),
+    onSettled: () => queryClient.invalidateQueries(['docs', projectId]),
+  });
+
   const createDocWithType = async (noteType) => {
     setShowTypeSelector(false);
     const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -131,6 +209,9 @@ export default function Docs() {
       content: "",
       icon: noteType.icon,
       project_id: projectId,
+      // Wer in einem Ordner steht, legt dort an — alles andere waere eine
+      // Ueberraschung.
+      folder_id: ordnerId,
       created_date: new Date().toISOString()
     };
     
@@ -148,6 +229,7 @@ export default function Docs() {
         title,
         content: "",
         project_id: projectId,
+        folder_id: ordnerId,
         icon: noteType.icon
       });
 
@@ -331,8 +413,15 @@ export default function Docs() {
     }
   };
 
-  // Filter and sort notes
-  const filteredDocs = docs?.filter(doc => {
+  /**
+   * Erst der Ordner, dann die Suche — aber die Suche greift ueber alles.
+   *
+   * Wer etwas sucht, weiss meist nicht mehr, in welchem Ordner es liegt.
+   * Eine Suche, die nur den aktuellen Ordner durchsieht, findet deshalb
+   * genau dann nichts, wenn man sie am noetigsten braucht.
+   */
+  const imOrdner = inhaltVon(docs, ordnerId, ordner);
+  const filteredDocs = (searchQuery ? (docs || []) : imOrdner).filter(doc => {
     if (!searchQuery) return true;
     return doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
            doc.content?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -354,7 +443,12 @@ export default function Docs() {
     
     return (
       <Card 
-        className={`group relative cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${noteColor.bg} ${noteColor.border} border-2 overflow-hidden`}
+        /* Ziehbar wie eine Datei im Dateibereich — dieselbe Geste, damit man
+           sie nicht zweimal lernen muss. */
+        draggable
+        onDragStart={() => setZiehendeNotiz(doc.id)}
+        onDragEnd={() => { setZiehendeNotiz(null); setZielOrdner(null); }}
+        className={`group relative cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${noteColor.bg} ${noteColor.border} border-2 overflow-hidden ${ziehendeNotiz === doc.id ? 'opacity-50' : ''}`}
         onClick={() => { setSelectedDocId(doc.id); setEditTitle(doc.title); }}
       >
         {isPinned && (
@@ -473,6 +567,13 @@ export default function Docs() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <Button
+            variant="outline"
+            className="shrink-0"
+            onClick={() => { setOrdnerName(''); setOrdnerFehler(null); setOrdnerDialog(true); }}
+          >
+            <FolderPlus className="w-4 h-4 mr-2" /> Neuer Ordner
+          </Button>
           <Popover open={showTypeSelector} onOpenChange={setShowTypeSelector}>
             <PopoverTrigger asChild>
               <Button className="bg-yellow-500 hover:bg-yellow-600 text-white shrink-0">
@@ -496,6 +597,82 @@ export default function Docs() {
           </Popover>
         </div>
       </div>
+
+      {/*
+        Die Ordnerreihe.
+        Beim Suchen verschwindet sie: Dann zeigt die Liste Treffer aus ALLEN
+        Ordnern, und eine Ordnerreihe daneben behauptete, man stuende irgendwo.
+      */}
+      {!searchQuery && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
+          {ordnerId && (
+            <button
+              type="button"
+              onClick={() => setOrdnerId(null)}
+              onDragOver={(e) => { e.preventDefault(); if (ziehendeNotiz) setZielOrdner('root'); }}
+              onDragLeave={() => setZielOrdner(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (ziehendeNotiz) notizVerschieben.mutate({ docId: ziehendeNotiz, folderId: null });
+                setZiehendeNotiz(null); setZielOrdner(null);
+              }}
+              className={`p-3 flex flex-col items-center justify-center aspect-square border-2 border-dashed transition-all text-center
+                ${zielOrdner === 'root' ? 'border-[#ef5a24] bg-[#ef5a24]/10' : 'border-slate-300 bg-slate-50'}`}
+            >
+              <ChevronLeft className="w-8 h-8 text-slate-400 mb-1" />
+              <span className="text-xs text-slate-500 leading-tight">Zurück / hierher legen</span>
+            </button>
+          )}
+
+          {!ordnerId && ordner.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => setOrdnerId(o.id)}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (ziehendeNotiz) setZielOrdner(o.id); }}
+              onDragLeave={() => setZielOrdner(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (ziehendeNotiz) notizVerschieben.mutate({ docId: ziehendeNotiz, folderId: o.id });
+                setZiehendeNotiz(null); setZielOrdner(null);
+              }}
+              className={`group relative p-3 flex flex-col items-center justify-center aspect-square border-2 bg-[#f5f5f5] transition-all text-center
+                ${zielOrdner === o.id ? 'border-[#ef5a24] bg-[#ef5a24]/10 scale-[1.02]' : 'border-[#ef5a24]/30 hover:bg-[#ef5a24]/10'}`}
+            >
+              <Folder className="w-10 h-10 text-[#ef5a24] mb-1" />
+              <span className="text-sm font-medium text-slate-700 break-words leading-tight line-clamp-2">{o.name}</span>
+              <span className="text-[11px] text-slate-400">{anzahlIn(docs, o.id)}</span>
+              {/* Loeschen fragt nach — und nimmt die Notizen NICHT mit:
+                  Sie rutschen zurueck auf die oberste Ebene. */}
+              <span
+                role="button"
+                tabIndex={-1}
+                title="Ordner löschen"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const ok = await askDelete({
+                    kind: 'folder',
+                    itemName: o.name,
+                    body: 'Die Notizen darin bleiben — sie rutschen zurück auf die oberste Ebene.',
+                  });
+                  if (ok) ordnerLoeschen.mutate(o.id);
+                }}
+                className="absolute top-1 right-1 h-7 w-7 grid place-items-center text-slate-400 opacity-0 group-hover:opacity-100 hover:text-red-600"
+              >
+                <Trash2 className="w-4 h-4" />
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {ordnerId && !searchQuery && (
+        <p className="text-sm text-slate-500 flex items-center gap-2">
+          <Folder className="w-4 h-4 text-[#ef5a24]" />
+          <span className="font-medium text-slate-700">{nameVon(ordner, ordnerId)}</span>
+          <span>· {filteredDocs.length} Notiz(en)</span>
+        </p>
+      )}
 
       {/* Timeline View */}
       {viewMode === 'timeline' && sortedDocs.length > 0 && (
@@ -760,6 +937,42 @@ export default function Docs() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/*
+        Neuer Ordner.
+
+        Die Pruefung des Namens steht in `src/lib/ordner.js` und nicht hier:
+        Sie gilt fuer Dateien und Notizen gleichermassen und laesst sich dort
+        ohne Browser durchspielen. Diese Ansicht uebersetzt nur den Grund in
+        einen Satz.
+      */}
+      <Dialog open={ordnerDialog} onOpenChange={(offen) => { setOrdnerDialog(offen); if (!offen) setOrdnerFehler(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <h2 className="text-lg font-bold">Neuer Ordner</h2>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              autoFocus
+              value={ordnerName}
+              onChange={(e) => { setOrdnerName(e.target.value); setOrdnerFehler(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); ordnerAbschicken(); } }}
+              placeholder="z. B. Protokolle"
+            />
+            {ordnerFehler && <p className="text-sm text-red-600">{ordnerFehler}</p>}
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setOrdnerDialog(false)}>Abbrechen</Button>
+              <Button
+                className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                disabled={ordnerAnlegen.isPending}
+                onClick={ordnerAbschicken}
+              >
+                Anlegen
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
