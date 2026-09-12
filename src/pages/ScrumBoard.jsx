@@ -5,7 +5,7 @@ import { hasFirebaseConfig } from "@/lib/firebase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Draggable } from '@hello-pangea/dnd';
 import { StrictModeDroppable as Droppable } from "@/components/StrictModeDroppable";
-import { Plus, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, LayoutPanelLeft, Pencil, Trash2, Lock, Network } from 'lucide-react';
+import { Plus, User as UserIcon, AlertCircle, MessageSquare, CheckSquare, Paperclip, LayoutGrid, GanttChart, Filter, LayoutPanelLeft, Pencil, Trash2, Lock, Network, Target } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -24,6 +24,13 @@ import { notifyAssignment } from "@/lib/notifyAssignment";
 import { Reveal } from "@/components/motion/Reveal";
 import { BoardSkeleton } from "@/components/motion/Skeletons";
 import { askDelete } from '@/lib/confirmDelete';
+
+/**
+ * Das Fokus-Vollbild wird nachgeladen: Es bringt eine eigene Uhr und eigene
+ * Bewegungen mit, und die meisten Besuche auf dem Brett enden ohne Fokus.
+ */
+const TaskFocus = React.lazy(() => import("@/components/focus/TaskFocus"));
+
 
 /* `key` zeigt auf den Uebersetzungsschluessel — die Spaltentitel standen
    vorher fest auf Englisch, auch in der deutschen Fassung. */
@@ -101,6 +108,8 @@ export default function ScrumBoard() {
     const [renameBoardTarget, setRenameBoardTarget] = React.useState(null);
     const [renameBoardTitle, setRenameBoardTitle] = React.useState("");
     const [assistantOpen, setAssistantOpen] = React.useState(false);
+    /** Welche Aufgabe gerade im Fokus steht — null heisst: keine. */
+    const [focusTask, setFocusTask] = React.useState(null);
 
     const searchParams = new URLSearchParams(window.location.search);
     const projectId = searchParams.get('project');
@@ -1264,8 +1273,25 @@ export default function ScrumBoard() {
                                   `}>
                                       {draggableTask.priority}
                                   </Badge>
-                                  <span className="text-[10px] text-slate-300 group-hover:text-slate-400 transition-colors select-none">
-                                      {t('dragHint')}
+                                  <span className="flex items-center gap-1.5 shrink-0">
+                                    {/* Fokus direkt von der Karte. `stopPropagation`
+                                        an BEIDEN Stellen: Ohne `onPointerDown`
+                                        faengt das Ziehen den Druck ab, bevor der
+                                        Klick ueberhaupt entsteht. */}
+                                    <button
+                                      type="button"
+                                      data-no-lift
+                                      title={t('focusStart')}
+                                      aria-label={t('focusStart')}
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      onClick={(e) => { e.stopPropagation(); setFocusTask(draggableTask); }}
+                                      className="h-7 w-7 grid place-items-center border-2 border-black bg-white text-[#ef5a24] hover:bg-[#ef5a24] hover:text-white transition-colors"
+                                    >
+                                      <Target className="w-3.5 h-3.5" />
+                                    </button>
+                                    <span className="text-[10px] text-slate-300 group-hover:text-slate-400 transition-colors select-none">
+                                        {t('dragHint')}
+                                    </span>
                                   </span>
                               </div>
                               {/* `break-words`: Ein Ticket darf einen langen
@@ -1434,6 +1460,17 @@ export default function ScrumBoard() {
           label={language === 'de' ? 'Assistent' : 'Assistant'}
         />
       )}
+
+      <React.Suspense fallback={null}>
+        <TaskFocus
+          task={focusTask}
+          projectId={projectId}
+          offen={!!focusTask}
+          de={language === 'de'}
+          onClose={() => setFocusTask(null)}
+          onDone={(task) => switchStatus(task, DONE_STATUS)}
+        />
+      </React.Suspense>
 
       {/* Dust Effect */}
       <ProjectAssistant

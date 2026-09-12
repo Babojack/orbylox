@@ -1430,29 +1430,39 @@
  * Letzteres wuerde auch `hover:bg-slate-500` treffen — derselbe Teilstring-
  * Fehler wie schon zweimal.
  */
-[data-theme='retro'] .theme-scope .hover\:bg-black:hover {
-  background-color: var(--r-edge);
-  color: var(--r-parch);
+/*
+ * Auch diese Ueberfahr-Regeln gelten nur mit Zeiger.
+ *
+ * Tailwind klammert seine eigenen `hover:`-Regeln seit der Umstellung
+ * selbst (`hoverOnlyWhenSupported`). Diese hier sind von Hand geschrieben
+ * und waeren sonst die einzigen, die auf dem Handy noch greifen — und
+ * damit die einzigen, die dort weiter den ersten Tipp verschlucken.
+ */
+@media (hover: hover) and (pointer: fine) {
+  [data-theme='retro'] .theme-scope .hover\:bg-black:hover {
+    background-color: var(--r-edge);
+    color: var(--r-parch);
+  }
+  [data-theme='retro'] .theme-scope .hover\:bg-white:hover {
+    background-color: var(--r-parch);
+    color: var(--r-ink);
+  }
+  [data-theme='retro'] .theme-scope .hover\:bg-slate-50:hover,
+  [data-theme='retro'] .theme-scope .hover\:bg-slate-100:hover,
+  [data-theme='retro'] .theme-scope .hover\:bg-slate-200:hover,
+  [data-theme='retro'] .theme-scope .hover\:bg-gray-100:hover,
+  [data-theme='retro'] .theme-scope .hover\:bg-accent:hover {
+    background-color: var(--r-parch-2);
+    color: var(--r-ink);
+  }
+  [data-theme='retro'] .theme-scope .hover\:text-white:hover { color: #fff; }
+  [data-theme='retro'] .theme-scope .hover\:text-slate-900:hover,
+  [data-theme='retro'] .theme-scope .hover\:text-slate-800:hover,
+  [data-theme='retro'] .theme-scope .hover\:text-slate-700:hover,
+  [data-theme='retro'] .theme-scope .hover\:text-slate-600:hover { color: var(--r-ink); }
+  [data-theme='retro'] .theme-scope .hover\:bg-red-50:hover { background-color: #e8b6b0; color: #9a2113; }
+  [data-theme='retro'] .theme-scope .hover\:bg-amber-50:hover { background-color: #e8d7b0; color: #7b5909; }
 }
-[data-theme='retro'] .theme-scope .hover\:bg-white:hover {
-  background-color: var(--r-parch);
-  color: var(--r-ink);
-}
-[data-theme='retro'] .theme-scope .hover\:bg-slate-50:hover,
-[data-theme='retro'] .theme-scope .hover\:bg-slate-100:hover,
-[data-theme='retro'] .theme-scope .hover\:bg-slate-200:hover,
-[data-theme='retro'] .theme-scope .hover\:bg-gray-100:hover,
-[data-theme='retro'] .theme-scope .hover\:bg-accent:hover {
-  background-color: var(--r-parch-2);
-  color: var(--r-ink);
-}
-[data-theme='retro'] .theme-scope .hover\:text-white:hover { color: #fff; }
-[data-theme='retro'] .theme-scope .hover\:text-slate-900:hover,
-[data-theme='retro'] .theme-scope .hover\:text-slate-800:hover,
-[data-theme='retro'] .theme-scope .hover\:text-slate-700:hover,
-[data-theme='retro'] .theme-scope .hover\:text-slate-600:hover { color: var(--r-ink); }
-[data-theme='retro'] .theme-scope .hover\:bg-red-50:hover { background-color: #e8b6b0; color: #9a2113; }
-[data-theme='retro'] .theme-scope .hover\:bg-amber-50:hover { background-color: #e8d7b0; color: #7b5909; }
 
 /* --- Der Weg ins Menue --------------------------------------------------- */
 
@@ -1483,11 +1493,13 @@
   border: 2px solid var(--r-edge);
   box-shadow: 3px 3px 0 0 var(--r-edge);
 }
-[data-theme='retro'] .theme-scope [data-menu]:hover,
-[data-theme='retro'] .theme-scope :is(header, aside)
-  button:not([data-avatar]):not([class*='bg-red-']):not([class*='bg-\[#ef5a24\]']):hover {
-  background-color: #226c1d;
-  color: #fff;
+@media (hover: hover) and (pointer: fine) {
+  [data-theme='retro'] .theme-scope [data-menu]:hover,
+  [data-theme='retro'] .theme-scope :is(header, aside)
+    button:not([data-avatar]):not([class*='bg-red-']):not([class*='bg-\[#ef5a24\]']):hover {
+    background-color: #226c1d;
+    color: #fff;
+  }
 }
 /* Das Symbol IM Knopf erbt nicht, wenn es eine eigene Farbe mitbringt —
    deshalb hier ausdrücklich. Sonst bliebe es pergamentfarben aus der

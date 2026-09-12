@@ -1,8 +1,10 @@
+import { motion, useReducedMotion } from 'framer-motion';
 import { DragDropContext, Draggable } from '@hello-pangea/dnd';
 import { StrictModeDroppable as Droppable } from '@/components/StrictModeDroppable';
 import { GripVertical, Check } from 'lucide-react';
 import { sichtbareIds, kastenIds, modulVon } from '@/lib/menuModules';
 import { SYMBOL_VON } from '@/lib/menuIcons';
+import { DAUER, VON_UNTEN, uebergang } from '@/components/motion/bewegung';
 
 /**
  * Das Menü einrichten: ziehen, sortieren, in den Kasten legen.
@@ -24,6 +26,7 @@ import { SYMBOL_VON } from '@/lib/menuIcons';
  * ohne Browser geprüft.
  */
 export default function MenuEditor({ menu, onVerschieben, onFertig, de, t }) {
+  const reduziert = useReducedMotion();
   const imMenue = sichtbareIds(menu);
   const imKasten = kastenIds(menu);
 
@@ -65,7 +68,14 @@ export default function MenuEditor({ menu, onVerschieben, onFertig, de, t }) {
 
   return (
     <DragDropContext onDragEnd={beimAblegen}>
-      <div className="space-y-4">
+      {/* Der Kasten schiebt sich von unten herein, statt die Liste zu
+          ersetzen: So sieht man, dass etwas HINZUKOMMT, und sucht nicht nach
+          der Navigation, die eben noch da war. */}
+      <motion.div
+        {...VON_UNTEN}
+        transition={uebergang(DAUER.flaeche, reduziert)}
+        className="space-y-4"
+      >
         <p className="text-[11px] leading-tight text-slate-600 px-1">
           {de
             ? 'Zieh die Bausteine in die Reihenfolge, die du brauchst. Was du nicht brauchst, kommt in den Kasten — von dort holst du es jederzeit zurück.'
@@ -127,7 +137,7 @@ export default function MenuEditor({ menu, onVerschieben, onFertig, de, t }) {
         >
           <Check className="w-4 h-4" /> {de ? 'Fertig' : 'Done'}
         </button>
-      </div>
+      </motion.div>
     </DragDropContext>
   );
 }

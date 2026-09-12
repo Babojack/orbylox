@@ -1,5 +1,27 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+    /**
+     * WARUM MAN AUF MANCHEN HANDYS ZWEIMAL TIPPEN MUSSTE
+     *
+     * Im Quelltext stehen 435 `hover:`-Klassen. Ohne diesen Schalter erzeugt
+     * Tailwind daraus gewoehnliche `:hover`-Regeln — auch fuer Geraete, die
+     * gar nicht schweben koennen. Ein Finger kann nicht schweben, also
+     * entscheidet der Browser, was ein Tipp bedeutet: Safari auf dem iPhone
+     * behandelt den ERSTEN Tipp auf ein Element mit auffaelligem Hover-Stil
+     * als "daraufzeigen" und erst den ZWEITEN als Klick. Genau das Verhalten,
+     * das sich wie eine haengende App anfuehlt.
+     *
+     * `hoverOnlyWhenSupported` verpackt jede Hover-Regel in
+     * `@media (hover: hover)`. Auf dem Handy gibt es dann keinen Hover-Stil
+     * mehr, und der erste Tipp ist der Klick. Am Rechner aendert sich nichts.
+     *
+     * Das ist eine Einstellung und keine Sammlung von Einzelkorrekturen —
+     * 435 Stellen von Hand zu entschaerfen waere aussichtslos, und die naechste
+     * neue Klasse haette den Fehler wieder.
+     */
+    future: {
+        hoverOnlyWhenSupported: true,
+    },
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {

@@ -22,8 +22,10 @@ a {
   color: #646cff;
   text-decoration: inherit;
 }
-a:hover {
-  color: #535bf2;
+@media (hover: hover) {
+  a:hover {
+    color: #535bf2;
+  }
 }
 
 body {
@@ -50,8 +52,10 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
-button:hover {
-  border-color: #646cff;
+@media (hover: hover) {
+  button:hover {
+    border-color: #646cff;
+  }
 }
 button:focus,
 button:focus-visible {
@@ -63,8 +67,10 @@ button:focus-visible {
     color: #213547;
     background-color: #ffffff;
   }
-  a:hover {
-    color: #747bff;
+  @media (hover: hover) {
+    a:hover {
+      color: #747bff;
+    }
   }
   button {
     background-color: #f9f9f9;
@@ -288,26 +294,60 @@ button:focus-visible {
     transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  /* Der 3D-Versatz bleibt — nur ruhiger. Die Ring-Variablen stehen vorne,
-     damit eine Auswahl-Umrandung beim Überfahren nicht verschwindet. */
-  button:not(.rounded-full):not([data-no-lift]):not(:disabled):hover,
-  [role="button"]:not(.rounded-full):not([data-no-lift]):hover,
-  a.tn-lift:hover,
-  .tn-lift:hover,
-  .tn-card:hover {
-    transform: translate(-3px, -3px);
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
-      var(--tw-ring-shadow, 0 0 #0000), 6px 6px 0 0 rgb(10 10 10 / 0.88);
+  /*
+   * NUR AUF GERAETEN MIT ZEIGER.
+   *
+   * Das war die auffaelligste Hover-Aenderung der ganzen Anwendung: Der Knopf
+   * SPRINGT drei Pixel nach oben links und bekommt einen Schatten. Auf einem
+   * Handy gibt es kein Schweben — und Safari behandelt den ersten Tipp auf ein
+   * Element, dessen Aussehen sich so deutlich aendert, als "daraufzeigen".
+   * Der Klick kam erst beim zweiten Tipp. Genau das Gefuehl, das sich wie eine
+   * haengende App anfuehlt.
+   *
+   * `@media (hover: hover)` fragt das Geraet, nicht die Bildschirmbreite: Ein
+   * Tablet mit Maus bekommt den Effekt, ein grosses Handy nicht.
+   */
+  @media (hover: hover) and (pointer: fine) {
+    /* Der 3D-Versatz bleibt — nur ruhiger. Die Ring-Variablen stehen vorne,
+       damit eine Auswahl-Umrandung beim Überfahren nicht verschwindet. */
+    button:not(.rounded-full):not([data-no-lift]):not(:disabled):hover,
+    [role="button"]:not(.rounded-full):not([data-no-lift]):hover,
+    a.tn-lift:hover,
+    .tn-lift:hover,
+    .tn-card:hover {
+      transform: translate(-3px, -3px);
+      box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+        var(--tw-ring-shadow, 0 0 #0000), 6px 6px 0 0 rgb(10 10 10 / 0.88);
+    }
+
+    /* Kleine Knöpfe heben flacher, sonst wirkt der Schatten größer als der Knopf */
+    button.h-7:not([data-no-lift]):hover,
+    button.h-8:not([data-no-lift]):hover,
+    .h-7[role="button"]:not([data-no-lift]):hover,
+    .h-8[role="button"]:not([data-no-lift]):hover {
+      transform: translate(-2px, -2px);
+      box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+        var(--tw-ring-shadow, 0 0 #0000), 4px 4px 0 0 rgb(10 10 10 / 0.88);
+    }
   }
 
-  /* Kleine Knöpfe heben flacher, sonst wirkt der Schatten größer als der Knopf */
-  button.h-7:not([data-no-lift]):hover,
-  button.h-8:not([data-no-lift]):hover,
-  .h-7[role="button"]:not([data-no-lift]):hover,
-  .h-8[role="button"]:not([data-no-lift]):hover {
-    transform: translate(-2px, -2px);
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
-      var(--tw-ring-shadow, 0 0 #0000), 4px 4px 0 0 rgb(10 10 10 / 0.88);
+  /*
+   * Auf Beruehrungsgeraeten ersetzt das DRUECKEN das Schweben.
+   *
+   * Ohne Hover fehlte dort jede Rueckmeldung: Man tippt, und bis die Seite
+   * reagiert, weiss man nicht, ob der Tipp angekommen ist. Ein kurzes
+   * Zusammenziehen sagt es sofort — und zwar waehrend des Tippens, nicht erst
+   * nach der Antwort.
+   */
+  @media (hover: none) {
+    button:not(:disabled):active,
+    [role="button"]:active,
+    a.tn-lift:active,
+    .tn-lift:active,
+    .tn-card:active {
+      transform: scale(0.97);
+      transition-duration: 90ms;
+    }
   }
 
   /* Beim Drücken fällt es zurück auf seinen Platz — kurz und bestimmt */

@@ -1,5 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { DAUER, SCHLEIER, SCHUBLADE_RECHTS, uebergang } from '@/components/motion/bewegung';
 import { Sparkles, X, Send, Loader2, Check } from 'lucide-react';
 import { onBotAvatar } from '@/lib/botAvatar';
 import { askAssistant } from '@/api/assistant';
@@ -62,6 +64,7 @@ function BotFace({ avatar, size = 30, hidden = false }) {
 }
 
 export default function ProjectAssistant({ open, onClose, project, tasks = [], members = [], onCreateTasks }) {
+  const reduziert = useReducedMotion();
   const { language } = useLanguage();
   const de = language !== 'en';
   const [messages, setMessages] = useState([]);
@@ -92,7 +95,8 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open, onClose]);
 
-  if (!open) return null;
+  /* Kein frueher Ausstieg mehr: `AnimatePresence` kann nur ausblenden, was
+     noch im Baum steht. Das `open &&` steht deshalb INNEN. */
 
   const send = async (text) => {
     const q = (text ?? input).trim();
@@ -147,7 +151,23 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
   };
 
   return createPortal(
-    <div
+    /**
+     * Auf und zu mit Bewegung.
+     *
+     * Vorher stand die Schublade schlagartig da und war schlagartig weg. Das
+     * ist nicht nur unschoen: Man verliert die Orientierung, weil nichts
+     * zeigt, WOHER sie kam und wohin sie verschwindet. Der Schleier blendet,
+     * die Flaeche faehrt von rechts — dieselbe Richtung, in der sie liegt.
+     *
+     * `AnimatePresence` braucht es fuers Ausblenden: Ohne diese Klammer
+     * entfernt React das Element sofort, und eine Ausblendbewegung findet
+     * nicht mehr statt, weil es nichts mehr zu bewegen gibt.
+     */
+    <AnimatePresence>
+      {open && (
+    <motion.div
+      {...SCHLEIER}
+      transition={uebergang(DAUER.flaeche, reduziert)}
       /* `h-[100dvh]` neben `inset-0`: Auf dem Handy ist der feste Bereich so
          hoch wie die Seite, nicht wie das Sichtbare — mit eingeblendeter
          Adressleiste laege die Eingabezeile unterhalb des Bildschirmrands.
@@ -156,7 +176,9 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
       style={{ pointerEvents: 'auto' }}
       onPointerDown={onClose}
     >
-      <div
+      <motion.div
+        {...SCHUBLADE_RECHTS}
+        transition={uebergang(DAUER.flaeche, reduziert)}
         className="w-full max-w-lg h-full bg-white border-l-2 border-black flex flex-col"
         onPointerDown={(e) => e.stopPropagation()}
       >
@@ -321,8 +343,10 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
             </button>
           </div>
         </div>
-      </div>
-    </div>,
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>,
     document.body,
   );
 }

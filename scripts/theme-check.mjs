@@ -546,6 +546,37 @@ const faelle = [
     const u = w(R, '#erwaehnung', 'bottom') || '';
     return u.includes('5.25rem') && u.includes('safe-area-inset-bottom');
   }],
+  /**
+   * Ueberfahr-Regeln nur fuer Geraete mit Zeiger.
+   *
+   * Auf manchen Handys musste man zweimal tippen, bis ein Knopf reagierte.
+   * Kein Fehler in einem Knopf, sondern eine Eigenschaft des Browsers: Safari
+   * behandelt den ersten Tipp auf ein Element, dessen Aussehen sich beim
+   * Schweben deutlich aendert, als "daraufzeigen" — und erst den zweiten als
+   * Klick. Die auffaelligste solche Aenderung war das Anheben um drei Pixel
+   * samt Schatten, das JEDER Knopf hatte.
+   *
+   * Geprueft wird am gebauten Stylesheet, nicht am Quelltext: Tailwind
+   * klammert seine Regeln selbst (`hoverOnlyWhenSupported`), die
+   * handgeschriebenen mussten von Hand geklammert werden — hier faellt auf,
+   * wenn eine der beiden Quellen es wieder vergisst.
+   *
+   * Die wenigen Ausnahmen sind Regeln, die einen Effekt ABSCHALTEN
+   * (`transform: none`, `--tw-scale: 1`). Sie duerfen ueberall gelten.
+   */
+  ['Überfahren gilt nur mit Zeiger', () => {
+    const alle = (css.match(/:hover/g) || []).length;
+    let drin = 0; let i = 0;
+    while ((i = css.indexOf('@media (hover', i)) >= 0) {
+      let j = css.indexOf('{', i); let tiefe = 0; let k = j;
+      do { if (css[k] === '{') tiefe += 1; else if (css[k] === '}') tiefe -= 1; k += 1; } while (tiefe > 0 && k < css.length);
+      drin += (css.slice(j, k).match(/:hover/g) || []).length;
+      i = k;
+    }
+    // Weniger als 15 ungeklammerte heisst: nur noch die Abschalt-Regeln.
+    return alle > 100 && (alle - drin) < 15;
+  }],
+  ['und Druck ersetzt es auf Berührung', () => /@media \(hover: ?none\)/.test(css) && /scale\(\.?0?\.?97\)/.test(css)],
   ['die Spalte hat eine Kante', () => /solid/.test(w(R, '#kanbanspalte', 'border') || '')],
   ['ohne Theme bleibt alles hell', () => farbe(w(N, 'main', 'background-color'))?.join() !== zuRgb(palette['--r-grass']).join()],
 
