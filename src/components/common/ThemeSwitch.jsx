@@ -3,7 +3,7 @@ import { Palette, Check } from 'lucide-react';
 import { applyTheme, THEME_LISTE } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { nod } from '@/lib/botStage';
-import { musikStarten, musikStoppen } from '@/lib/retroSound';
+import { hatMusik, musikStarten, musikStoppen } from '@/lib/themeSound';
 
 /**
  * Umschalter fürs Erscheinungsbild — jetzt mit drei Einträgen.
@@ -51,16 +51,22 @@ export default function ThemeSwitch({ de = true }) {
    * man sonst nicht sähe, wofür der Gruß war. Hier ist das neue Aussehen
    * selbst der Anlass — die Figur soll es begrüßen, nicht ankündigen.
    *
-   * Die Musik hängt weiterhin am Retro und nur an ihm: Browser lassen Ton erst
-   * nach einer Nutzerhandlung zu, dieser Klick ist die Erlaubnis. Halloween
-   * bekommt bewusst KEINE eigene Musik — gemütlich heisst still, solange
-   * niemand danach fragt.
+   * Die Musik hängt an genau diesem Klick: Browser lassen Ton erst nach einer
+   * Nutzerhandlung zu, und das hier ist die einzige, von der wir sicher
+   * wissen, dass sie das neue Aussehen meint. Welches Stück — oder ob
+   * überhaupt eines — weiss `themeSound`; hier steht nur "das zu diesem
+   * Aussehen".
+   *
+   * Die Figur nickt weiterhin nur im Retro. Der Gruss gehört zu ihr, und im
+   * Halloween tritt sie gar nicht auf: Dort steht der Kürbis.
    */
   const waehlen = (id) => {
     setOffen(false);
     if (id === theme) return;
     applyTheme(id);
-    if (id === 'retro') { nod(); musikStarten(); } else musikStoppen();
+    if (id === 'retro') nod();
+    if (hatMusik(id)) musikStarten(id);
+    else musikStoppen();
   };
 
   /**

@@ -218,6 +218,11 @@ const MARKUP = `
       <div id="erwaehnung" class="fixed right-4 z-[100] bottom-[calc(5.25rem_+_env(safe-area-inset-bottom,0px))] w-[calc(100vw-2rem)] max-w-sm"></div>
       <div class="bg-blue-50" id="spalteblau"></div>
       <div class="bg-green-50" id="spaltegruen"></div>
+      <section data-figur-buehne="" class="border-b-2 border-black bg-[#f5f5f5]" id="buehne">
+        <h2 id="buehnentitel">Dein Projekt, in einer Hand.</h2>
+        <p class="text-slate-600" id="buehnentext">Aufgaben, Notizen, Chat und Dateien.</p>
+        <ul><li id="buehnenpunkt">Behaelt alles im Blick</li></ul>
+      </section>
       <h2 class="text-2xl font-black" id="seitentitel">Kanban Board</h2>
       <p class="text-slate-500" id="freitext">Neuigkeiten, Ankündigungen und Team-Diskussionen.</p>
       <div class="bg-white rounded-xl" id="tafel"><p class="text-slate-500" id="tafeltext">Nebensache</p></div>
@@ -850,10 +855,71 @@ const faelle = [
     return ids.join() === 'default,retro,halloween' && s.includes('THEME_LISTE.map');
   }],
   ['HW: das Stylesheet wird geladen', () => fs.readFileSync(path.join(wurzel, 'src/main.jsx'), 'utf8').includes('theme-halloween.css')],
-  ['HW: Musik bleibt beim Retro', () => {
-    // Gemuetlich heisst still, solange niemand danach fragt.
+
+  /**
+   * Die Bühne für den Kürbis.
+   *
+   * Das Band mit der 3D-Figur trägt `bg-[#f5f5f5]`, ist also überall sonst
+   * Pergament. Im Halloween muss es Nacht sein, sonst hat die Kerze im
+   * Kürbis nichts zu beleuchten — und die Schrift daneben muss dann hell
+   * werden. Beim ersten Anlauf blieb sie dunkelbraun: Der Nachsatz
+   * `:not(:is(FLÄCHEN) *)` schloss alles aus, denn die Bühne SELBST ist
+   * eine Fläche.
+   */
+  ['HW: die Figuren-Bühne wird zur Nacht', () => farbe(w(H, '#buehne', 'background-color'))?.join() === zuRgb(paletteH['--h-night-2']).join()],
+  ['HW: ihre Überschrift wird hell', () => w(H, '#buehnentitel', 'color') === 'var(--h-mist)'],
+  ['HW: ihr Absatz auch', () => w(H, '#buehnentext', 'color') === 'var(--h-lilac)'],
+  ['HW: und die Aufzählung daneben', () => w(H, '#buehnenpunkt', 'color') === 'var(--h-mist)'],
+  ['HW: im Retro bleibt die Bühne, wie sie war', () => {
+    const r = farbe(w(R, '#buehne', 'background-color'));
+    return !!r && r.join() !== zuRgb(paletteH['--h-night-2']).join();
+  }],
+  ['HW: ohne Theme erst recht', () => /245/.test(w(N, '#buehne', 'background-color') || '')],
+
+  /**
+   * Der Kürbis steht dort, wo sonst die Figur steht — und beide werden
+   * einzeln nachgeladen.
+   */
+  ['HW: die Bühne zeigt im Halloween den Kürbis', () => {
+    const s = fs.readFileSync(path.join(wurzel, 'src/components/landing/BotSection.jsx'), 'utf8');
+    return /lazy\(\(\) => import\('\.\/HeroPumpkin'\)\)/.test(s)
+      && /lazy\(\(\) => import\('\.\/HeroBot'\)\)/.test(s)
+      && /theme === 'halloween' \? HeroPumpkin : HeroBot/.test(s);
+  }],
+  ['HW: Modell und Texturen liegen bereit', () => ['pumpkin.glb', 'pumpkin-albedo.webp',
+    'pumpkin-emissive.webp', 'pumpkin-normal.webp', 'pumpkin-orm.webp']
+    .every((f) => fs.existsSync(path.join(wurzel, 'public/models', f)))],
+
+  /**
+   * Die Musik.
+   *
+   * Sie hing früher am Retro und nur an ihm; jetzt entscheidet `themeSound`,
+   * welches Aussehen ein Stück hat. Zwei Dinge dürfen dabei nicht
+   * verrutschen: Der Tonschalter muss dieselbe Quelle fragen (sonst steht er
+   * im Halloween nicht da, obwohl Musik läuft), und der Speicherschlüssel
+   * muss der alte bleiben — er steht in den Browsern der Leute, und ein
+   * neuer Name setzte jedes "Ton aus" still zurück.
+   */
+  ['HW: Retro und Halloween haben je ein Stück', () => {
+    const s = fs.readFileSync(path.join(wurzel, 'src/lib/themeSound.js'), 'utf8');
+    return /retro:\s*retroQuelle/.test(s) && /halloween:\s*halloweenQuelle/.test(s);
+  }],
+  ['HW: der Umschalter startet das Stück des Aussehens', () => {
     const s = fs.readFileSync(path.join(wurzel, 'src/components/common/ThemeSwitch.jsx'), 'utf8');
-    return /id === 'retro'\).*musikStarten\(\).*musikStoppen\(\)/s.test(s);
+    return /hatMusik\(id\)\s*\)?\s*musikStarten\(id\)/.test(s.replace(/\s+/g, ' '));
+  }],
+  ['HW: der Tonschalter fragt dieselbe Stelle', () => {
+    const s = fs.readFileSync(path.join(wurzel, 'src/components/common/SoundSwitch.jsx'), 'utf8');
+    return s.includes('if (!hatMusik(theme)) return null;') && !s.includes("theme !== 'retro'");
+  }],
+  ['HW: der Speicherschlüssel bleibt der alte', () => {
+    const s = fs.readFileSync(path.join(wurzel, 'src/lib/themeSound.js'), 'utf8');
+    return s.includes("'orbylox_retro_ton'");
+  }],
+  ['HW: und die Musikdatei ist nicht zu schwer', () => {
+    // 96 kbit/s wie das Retro-Stück; roh waren es 256.
+    const b = fs.statSync(path.join(wurzel, 'src/assets/halloween-theme.mp3')).size;
+    return b > 0 && b < 2.2 * 1024 * 1024;
   }],
   ['HW: Theme rührt keine Übergänge an', () => !/transition|transform:/.test(
     themeCss('halloween').replace(/\/\*[\s\S]*?\*\//g, '').replace(/url\("[^"]*"\)/g, ''),

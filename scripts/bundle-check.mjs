@@ -102,6 +102,57 @@ const pruefungen = [
    * dass das Nachladen zwar dasteht, aber nichts trennt.
    */
   [`aus einem Bündel sind ${dateien.length} geworden`, () => dateien.length >= 20],
+
+  /**
+   * Three.js bleibt draussen.
+   *
+   * Es wiegt roh rund 600 kB und wird auf der Startseite erst gebraucht,
+   * wenn jemand bis zur Figuren-Sektion scrollt — beide Auftritte (Figur
+   * und Kürbis) hängen an `React.lazy`. Ein versehentlich fester Import in
+   * einer der beiden Dateien zöge es zurück ins Startbündel, und man sähe
+   * es der Quelle nicht an.
+   */
+  ['Three.js liegt nicht im Startbündel', () => !/WebGLRenderer|THREE\.WebGL/.test(text)],
+
+  /**
+   * Figur und Kürbis liegen in GETRENNTEN Brocken.
+   *
+   * Lägen sie in einem, lüde jeder beides — im Halloween also auch den
+   * Roboter samt seiner Bewegung, und umgekehrt. Beide zusammen sind über
+   * ein Megabyte.
+   */
+  ['Figur und Kürbis sind zwei Brocken', () => {
+    const hat = (t) => dateien.some((f) => f.startsWith(t));
+    return hat('HeroBot-') && hat('HeroPumpkin-');
+  }],
+
+  /**
+   * Die Musik liegt als eigene Datei daneben, nicht im Skript.
+   *
+   * Vite bettet kleine Dateien als Data-URL ein. Bei zwei Stücken von
+   * zusammen 3,7 MB wäre das die Startseite — deshalb wird geprüft, dass
+   * beide MP3 wirklich als Datei danebenliegen und im Text der ersten Seite
+   * kein `data:audio` steht.
+   */
+  ['die Musik liegt als Datei daneben', () => {
+    const mp3 = fs.readdirSync(assets).filter((f) => f.endsWith('.mp3'));
+    return mp3.length === 2 && !text.includes('data:audio');
+  }],
+
+  /**
+   * Der Kürbis bleibt klein.
+   *
+   * Rohmaterial waren 31 MB (allein die Normal-Map 24 MB als PNG).
+   * `scripts/pumpkin-build.mjs` rechnet daraus 156 kB. Wer die Dateien von
+   * Hand austauscht, merkt hier, wenn er das Verkleinern vergessen hat.
+   */
+  ['Modell und Texturen des Kürbis unter 300 kB', () => {
+    const modelle = path.join(wurzel, 'public/models');
+    const teile = ['pumpkin.glb', 'pumpkin-albedo.webp', 'pumpkin-emissive.webp',
+      'pumpkin-normal.webp', 'pumpkin-orm.webp'];
+    const summe = teile.reduce((s, f) => s + fs.statSync(path.join(modelle, f)).size, 0);
+    return summe > 0 && summe < 300 * 1024;
+  }],
 ];
 
 let schlecht = 0;

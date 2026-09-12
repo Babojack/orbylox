@@ -1,17 +1,28 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
+import { useTheme } from '@/lib/useTheme';
 
-// Three.js und das Modell kommen erst, wenn die Sektion wirklich sichtbar wird.
+/**
+ * Three.js und das Modell kommen erst, wenn die Sektion wirklich sichtbar
+ * wird — und dann nur das, was gebraucht wird: Wer im Halloween ist, laedt
+ * die Figur nie, wer es nicht ist, den Kuerbis nicht.
+ */
 const HeroBot = lazy(() => import('./HeroBot'));
+const HeroPumpkin = lazy(() => import('./HeroPumpkin'));
 
 /**
  * "Dein Projektassistent" — die animierte Figur mit dem Tablet in der Hand,
  * daneben drei Saetze, was ORBYLOX einem abnimmt.
+ *
+ * Im Halloween steht hier statt ihrer ein Kuerbis. Das ist der Ort, an dem
+ * die Seite ihre 3D-Figur zeigt; ein zweiter Platz daneben waere doppelt.
  */
 export default function BotSection({ de }) {
   const ref = useRef(null);
   const [inView, setInView] = useState(false);
+  const theme = useTheme();
+  const Figur = theme === 'halloween' ? HeroPumpkin : HeroBot;
 
   useEffect(() => {
     const el = ref.current;
@@ -34,13 +45,20 @@ export default function BotSection({ de }) {
     : ['Keeps tasks, dates and files in view', 'Reminds you when something is stuck', 'Runs on laptop, tablet and phone'];
 
   return (
-    <section ref={ref} className="border-b-2 border-black bg-[#f5f5f5] overflow-hidden">
+    /* `data-figur-buehne`: Im Halloween wird aus diesem Band die Nacht, damit
+       das Kerzenlicht im Kuerbis ueberhaupt etwas zu tun hat. Ein Attribut
+       statt einer Klasse, weil es die BUEHNE benennt und nicht ihre Farbe —
+       welche Farbe, entscheidet das Theme. */
+    <section ref={ref} data-figur-buehne="" className="border-b-2 border-black bg-[#f5f5f5] overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 py-16 sm:py-20 grid lg:grid-cols-2 gap-10 items-center">
         {/* Figur */}
         <div className="order-2 lg:order-1 h-[420px] sm:h-[520px] lg:h-[600px]">
           {inView ? (
             <Suspense fallback={<div className="w-full h-full" aria-hidden="true" />}>
-              <HeroBot className="w-full h-full" />
+              {/* `key`: Beim Themewechsel soll die alte Szene wirklich
+                  abgebaut werden — sonst behielte React die Instanz und
+                  zwei WebGL-Kontexte lägen übereinander. */}
+              <Figur key={theme === 'halloween' ? 'kuerbis' : 'figur'} className="w-full h-full" />
             </Suspense>
           ) : (
             <div className="w-full h-full" aria-hidden="true" />

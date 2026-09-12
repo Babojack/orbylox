@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
-    "typecheck": "tsc -p ./jsconfig.json"
+    "typecheck": "tsc -p ./jsconfig.json",
+    "assets:pumpkin": "node scripts/pumpkin-build.mjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { useTheme } from '@/lib/useTheme';
-import { musikStarten, onTonChange, tonAn, tonUmschalten } from '@/lib/retroSound';
+import { hatMusik, musikStarten, onTonChange, tonAn, tonUmschalten } from '@/lib/themeSound';
 
 /**
  * Der Tonschalter.
  *
- * Steht nur im Retro. Im normalen Design gibt es keine Musik, und ein Schalter
- * ohne Wirkung ist schlimmer als kein Schalter.
+ * Steht nur dort, wo es Musik gibt — im Retro und im Halloween. Im normalen
+ * Design gibt es keine, und ein Schalter ohne Wirkung ist schlimmer als kein
+ * Schalter. Welche Aussehen Musik haben, entscheidet `themeSound`: Käme ein
+ * viertes dazu, erschiene der Schalter dort von selbst.
  *
  * Er startet die Musik auch dann, wenn sie gerade nicht läuft — etwa nach dem
  * Neuladen der Seite. Der Browser lässt Ton erst nach einem Klick zu; dieser
@@ -21,14 +23,14 @@ export default function SoundSwitch({ de = true }) {
 
   useEffect(() => onTonChange(setAn), []);
 
-  if (theme !== 'retro') return null;
+  if (!hatMusik(theme)) return null;
 
   const klick = () => {
-    const neu = tonUmschalten(true);
+    const neu = tonUmschalten(theme);
     setAn(neu);
     // Ausgeschaltet und wieder eingeschaltet: dann soll auch etwas zu hören
     // sein, ohne dass man das Design erneut wechselt.
-    if (neu) musikStarten();
+    if (neu) musikStarten(theme);
   };
 
   return (

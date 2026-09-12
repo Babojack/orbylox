@@ -1416,6 +1416,40 @@
   padding: 12px;
 }
 
+/* --- Die Bühne für den Kürbis ---------------------------------------------
+ *
+ * Das Band mit der 3D-Figur trägt `bg-[#f5f5f5]` und wäre damit Pergament.
+ * Der Kürbis hat aber eine Kerze im Bauch, und eine Kerze vor hellem Papier
+ * ist keine Kerze, sondern ein oranger Ball — genau so sah es beim ersten
+ * Rendern aus. Also wird aus diesem einen Band die Nacht, mit einem warmen
+ * Schein da, wo der Kürbis steht.
+ *
+ * `!important` gegen die Farbfamilien-Regel weiter oben, die es ebenfalls ist.
+ */
+[data-theme='halloween'] .theme-scope [data-figur-buehne] {
+  background-color: var(--h-night-2) !important;
+  background-image: radial-gradient(34rem 24rem at 26% 52%, rgba(255, 176, 58, 0.18), transparent 62%);
+  border-color: var(--h-wood-dark);
+}
+
+/**
+ * Und die Schrift daneben wird hell.
+ *
+ * Die allgemeine Regel "Text auf der Nacht" greift hier NICHT: Sie nimmt
+ * alles aus, was in einer eigenen Fläche liegt, und `bg-[#f5f5f5]` ist eine.
+ * Das ist auch richtig so — überall sonst ist dieses Band Pergament. Nur
+ * hier eben nicht, und deshalb steht die Ausnahme genau hier.
+ *
+ * OHNE NACHSATZ, UND ZWAR ABSICHTLICH
+ * Der erste Versuch hängte dasselbe `:not(:is(FLÄCHEN) *)` an wie überall
+ * sonst — und schloss damit alles aus, denn die Bühne SELBST trägt
+ * `bg-[#f5f5f5]`. Die Überschrift blieb dunkelbraun auf der Nacht. Hier
+ * braucht es den Nachsatz auch gar nicht: In diesem Band gibt es keine
+ * Karten, nur Überschrift, Absatz und Liste auf der freien Fläche.
+ */
+[data-theme='halloween'] .theme-scope [data-figur-buehne] :is(h2, li) { color: var(--h-mist); }
+[data-theme='halloween'] .theme-scope [data-figur-buehne] p { color: var(--h-lilac); }
+
 /* --- Der Weg ins Menü ------------------------------------------------------ */
 
 [data-theme='halloween'] .theme-scope [data-menu],
