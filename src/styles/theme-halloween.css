@@ -1441,6 +1441,133 @@
   box-shadow: 0 0 22px rgba(255, 176, 58, 0.35), 0 8px 20px rgba(10, 4, 24, 0.5);
 }
 
+/* --- Die Szene auf der Startseite ------------------------------------------
+ *
+ * Zwei Bänder aus dem Entwurf, oben und unten, mit der Nacht dazwischen:
+ * oben Spinnweben, Mond und Burg, unten Kürbisse, Kerzen und Nebel.
+ *
+ * WARUM ZWEI BÄNDER UND KEIN VOLLBILD
+ * Der Entwurf zeigt Hintergrund UND Oberfläche in einem Bild. Als Vollbild
+ * sähe man die gemalte Oberfläche hinter der echten. Herausretuschieren geht
+ * nicht ehrlich — hinter den Karten liegen Zaun, Bäume und Nebel, die müsste
+ * man erfinden; und die beiden Entwürfe stammen aus zwei verschiedenen
+ * Bildgenerationen (nachgemessen: 17 bis 44 Helligkeitsstufen Unterschied
+ * selbst in den freien Ecken), lassen sich also auch nicht verrechnen.
+ *
+ * Die Bänder sind der Teil ohne Oberfläche — kein einziger erfundener
+ * Bildpunkt. Und sie sind die robustere Lösung: Ein Vollbild hätte ein festes
+ * Seitenverhältnis, diese sitzen an jeder Abschnittshöhe richtig.
+ * `scripts/halloween-bilder.mjs` schneidet sie.
+ *
+ * `100% auto`: Die Breite füllt das Fenster, die Höhe folgt. Auf sehr breiten
+ * Bildschirmen wird das Band höher — genau richtig, denn dort ist auch mehr
+ * Platz.
+ */
+/**
+ * ALLE Bänder der Startseite werden zur Nacht.
+ *
+ * Sonst reisst die Szene nach dem ersten Abschnitt ab: Hero dunkel, darunter
+ * wieder Pergament — auf dem Bild sah das aus, als hätte jemand zwei Seiten
+ * aneinandergeklebt. Die Kacheln darin bleiben Pergament und stehen dann als
+ * beleuchtete Flächen in der Nacht; das ist gewollt.
+ *
+ * `:is(section, div)` und nicht nur `section`: Der Rundgang durch die Module
+ * bringt ein `div` mit. Beim ersten Anlauf stand genau dieser eine Abschnitt
+ * weiter hell in der Reihe — nachgesehen im Browser, nicht im Quelltext
+ * geraten. `header` und `footer` bleiben aussen vor: Die sind Holz.
+ */
+[data-theme='halloween'] .theme-scope [data-landing] > :is(section, div) {
+  background-color: var(--h-night-2) !important;
+  border-color: var(--h-wood-dark);
+}
+/**
+ * DERSELBE FEHLER ZUM DRITTEN MAL — deshalb hier ausgeschrieben.
+ *
+ * Der erste Anlauf schrieb `:not(:is(FLÄCHEN) *)`, also "nicht innerhalb
+ * einer Fläche". Das Band SELBST trägt aber `bg-white` (der Rundgang durch
+ * die Module zum Beispiel), und damit war sein gesamter Inhalt ausgenommen:
+ * Die Überschrift "Vier Module, ein Projekt" stand dunkelbraun auf der
+ * Nacht und war praktisch unsichtbar.
+ *
+ * Richtig ist, den Nachsatz INNERHALB des Bandes beginnen zu lassen —
+ * genauso wie bei der Seitenleiste und beim Inhaltsbereich. Vorher schon
+ * einmal an `aside`, einmal an `main` passiert.
+ *
+ * WARUM `button` UND `a` NICHT AUSGENOMMEN SIND
+ * Der Versuch, sie pauschal auszunehmen, kostete die Beschriftungen des
+ * Modul-Rundgangs: "Tasks", "Feed", "Canvas", "Files" standen als Reiter
+ * ohne eigene Fläche schwarz auf der Nacht (gemessen 1,3:1). Massgeblich
+ * ist nicht der Elementname, sondern ob etwas eine eigene FLÄCHE mitbringt
+ * — und die Knöpfe, die eine haben (`bg-[#ef5a24]`, `bg-white`), sind über
+ * die Flächenliste ohnehin geschützt.
+ */
+[data-theme='halloween'] .theme-scope [data-landing] > :is(section, div)
+  :is(h1, h2, h3, h4, li, span, strong):not(:is(.bg-white, .bg-card, [class*='bg-slate-'], [class*="bg-[#"], [data-landing] > :is(section, div) :is(.bg-white, .bg-card, [class*='bg-slate-'], [class*="bg-[#"]) *)) {
+  color: var(--h-mist);
+}
+[data-theme='halloween'] .theme-scope [data-landing] > :is(section, div)
+  p:not(:is(.bg-white, .bg-card, [class*='bg-slate-'], [class*="bg-[#"], [data-landing] > :is(section, div) :is(.bg-white, .bg-card, [class*='bg-slate-'], [class*="bg-[#"]) *)) {
+  color: var(--h-lilac);
+}
+
+[data-theme='halloween'] .theme-scope [data-hw-szene] {
+  background-color: var(--h-night) !important;
+  background-image:
+    url('@/assets/halloween/halloween-himmel.webp'),
+    url('@/assets/halloween/halloween-boden.webp'),
+    radial-gradient(48rem 30rem at 50% 40%, rgba(196, 172, 255, 0.10), transparent 66%);
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-position: top center, bottom center, center;
+  background-size: 100% auto, 100% auto, cover;
+  border-color: var(--h-wood-dark);
+}
+
+/**
+ * Und die Schrift darauf wird hell.
+ *
+ * Dieselbe Ausnahme wie bei der Figuren-Bühne, und aus demselben Grund: Die
+ * allgemeine Regel "Text auf der Nacht" nimmt alles aus, was in einer
+ * eigenen Fläche liegt — und der Hero ist eine. Ohne diese Zeilen stünde die
+ * Überschrift dunkelbraun auf dem Nachthimmel.
+ *
+ * Die Knöpfe bleiben unberührt: Sie tragen ihre eigene Fläche und sind
+ * ausdrücklich so gewollt, wie sie sind.
+ */
+/**
+ * Platz für die Bänder.
+ *
+ * Ohne diesen Zuschlag lag die Zeile "Kostenlose Registrierung · Keine
+ * Kreditkarte · Sofort startklar" mitten in den Kürbissen. Die Bänder sind
+ * rund 7 Prozent der Fensterbreite hoch (1600 zu 111 Punkte), deshalb `vw`
+ * und nicht `px`: Auf einem breiten Bildschirm wachsen sie mit.
+ */
+[data-theme='halloween'] .theme-scope [data-hw-szene] > div {
+  padding-top: max(4rem, 8vw);
+  padding-bottom: max(4rem, 9vw);
+}
+
+[data-theme='halloween'] .theme-scope [data-hw-szene] :is(h1, h2, h3, li, span):not(:is(button, a, button *, a *)) {
+  color: var(--h-mist);
+}
+[data-theme='halloween'] .theme-scope [data-hw-szene] p:not(:is(button, a, button *, a *)) {
+  color: var(--h-lilac);
+}
+
+/**
+ * Die Kacheln in der Warum-Sektion werden zu Fenstern in der Nacht.
+ *
+ * Als Pergament stünden vier helle Blöcke mitten in der Szene und nähmen ihr
+ * jede Tiefe — im Entwurf sind sie dunkel mit orangem Rand.
+ */
+[data-theme='halloween'] .theme-scope [data-hw-szene='warum'] .bg-white {
+  background-color: rgba(20, 12, 38, 0.72) !important;
+  border-color: var(--h-pumpkin);
+  box-shadow: 0 10px 26px rgba(10, 4, 24, 0.5);
+}
+[data-theme='halloween'] .theme-scope [data-hw-szene='warum'] .bg-white :is(h3, p, span) {
+  color: var(--h-mist);
+}
+
 /* --- Die Bühne für den Kürbis ---------------------------------------------
  *
  * Das Band mit der 3D-Figur trägt `bg-[#f5f5f5]` und wäre damit Pergament.

@@ -987,6 +987,42 @@ const faelle = [
   }],
 
   /**
+   * Die Szene auf der Startseite.
+   *
+   * Im Halloween wird jedes Band der Startseite zur Nacht, und oben wie
+   * unten liegt ein Streifen aus dem Entwurf (Mond und Netze, Kürbisse und
+   * Kerzen). Die drei Zusicherungen halten genau die Stellen fest, an denen
+   * es schiefging.
+   */
+  ['HW: die Bänder der Startseite werden zur Nacht', () => farbe(w(H, '#wiese', 'background-color'))?.join()
+    === zuRgb(paletteH['--h-night-2']).join()],
+
+  /**
+   * DER FEHLER, DER DREIMAL PASSIERT IST.
+   *
+   * `:not(:is(FLÄCHEN) *)` heisst "nicht innerhalb einer Fläche" — und weil
+   * das Band SELBST `bg-[#f5f5f5]` trägt, war sein gesamter Inhalt
+   * ausgenommen. Die Überschrift stand dunkelbraun auf der Nacht. Vorher
+   * schon einmal an `aside` (die Unterzeile neben dem Logo) und einmal an
+   * `main` (die Überschrift "Kanban Board") passiert.
+   */
+  ['HW: die Überschrift darauf wird hell', () => w(H, '#wiesentitel', 'color') === 'var(--h-mist)'],
+  ['HW: in einer Karte darauf bleibt sie dunkel', () => {
+    const c = farbe(w(H, '#karteninhalt', 'color'));
+    const mist = zuRgb(paletteH['--h-mist']);
+    return !!c && c.join() !== mist.join();
+  }],
+  ['HW: ohne Theme bleibt das Band hell', () => /245/.test(w(N, '#wiese', 'background-color') || '')],
+
+  ['HW: der geschnitzte Schriftzug ersetzt die Wortmarke', () => {
+    const f = fs.readFileSync(path.join(wurzel, 'src/pages/Landing.jsx'), 'utf8');
+    return /halloween \? \(\s*<img/.test(f.replace(/\s+/g, ' '))
+      && f.includes('halloween-wortmarke.webp');
+  }],
+  ['HW: die Bilder der Szene liegen bereit', () => ['halloween-himmel.webp', 'halloween-boden.webp',
+    'halloween-wortmarke.webp'].every((f) => fs.existsSync(path.join(wurzel, 'src/assets/halloween', f)))],
+
+  /**
    * Im Halloween sitzt der Kürbis im Assistentenknopf — und der Knopf wird
    * dunkel.
    *

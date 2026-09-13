@@ -6,6 +6,7 @@ import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion
 import ModuleShowcase from "@/components/landing/ModuleShowcase";
 import BotSection from "@/components/landing/BotSection";
 import Seo from "@/components/Seo";
+import { useTheme } from "@/lib/useTheme";
 import ThemeSwitch from '@/components/common/ThemeSwitch';
 import SoundSwitch from '@/components/common/SoundSwitch';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ import { cn } from '@/lib/utils';
  */
 import heroDevices from '@/assets/hero-devices.webp';
 import OrbyloxMark from "@/components/OrbyloxMark";
+import halloweenWortmarke from "@/assets/halloween/halloween-wortmarke.webp";
 import {
   ArrowRight,
   Check,
@@ -150,6 +152,9 @@ function LandingContent() {
 
   // Beim Verlassen des Hero zieht das Geraetebild nach vorne weg und uebergibt
   // an den Rundgang, der die einzelnen Module heranholt.
+  const theme = useTheme();
+  const halloween = theme === 'halloween';
+
   const heroRef = React.useRef(null);
   const reduceMotion = useReducedMotion();
   const rm = !!reduceMotion;
@@ -291,12 +296,29 @@ function LandingContent() {
       />
 
       {/* Hero: Text links, Geraetebild rechts */}
-      <section ref={heroRef} className="border-b-2 border-black overflow-hidden">
+      <section ref={heroRef} data-hw-szene="hero" className="border-b-2 border-black overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 py-16 sm:py-20 grid lg:grid-cols-2 gap-10 items-center">
           <div className="text-center lg:text-left">
+          {/* Im Halloween steht hier der geschnitzte Schriftzug statt Zeichen
+              und Wort. Er IST das Wort — deshalb kein `alt`-Text daneben,
+              sondern am Bild, und die Überschrift bleibt eine Überschrift.
+              `h-auto` mit fester Breite: Das Bild ist 3:1, eine feste Höhe
+              würde es auf schmalen Fenstern über den Rand schieben. */}
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter mb-4 flex items-center justify-center lg:justify-start gap-2 sm:gap-3">
-            <OrbyloxMark className="w-14 h-14 sm:w-16 sm:h-16 shrink-0" />
-            <span>RBYLOX</span>
+            {halloween ? (
+              <img
+                src={halloweenWortmarke}
+                alt="ORBYLOX"
+                width="1000"
+                height="333"
+                className="w-full max-w-[380px] sm:max-w-[460px] h-auto"
+              />
+            ) : (
+              <>
+                <OrbyloxMark className="w-14 h-14 sm:w-16 sm:h-16 shrink-0" />
+                <span>RBYLOX</span>
+              </>
+            )}
           </h1>
           <p className="text-xl sm:text-2xl font-bold mb-4">
             {de ? 'Projektmanagement für alle' : 'Project management for everyone'}
@@ -399,7 +421,7 @@ function LandingContent() {
       </section>
 
       {/* Warum */}
-      <section className="border-b-2 border-black">
+      <section data-hw-szene="warum" className="border-b-2 border-black">
         <div className="max-w-6xl mx-auto px-4 py-16">
           <SectionTitle sub={de ? 'Alles, was ein kleines Team wirklich braucht.' : 'Everything a small team actually needs.'}>
             {de ? 'Warum ORBYLOX?' : 'Why ORBYLOX?'}

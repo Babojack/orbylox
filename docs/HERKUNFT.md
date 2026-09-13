@@ -65,6 +65,34 @@ schlechteres Bild.
 
 Das Skript braucht `jsdom` (Entwicklungsabhängigkeit) und Python mit Pillow.
 
+## Bilder
+
+| Datei | Herkunft | Verarbeitung |
+|---|---|---|
+| `src/assets/halloween/halloween-himmel.webp` | Entwurf der Halloween-Startseite | oberer Streifen (Netze, Fledermäuse, Mond, Burg), 1600 px, WebP — 9 KB |
+| `src/assets/halloween/halloween-boden.webp` | derselbe Entwurf | unterer Streifen (Kürbisse, Kerzen, Nebel), 1600 px — 13 KB |
+| `src/assets/halloween/halloween-wortmarke.webp` | Entwurf des Halloween-Schriftzugs | Rand abgeschnitten, 1000 px, Alphakanal war bereits vorhanden — 86 KB |
+
+`npm run assets:halloween <entwurf.png> <logo.png>` schneidet sie.
+
+**Warum nur Streifen und nicht das ganze Bild.** Die Entwürfe zeigen
+Hintergrund UND Oberfläche in einem Bild — Überschrift, Karten, Knöpfe,
+Geräte. Als Vollbild sähe man die gemalte Oberfläche hinter der echten.
+Herausretuschieren ginge nicht ehrlich: Hinter den Karten liegen Zaun, Bäume
+und Nebel, die müsste man erfinden. Nachgemessen wurde auch, ob sich die
+beiden Entwürfe zu einer sauberen Platte verrechnen lassen — sie stammen aus
+zwei verschiedenen Bildgenerationen und weichen selbst in den
+oberflächenfreien Ecken um 17 bis 44 Helligkeitsstufen voneinander ab.
+
+Die Streifen sind der Teil ohne Oberfläche: kein einziger erfundener
+Bildpunkt. Dazwischen liegt die Nacht aus `theme-halloween.css`. Nebenbei ist
+das die robustere Lösung — ein Vollbild hätte ein festes Seitenverhältnis,
+die Streifen sitzen an jeder Abschnittshöhe richtig.
+
+**Gäbe es den Entwurf ohne Oberfläche**, wäre er die bessere Quelle: dieselbe
+Szene ohne Text, Karten und Geräte. Dann kann das Bild randlos hinter die
+ganze Seite.
+
 ## Musik
 
 | Datei | Herkunft | Verarbeitung |
