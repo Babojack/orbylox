@@ -1428,6 +1428,19 @@
   color: var(--h-candle);
 }
 
+/**
+ * Der Assistentenknopf wird zur Nacht.
+ *
+ * Sonst ist er kürbisorange — und darin sitzt jetzt ein Kürbis. Orange auf
+ * Orange ist kein Bild, sondern ein Fleck. Dunkel wird aus dem Knopf ein
+ * Fenster, durch das eine Kerze scheint; genau das soll er sein.
+ */
+[data-theme='halloween'] .theme-scope [data-assistant-button] {
+  background-color: var(--h-night-2) !important;
+  border-color: var(--h-wood-2);
+  box-shadow: 0 0 22px rgba(255, 176, 58, 0.35), 0 8px 20px rgba(10, 4, 24, 0.5);
+}
+
 /* --- Die Bühne für den Kürbis ---------------------------------------------
  *
  * Das Band mit der 3D-Figur trägt `bg-[#f5f5f5]` und wäre damit Pergament.

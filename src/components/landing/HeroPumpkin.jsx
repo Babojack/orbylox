@@ -1,46 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { tonPegel } from '@/lib/themeSound';
+import {
+  ladeKuerbis, lichtSetzen, kerzenSchein, kuerbisFreigeben, VORNE,
+} from '@/components/pumpkin/kuerbis';
 
 /**
  * Der Kürbis auf der Startseite — im Halloween anstelle der Figur.
  *
  * Er steht an derselben Stelle wie sie, in derselben Sektion, und tut
- * dasselbe: sich langsam drehen und dabei nett aussehen. Nur brennt in ihm
- * eine Kerze.
+ * dasselbe: sich zeigen und dabei nett aussehen. Nur brennt in ihm eine
+ * Kerze.
  *
  * WARUM EINE EIGENE DATEI UND NICHT EIN ZWEIG IN `HeroBot`
- * Weil fast nichts gleich ist. Die Figur hat ein Skelett, eine
- * Ruhebewegung, ein Tablet in der Hand und Licht für eine helle Seite; der
- * Kürbis hat Texturen, eine Kerze und Licht für eine Nacht. Zusammengelegt
- * wäre das eine Datei mit zwei Hälften, die einander nichts angehen — und
- * jede Änderung an der einen ein Risiko für die andere. Nachgeladen werden
- * beide ohnehin einzeln (`React.lazy` im Aufrufer): Wer im Halloween ist,
- * lädt die Figur nie.
+ * Weil fast nichts gleich ist. Die Figur hat ein Skelett, eine Ruhebewegung
+ * und ein Tablet in der Hand; der Kürbis hat Texturen und eine Kerze.
+ * Zusammengelegt wäre das eine Datei mit zwei Hälften, die einander nichts
+ * angehen — und jede Änderung an der einen ein Risiko für die andere.
+ * Nachgeladen werden beide ohnehin einzeln (`React.lazy` im Aufrufer): Wer im
+ * Halloween ist, lädt die Figur nie.
  *
- * WOHER DAS MODELL KOMMT
- * Ein CC-Modell ("Halloween Pumpkin LP"), aus 31 MB Rohmaterial auf 155 KB
- * gerechnet — `scripts/pumpkin-build.mjs` macht das und schreibt auf, warum
- * so. Das Modell ist genau einen Meter hoch und steht mit dem Fuss auf y=0;
- * hier stehen deshalb keine Zauberzahlen.
+ * Modell, Material und Licht stehen in `components/pumpkin/kuerbis.js` — sie
+ * sind dieselben wie im Assistentenknopf.
  */
 
-const MODELL = '/models/pumpkin.glb';
-const TEXTUREN = {
-  albedo: '/models/pumpkin-albedo.webp',
-  emissive: '/models/pumpkin-emissive.webp',
-  normal: '/models/pumpkin-normal.webp',
-  orm: '/models/pumpkin-orm.webp',
-};
-
-/* Aus `theme-halloween.css`, damit die Szene zur Seite passt. */
-const KERZE = 0xffb03a;
-const MOND = 0xbda9e0;
-const KUERBIS = 0xf2802a;
-
-/** Die Drehung, bei der das Gesicht zur Kamera zeigt. Am Modell abgelesen. */
-const VORNE = 0.6;
+const GRUNDLICHT = 3.2;
 
 export default function HeroPumpkin({ className = '' }) {
   const mountRef = useRef(null);
@@ -66,7 +50,7 @@ export default function HeroPumpkin({ className = '' }) {
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMappingExposure = 1.25;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
@@ -80,44 +64,13 @@ export default function HeroPumpkin({ className = '' }) {
     const lookAt = new THREE.Vector3(0, 0.5, 0);
     camera.lookAt(lookAt);
 
-    /* Licht wie in einer Nacht: wenig von oben, ein warmer Streifer von
-       vorn, eine kühle Kante von hinten — und die Kerze im Inneren, die die
-       eigentliche Arbeit macht. */
-    scene.add(new THREE.HemisphereLight(MOND, 0x2a1a12, 0.35));
-    const key = new THREE.DirectionalLight(0xffd9a0, 0.7);
-    key.position.set(2, 3, 2.5);
-    scene.add(key);
-    const rim = new THREE.DirectionalLight(MOND, 0.7);
-    rim.position.set(-3, 2, -2.5);
-    scene.add(rim);
-
-    /**
-     * Die Kerze im Bauch — und warum sie Schatten wirft.
-     *
-     * Ohne `castShadow` scheint ein Punktlicht mitten im Kürbis einfach
-     * durch die Schale hindurch: Beim ersten Rendern glühte er als Ganzes,
-     * wie eine Lampe in Kürbisform. Mit Schatten bleibt das Licht drinnen
-     * und kommt nur dort heraus, wo jemand geschnitzt hat — Augen, Nase,
-     * Mund. Genau das ist der Kürbis.
-     *
-     * Ein Punktlicht braucht dafür sechs Schattenbilder (eine Würfelkarte).
-     * Bei 5008 Dreiecken und 512 Pixeln Kantenlänge ist das billig; mehr
-     * Auflösung brächte hier nichts, weil das Licht ohnehin weich ist.
-     */
-    const kerze = new THREE.PointLight(KERZE, 3.2, 4, 2);
-    kerze.position.set(0, 0.42, 0);
-    kerze.castShadow = true;
-    kerze.shadow.mapSize.set(512, 512);
-    kerze.shadow.camera.near = 0.02;
-    kerze.shadow.camera.far = 3;
-    kerze.shadow.bias = -0.004;
-    scene.add(kerze);
+    const kerze = lichtSetzen(scene, { kerzenStaerke: GRUNDLICHT, schattenkarte: 512 });
 
     /* KEIN Boden.
      *
      * Bei der Figur fängt eine unsichtbare Scheibe deren Schatten auf und
      * stellt sie damit auf die helle Seite. Hier war das ein Fehler: Die
-     * Kerze steht ÜBER der Scheibe und wirft seit sie Schatten wirft die
+     * Kerze steht ÜBER der Scheibe und wirft, seit sie Schatten wirft, die
      * ganze Scheibe in ihren eigenen — auf dem Bild lag ein dunkler Fleck
      * unter dem Kürbis, so gross wie die Scheibe. Er braucht auch keinen:
      * Der Lichtschein auf der Nacht kommt aus dem CSS der Bühne, und ein
@@ -127,62 +80,10 @@ export default function HeroPumpkin({ className = '' }) {
     let disposed = false;
     let kuerbis = null;
 
-    /**
-     * Texturen laden.
-     *
-     * `flipY = false` ist bei glTF Pflicht: Dort läuft die V-Achse anders
-     * herum als in den Bildformaten, und `TextureLoader` dreht von sich aus
-     * um. Ohne diese Zeile sässe das Gesicht auf dem Kopf.
-     *
-     * Farbe oder Zahlen — das ist der Unterschied zwischen `SRGBColorSpace`
-     * und `NoColorSpace`: Albedo und Emissive sind Farben, Normale und
-     * ORM sind Messwerte und dürfen nicht durch die Gamma-Kurve.
-     */
-    const tl = new THREE.TextureLoader();
-    const holeTextur = (url, alsFarbe) => new Promise((res, rej) => {
-      tl.load(url, (t) => {
-        t.flipY = false;
-        t.colorSpace = alsFarbe ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-        res(t);
-      }, undefined, rej);
-    });
-
-    Promise.all([
-      new GLTFLoader().loadAsync(MODELL),
-      holeTextur(TEXTUREN.albedo, true),
-      holeTextur(TEXTUREN.emissive, true),
-      holeTextur(TEXTUREN.normal, false),
-      holeTextur(TEXTUREN.orm, false),
-    ])
-      .then(([gltf, albedo, emissive, normal, orm]) => {
+    ladeKuerbis()
+      .then((modell) => {
         if (disposed) return;
-        const mesh = gltf.scene.getObjectByProperty('isMesh', true);
-        if (!mesh) throw new Error('Kein Mesh in pumpkin.glb');
-
-        /* Verdeckung liest den ZWEITEN UV-Satz. Das Modell hat nur einen —
-           also denselben noch einmal anmelden, sonst bleibt `aoMap` ohne
-           jede Wirkung und niemand sieht, warum. */
-        const g = mesh.geometry;
-        if (g.attributes.uv && !g.attributes.uv1) g.setAttribute('uv1', g.attributes.uv);
-
-        mesh.material.dispose();
-        mesh.material = new THREE.MeshStandardMaterial({
-          map: albedo,
-          color: KUERBIS,               // die Textur ist blass, das ist der Ton
-          normalMap: normal,
-          aoMap: orm,
-          roughnessMap: orm,
-          metalnessMap: orm,
-          roughness: 1,
-          metalness: 1,                 // die Stärke steht in den Kanälen
-          emissiveMap: emissive,
-          emissive: new THREE.Color(0xff8c1a),
-          emissiveIntensity: 1.5,
-        });
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-
-        kuerbis = gltf.scene;
+        kuerbis = modell;
         scene.add(kuerbis);
         setReady(true);
       })
@@ -240,9 +141,10 @@ export default function HeroPumpkin({ className = '' }) {
            * Die halbe Zeit sah man dann seinen Hinterkopf: einen glatten
            * orangen Ball. Das Gesicht IST der Kürbis, und ein Gesicht, das
            * alle neun Sekunden verschwindet, ist keine Zierde, sondern eine
-           * Wartezeit. Also wiegt er sich jetzt um die Vorderansicht, gut
-           * zwanzig Grad nach jeder Seite: Man sieht ihn von schräg links
-           * und schräg rechts, nie von hinten.
+           * Wartezeit. Also wiegt er sich jetzt um die Vorderansicht, knapp
+           * dreizehn Grad nach jeder Seite: Man sieht ihn von schräg links
+           * und schräg rechts, nie von hinten. Der zweite Anlauf nahm die
+           * doppelte Weite — da stand er die halbe Zeit im Profil.
            *
            * Das Wippen kommt nur dazu, wenn wirklich Musik läuft —
            * `tonPegel()` gibt sonst 0, und dann ist dieser Summand exakt
@@ -264,12 +166,7 @@ export default function HeroPumpkin({ className = '' }) {
         }
       }
 
-      /* Die Kerze flackert — zwei Sinus mit unrundem Verhältnis, damit kein
-         Rhythmus hörbar wird, und ein Aufleuchten im Takt. */
-      kerze.intensity = 3.2
-        + Math.sin(t * 7.3) * 0.22
-        + Math.sin(t * 11.7) * 0.13
-        + takt * 2.2;
+      kerze.intensity = kerzenSchein(t, GRUNDLICHT, takt);
 
       const cx = 0.35 + ziel.x * 0.22;
       const cy = 0.9 - ziel.y * 0.1;
@@ -287,18 +184,7 @@ export default function HeroPumpkin({ className = '' }) {
       ro.disconnect();
       io.disconnect();
       window.removeEventListener('pointermove', beiBewegung);
-      scene.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
-        if (o.material) {
-          (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
-            // Auch die Bilder freigeben: Vier 512er hängen sonst am
-            // Grafikspeicher, bis die Seite neu geladen wird.
-            ['map', 'normalMap', 'aoMap', 'roughnessMap', 'metalnessMap', 'emissiveMap']
-              .forEach((k) => m[k]?.dispose?.());
-            m.dispose();
-          });
-        }
-      });
+      kuerbisFreigeben(scene);
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };

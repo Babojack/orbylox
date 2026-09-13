@@ -985,6 +985,39 @@ const faelle = [
   }],
 
   /**
+   * Im Halloween sitzt der Kürbis im Assistentenknopf — und der Knopf wird
+   * dunkel.
+   *
+   * Sonst ist er kürbisorange, und ein oranger Kürbis darauf ist kein Bild,
+   * sondern ein Fleck. Geprüft wird beides: dass die Figur nach dem Theme
+   * gewählt wird, und dass der Knopf im Halloween nicht mehr orange ist.
+   */
+  ['HW: der Kürbis sitzt im Assistentenknopf', () => {
+    const f = fs.readFileSync(path.join(wurzel, 'src/components/assistant/AssistantBot.jsx'), 'utf8');
+    return /const istKuerbis = theme === 'halloween'/.test(f) && f.includes('ladeKuerbis');
+  }],
+  ['HW: und der Knopf wird dunkel', () => {
+    const q = themeCss('halloween');
+    return /\[data-assistant-button\]\s*\{[^}]*--h-night-2/.test(q);
+  }],
+
+  /**
+   * Das Standbild fürs Profilbild hängt an der ZEIT, nicht an einer Anzahl
+   * Bilder.
+   *
+   * "Nach 12 Bildern" war eine Annahme über die Geschwindigkeit des Geräts.
+   * Gemessen auf einem Rechner ohne Grafikbeschleunigung: zwei Bilder je
+   * Sekunde, nach fünf Sekunden elf — das Profilbild kam nie, und im Chat
+   * stand neben jeder Antwort ein leerer Kreis.
+   */
+  ['das Profilbild wartet auf Zeit, nicht auf Bilder', () => {
+    const f = fs.readFileSync(path.join(wurzel, 'src/components/assistant/AssistantBot.jsx'), 'utf8');
+    return /MS_BIS_STANDBILD/.test(f)
+      && /performance\.now\(\) - daSeit >= MS_BIS_STANDBILD/.test(f)
+      && !/frames >= 12/.test(f);
+  }],
+
+  /**
    * Das Band der Liegengebliebenen ist ein `aside` — und bekam dadurch im
    * Halloween das Spinnennetz der Seitenleiste, mitten über seine
    * Überschrift. Holz darf es behalten, das Netz nicht.

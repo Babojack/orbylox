@@ -6,6 +6,8 @@ import '@/styles/theme-retro.css';
 import '@/styles/theme-halloween.css';
 import TaskFocus from '@/components/focus/TaskFocus';
 import LiegengebliebenBand from '@/components/projects/LiegengebliebenBand';
+import AssistantBot from '@/components/assistant/AssistantBot';
+import { onBotAvatar } from '@/lib/botAvatar';
 
 const P = new URLSearchParams(location.search);
 const theme = P.get('theme');
@@ -34,8 +36,40 @@ const eintraege = [
   { projekt: projekte[2], tage: 7 },
 ];
 
+/** Der runde Knopf, wie er unten rechts sitzt — plus das Standbild daneben,
+ *  das daraus für den Chat gezogen wird. */
+function Assistent() {
+  const [avatar, setAvatar] = React.useState(null);
+  React.useEffect(() => onBotAvatar(setAvatar), []);
+  return (
+    <div className="p-12 flex items-end gap-10">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider mb-2">Knopf (56 px)</p>
+        <span data-assistant-button="" className="relative grid place-items-center w-14 h-14 rounded-full border-2 border-black bg-[#ef5a24] overflow-hidden shadow-lg">
+          <span className="absolute inset-0"><AssistantBot size={56} /></span>
+        </span>
+      </div>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider mb-2">viermal so gross</p>
+        <span data-assistant-button="" className="relative grid place-items-center rounded-full border-2 border-black bg-[#ef5a24] overflow-hidden shadow-lg"
+              style={{ width: 224, height: 224 }}>
+          <span className="absolute inset-0"><AssistantBot size={224} /></span>
+        </span>
+      </div>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider mb-2">Profilbild im Chat</p>
+        <span className="grid place-items-center w-8 h-8 rounded-full overflow-hidden border-2 border-black bg-[#ef5a24]">
+          {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : null}
+        </span>
+        <p className="mt-2 text-[10px]" data-avatar-status="">{avatar ? `da (${Math.round(avatar.length/1024)} kB)` : 'noch keins'}</p>
+      </div>
+    </div>
+  );
+}
+
 function Probe() {
   const was = P.get('was') || 'fokus';
+  if (was === 'assistent') return <Assistent />;
   if (was === 'band') {
     return (
       <div className="max-w-7xl mx-auto px-6 py-12">

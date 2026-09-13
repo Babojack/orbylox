@@ -1,35 +1,52 @@
 /**
- * Aus 31 MB Rohmaterial werden 155 KB Kürbis.
+ * Aus 42 MB Rohmaterial werden rund 340 KB Kürbis.
  *
- *   node scripts/pumpkin-build.mjs <entpacktes-Paket> [ziel]
+ *   node scripts/pumpkin-build.mjs <halloween_pumpkin.glb> [ziel]
  *
- * Das Paket ist "Halloween Pumpkin LP" (CC-Modell, entpackt: `source/*.fbx`
- * und `textures/*`). So wie es kommt, ist es für eine Webseite unbrauchbar:
- * allein die Normal-Map ist ein 4096er PNG mit 24 MB. Dieses Skript macht
- * daraus, was der Browser wirklich braucht.
+ * Die Quelle ist die GLB des CC-Modells "Halloween Pumpkin LP", so wie sie
+ * heruntergeladen wird: eine Geometrie und vier 4096er Texturen, alles
+ * eingebettet. So wie sie kommt, ist sie für eine Webseite unbrauchbar.
  *
- * WARUM DAS ALS SKRIPT IM PAKET STEHT UND NICHT NUR EINMAL LIEF
- * Weil sonst in einem Jahr niemand mehr weiss, wie aus der FBX die GLB wurde
- * — und ein neues Modell (oder eine korrigierte Textur) hiesse: alles noch
- * einmal von Hand herausfinden. Die Zahlen unten sind die Entscheidungen,
- * und sie stehen hier zum Nachlesen.
+ * WARUM DIE GLB UND NICHT MEHR DIE FBX
+ * Der erste Anlauf las die FBX aus demselben Paket. Das Ergebnis sah
+ * plastisch aus, aber nicht echt — und zwar aus zwei Gründen, die man dem
+ * Bild nicht ansieht, dem Datensatz aber schon:
+ *
+ *   1. Die FBX hat keine TANGENTEN. Ohne sie muss die Grafikkarte für die
+ *      Normal-Map je Bildpunkt ein Koordinatensystem aus den Ableitungen
+ *      raten. Das Ergebnis ist weicher und an den UV-Nähten unruhig. Die GLB
+ *      bringt die Tangenten mit, die beim Backen der Map verwendet wurden —
+ *      also genau die, für die sie gerechnet ist.
+ *   2. Die GLB sagt `doubleSided`. Ein Kürbis ist innen hohl; wer durch die
+ *      geschnitzten Augen sieht, schaut auf die RÜCKSEITE der Schale. Ohne
+ *      beidseitige Flächen fehlen dort Dreiecke.
  *
  * WAS ES TUT
- *   1. FBX einlesen, das eine Mesh herausziehen, Transformationen einbacken.
- *   2. Auf den Ursprung stellen (Fuss auf y=0) und auf 1 Meter Höhe normieren.
- *      Danach braucht die Anzeige keine Zauberzahlen mehr.
- *   3. Punkte zusammenlegen: Die FBX liefert jeden Punkt so oft, wie Dreiecke
- *      ihn berühren — 15.024 statt 2.602.
- *   4. Quantisieren: Positionen als normierte Int16, Normalen als Int8, UV als
- *      Uint16. glTF kennt genau diese Formate. Aus 471 KB werden 71 KB, und
- *      der Fehler liegt bei einem Kürbis von einem Meter unter einem
- *      Zehntelmillimeter.
- *   5. Texturen auf 512 verkleinern und als WebP ablegen. AO, Rauheit und
- *      Metall wandern in die drei Kanäle EINER Datei — genau die Belegung,
- *      die glTF für occlusion/roughness/metalness vorsieht.
+ *   1. Nur die Geometrie einlesen. Dafür werden Materialien, Texturen und
+ *      Bilder vorher aus dem JSON-Teil entfernt — sonst versucht der Lader
+ *      im Node-Prozess, vier 4096er Bilder zu dekodieren, wozu es dort
+ *      keinen Browser gibt.
+ *   2. Die Knotenkette einbacken (die Datei kommt von Sketchfab und trägt
+ *      drei ineinander verschachtelte Matrizen), auf den Ursprung stellen,
+ *      auf 1 Meter Höhe normieren. Danach braucht die Anzeige keine
+ *      Zauberzahlen.
+ *   3. Quantisieren: Positionen und Tangenten als normierte Int16, Normalen
+ *      als Int8, UV als Uint16. glTF kennt genau diese Formate.
+ *   4. Texturen auf 1024 verkleinern und als WebP ablegen. Die zweite —
+ *      Verdeckung, Rauheit und Metall in den drei Kanälen EINER Datei —
+ *      liegt schon fertig gepackt vor; genau die Belegung, die glTF für
+ *      occlusion/roughness/metalness vorsieht.
  *
- * Die Bilder bleiben ausserhalb der GLB: So lässt sich ihre Grösse ändern,
- * ohne das Modell neu zu rechnen, und der Browser lädt sie parallel.
+ * WARUM 1024 UND NICHT 512
+ * Bei 512 kostete alles zusammen 88 KB, bei 1024 sind es 252. Der
+ * Unterschied liegt fast ganz an der Normal-Map, und man sieht ihn: Die
+ * Rippen des Kürbis und die Schnittkanten am Gesicht sind das, woran ein
+ * Auge "echt" festmacht. Zum Vergleich: Der Roboter im selben Knopf wiegt
+ * 333 KB. Der Kürbis liegt mit 342 daneben, nicht darüber.
+ *
+ * WARUM DIE BILDER NEBEN DER GLB LIEGEN
+ * So lässt sich ihre Grösse ändern, ohne das Modell neu zu rechnen, und der
+ * Browser lädt sie parallel statt hintereinander aus einer Datei.
  *
  * Braucht `jsdom` (Entwicklungsabhängigkeit) und für die Bilder Python mit
  * Pillow — beides ist auch sonst im Einsatz.
@@ -46,13 +63,13 @@ const quelle = process.argv[2];
 const ziel = process.argv[3] || path.join(wurzel, 'public', 'models');
 
 if (!quelle || !fs.existsSync(quelle)) {
-  console.error('Aufruf: node scripts/pumpkin-build.mjs <entpacktes-Paket> [ziel]');
+  console.error('Aufruf: node scripts/pumpkin-build.mjs <halloween_pumpkin.glb> [ziel]');
   process.exit(2);
 }
 
 /* --- Umgebung: Three.js erwartet einen Browser ---------------------------
  *
- * FBXLoader und GLTFExporter greifen auf `TextDecoder`, `Blob` und
+ * GLTFLoader und GLTFExporter greifen auf `TextDecoder`, `Blob` und
  * `FileReader` zu. Die ersten beiden bringt Node mit, `FileReader` nicht —
  * der kommt aus jsdom. Ohne ihn bricht der Export mit
  * "FileReader is not defined" ab, an einer Stelle, die nicht danach aussieht.
@@ -69,27 +86,89 @@ globalThis.FileReader = dom.window.FileReader;
 globalThis.URL ||= dom.window.URL;
 
 const THREE = await import('three');
-const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
+const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
 const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js');
-const BGU = await import('three/examples/jsm/utils/BufferGeometryUtils.js');
 
-/* ------------------------------------------------------------- Geometrie */
+/* ----------------------------------------------------------- Die GLB lesen */
 
-const fbxDatei = fs.readdirSync(path.join(quelle, 'source')).find((f) => /\.fbx$/i.test(f));
-if (!fbxDatei) { console.error('Keine .fbx in source/'); process.exit(2); }
+const roh = fs.readFileSync(quelle);
+if (roh.subarray(0, 4).toString() !== 'glTF') {
+  console.error('Das ist keine .glb (die Datei beginnt nicht mit "glTF").');
+  process.exit(2);
+}
 
-const roh = fs.readFileSync(path.join(quelle, 'source', fbxDatei));
-const gruppe = new FBXLoader().parse(
-  roh.buffer.slice(roh.byteOffset, roh.byteOffset + roh.byteLength),
-  path.join(quelle, 'source') + path.sep,
-);
+/** Die beiden Abschnitte einer GLB: JSON und Binärteil. */
+function abschnitte(buf) {
+  let off = 12;
+  let json = null;
+  let bin = null;
+  while (off < buf.length) {
+    const laenge = buf.readUInt32LE(off);
+    const art = buf.subarray(off + 4, off + 8).toString();
+    const inhalt = buf.subarray(off + 8, off + 8 + laenge);
+    if (art.startsWith('JSON')) json = JSON.parse(inhalt.toString('utf8'));
+    if (art.startsWith('BIN')) bin = Buffer.from(inhalt);
+    off += 8 + laenge;
+  }
+  return { json, bin };
+}
+
+const { json, bin } = abschnitte(roh);
+const bilder = (json.images || []).map((im) => {
+  const bv = json.bufferViews[im.bufferView];
+  const von = bv.byteOffset || 0;
+  return { mime: im.mimeType, daten: bin.subarray(von, von + bv.byteLength) };
+});
+
+/**
+ * Alles Bildhafte aus dem JSON nehmen, bevor der Lader es sieht.
+ *
+ * Sonst bekommt `GLTFLoader.parse` vier eingebettete 4096er PNG/JPEG und
+ * versucht, sie über `Blob`-Adressen zu dekodieren — in Node gibt es dafür
+ * keinen Decoder, und der Aufruf endet mit einer Fehlermeldung über eine
+ * Bilddatei, obwohl es hier um Geometrie geht. Die Bilder werden weiter oben
+ * direkt aus dem Binärteil geholt; der Lader braucht sie nicht.
+ */
+const nurGeometrie = JSON.parse(JSON.stringify(json));
+delete nurGeometrie.materials;
+delete nurGeometrie.textures;
+delete nurGeometrie.images;
+delete nurGeometrie.samplers;
+for (const m of nurGeometrie.meshes || []) {
+  for (const p of m.primitives || []) delete p.material;
+}
+
+/** JSON und Binärteil wieder zu einer GLB zusammensetzen. */
+function glbBauen(jsonTeil, binTeil) {
+  const j = Buffer.from(JSON.stringify(jsonTeil), 'utf8');
+  const jPad = Buffer.concat([j, Buffer.alloc((4 - (j.length % 4)) % 4, 0x20)]);
+  const bPad = Buffer.concat([binTeil, Buffer.alloc((4 - (binTeil.length % 4)) % 4, 0)]);
+  const kopf = Buffer.alloc(12);
+  kopf.write('glTF', 0);
+  kopf.writeUInt32LE(2, 4);
+  kopf.writeUInt32LE(12 + 8 + jPad.length + 8 + bPad.length, 8);
+  const jk = Buffer.alloc(8); jk.writeUInt32LE(jPad.length, 0); jk.write('JSON', 4);
+  const bk = Buffer.alloc(8); bk.writeUInt32LE(bPad.length, 0); bk.write('BIN\0', 4);
+  return Buffer.concat([kopf, jk, jPad, bk, bPad]);
+}
+
+const schlank = glbBauen(nurGeometrie, bin);
+const gltf = await new Promise((res, rej) => {
+  new GLTFLoader().parse(
+    schlank.buffer.slice(schlank.byteOffset, schlank.byteOffset + schlank.byteLength),
+    '', res, rej,
+  );
+});
 
 let mesh = null;
-gruppe.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
-if (!mesh) { console.error('Kein Mesh in der FBX.'); process.exit(2); }
-gruppe.updateMatrixWorld(true);
+gltf.scene.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
+if (!mesh) { console.error('Kein Mesh in der GLB.'); process.exit(2); }
+gltf.scene.updateMatrixWorld(true);
 
 const geo = mesh.geometry.clone();
+/* `applyMatrix4` nimmt Positionen, Normalen UND Tangenten mit — letztere
+   über `transformDirection`, das die Händigkeit im vierten Wert unangetastet
+   lässt. Genau deshalb wird hier gebacken und nicht am Knoten skaliert. */
 geo.applyMatrix4(mesh.matrixWorld);
 
 // Fuss auf y=0, waagerecht mittig, Höhe genau 1.
@@ -100,17 +179,7 @@ const mitteGrob = grob.getCenter(new THREE.Vector3());
 geo.translate(-mitteGrob.x, -grob.min.y, -mitteGrob.z);
 geo.scale(1 / groesse.y, 1 / groesse.y, 1 / groesse.y);
 
-const vorher = geo.attributes.position.count;
-/* WICHTIG: zusammenlegen, OHNE vorher die Normalen neu zu rechnen. Auf einer
-   nicht indizierten Geometrie ergibt `computeVertexNormals` je Dreieck eine
-   eigene Normale — dann ist kein Punkt mehr wie der andere und
-   `mergeVertices` legt nichts zusammen (gemessen: 15.024 -> 15.024). Die
-   Normalen aus der Datei sind ohnehin die besseren: Sie tragen die weichen
-   Übergänge, für die die Normal-Map gebacken wurde. */
-const fein = BGU.mergeVertices(geo, 1e-5);
-
-/** Fliesskomma zu ganzen Zahlen. Gibt Mitte und Radius zurück — beides muss
- *  am Knoten wieder herauskommen, sonst steht der Kürbis im Einheitswürfel. */
+/** Fliesskomma zu ganzen Zahlen. Mitte und Radius müssen am Knoten zurück. */
 function quantisieren(g) {
   g.computeBoundingBox();
   const mitte = g.boundingBox.getCenter(new THREE.Vector3());
@@ -126,15 +195,36 @@ function quantisieren(g) {
   }
   g.setAttribute('position', new THREE.BufferAttribute(pi, 3, true));
 
+  const klemm8 = (x) => Math.round(Math.max(-1, Math.min(1, x)) * 127);
   const n = g.attributes.normal;
   const ni = new Int8Array(n.count * 3);
-  const klemm = (x) => Math.round(Math.max(-1, Math.min(1, x)) * 127);
   for (let i = 0; i < n.count; i += 1) {
-    ni[i * 3 + 0] = klemm(n.getX(i));
-    ni[i * 3 + 1] = klemm(n.getY(i));
-    ni[i * 3 + 2] = klemm(n.getZ(i));
+    ni[i * 3 + 0] = klemm8(n.getX(i));
+    ni[i * 3 + 1] = klemm8(n.getY(i));
+    ni[i * 3 + 2] = klemm8(n.getZ(i));
   }
   g.setAttribute('normal', new THREE.BufferAttribute(ni, 3, true));
+
+  /**
+   * Tangenten bekommen 16 Bit, nicht 8.
+   *
+   * Bei einer Normal-Map von 1024 Pixeln liegt der Winkelfehler von Int8
+   * (rund 0,45°) sichtbar über dem, was die Map auflöst — es entstünde ein
+   * Streifenmuster entlang der Rippen. Der vierte Wert ist die Händigkeit
+   * und darf nur +1 oder -1 sein.
+   */
+  const t = g.attributes.tangent;
+  if (t) {
+    const klemm16 = (x) => Math.round(Math.max(-1, Math.min(1, x)) * 32767);
+    const ti = new Int16Array(t.count * 4);
+    for (let i = 0; i < t.count; i += 1) {
+      ti[i * 4 + 0] = klemm16(t.getX(i));
+      ti[i * 4 + 1] = klemm16(t.getY(i));
+      ti[i * 4 + 2] = klemm16(t.getZ(i));
+      ti[i * 4 + 3] = t.getW(i) < 0 ? -32767 : 32767;
+    }
+    g.setAttribute('tangent', new THREE.BufferAttribute(ti, 4, true));
+  }
 
   const uv = g.attributes.uv;
   const ui = new Uint16Array(uv.count * 2);
@@ -147,13 +237,26 @@ function quantisieren(g) {
   return { mitte, radius };
 }
 
-const { mitte, radius } = quantisieren(fein);
-fein.computeBoundingBox();
-fein.computeBoundingSphere();
+const { mitte, radius } = quantisieren(geo);
+
+/**
+ * Der Index kommt als 32 Bit — bei 2.602 Punkten sind 16 genug.
+ *
+ * Die Quelldatei zählt so, weil sie nichts über die Grösse voraussetzt; 65.535
+ * Punkte deckt ein `Uint16` ab, hier sind es vier Prozent davon. Die 15.024
+ * Einträge kosten damit 30 statt 60 KB — ein Viertel der ganzen Datei, für
+ * nichts.
+ */
+if (geo.index && geo.index.array.BYTES_PER_ELEMENT > 2 && geo.attributes.position.count <= 65535) {
+  geo.setIndex(new THREE.BufferAttribute(new Uint16Array(geo.index.array), 1));
+}
+
+geo.computeBoundingBox();
+geo.computeBoundingSphere();
 
 const knoten = new THREE.Mesh(
-  fein,
-  new THREE.MeshStandardMaterial({ name: 'Kuerbis', color: 0xffffff, roughness: 0.8, metalness: 0 }),
+  geo,
+  new THREE.MeshStandardMaterial({ name: 'Kuerbis', color: 0xffffff, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }),
 );
 knoten.name = 'Kuerbis';
 knoten.position.copy(mitte);
@@ -166,40 +269,41 @@ fs.mkdirSync(ziel, { recursive: true });
 const glb = await new Promise((res, rej) => {
   new GLTFExporter().parse(szene, res, rej, { binary: true, onlyVisible: false });
 });
-const glbPfad = path.join(ziel, 'pumpkin.glb');
-fs.writeFileSync(glbPfad, Buffer.from(glb));
+fs.writeFileSync(path.join(ziel, 'pumpkin.glb'), Buffer.from(glb));
 
 /* --------------------------------------------------------------- Bilder */
 
-const bilder = `
+const rollen = ['albedo', 'orm', 'emissive', 'normal'];   // Reihenfolge wie in der GLB
+const tmp = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'kuerbis-'));
+bilder.forEach((b, i) => {
+  const ext = b.mime === 'image/jpeg' ? 'jpg' : 'png';
+  fs.writeFileSync(path.join(tmp, `${rollen[i]}.${ext}`), b.daten);
+});
+
+const verkleinern = `
 from PIL import Image
-import os, sys
+import os, sys, glob
 Image.MAX_IMAGE_PIXELS = None
 q, z = sys.argv[1], sys.argv[2]
-t = os.path.join(q, 'textures')
-def hole(name):
-    for f in os.listdir(t):
-        if name.lower() in f.lower():
-            return Image.open(os.path.join(t, f))
-    raise SystemExit('Textur fehlt: ' + name)
-G = 512
-for name, quali, mod in (('albedo', 78, 'RGB'), ('emissive', 80, 'RGB'), ('normal', 88, 'RGB')):
-    hole(name).convert(mod).resize((G, G), Image.LANCZOS).save(
-        os.path.join(z, 'pumpkin-%s.webp' % name), 'WEBP', quality=quali, method=6)
-# Rot = Verdeckung, Gruen = Rauheit, Blau = Metall. Eine Datei statt drei.
-kanal = lambda n: hole(n).convert('L').resize((G, G), Image.LANCZOS)
-Image.merge('RGB', (kanal('AO'), kanal('roughness'), kanal('metallic'))).save(
-    os.path.join(z, 'pumpkin-orm.webp'), 'WEBP', quality=82, method=6)
+G = 1024
+QUALI = {'albedo': 80, 'orm': 82, 'emissive': 82, 'normal': 88}
+for rolle, quali in QUALI.items():
+    treffer = glob.glob(os.path.join(q, rolle + '.*'))
+    if not treffer:
+        raise SystemExit('Textur fehlt: ' + rolle)
+    Image.open(treffer[0]).convert('RGB').resize((G, G), Image.LANCZOS).save(
+        os.path.join(z, 'pumpkin-%s.webp' % rolle), 'WEBP', quality=quali, method=6)
 `;
-execFileSync('python3', ['-c', bilder, quelle, ziel], { stdio: 'inherit' });
+execFileSync('python3', ['-c', verkleinern, tmp, ziel], { stdio: 'inherit' });
+fs.rmSync(tmp, { recursive: true, force: true });
 
 /* ----------------------------------------------------------------- Bilanz */
 
 const kb = (p) => (fs.statSync(p).size / 1024).toFixed(1);
-const dateien = ['pumpkin.glb', 'pumpkin-albedo.webp', 'pumpkin-emissive.webp',
-  'pumpkin-normal.webp', 'pumpkin-orm.webp'];
-console.log(`Punkte:   ${vorher} -> ${fein.attributes.position.count}`);
-console.log(`Dreiecke: ${fein.index.count / 3}`);
+const dateien = ['pumpkin.glb', ...rollen.map((r) => `pumpkin-${r}.webp`)];
+console.log(`Punkte:   ${geo.attributes.position.count}`);
+console.log(`Dreiecke: ${geo.index.count / 3}`);
+console.log(`Tangenten: ${geo.attributes.tangent ? 'ja' : 'NEIN — die Normal-Map wird flau aussehen'}`);
 console.log('');
 let summe = 0;
 for (const d of dateien) {

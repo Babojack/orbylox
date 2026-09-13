@@ -142,16 +142,47 @@ const pruefungen = [
   /**
    * Der Kürbis bleibt klein.
    *
-   * Rohmaterial waren 31 MB (allein die Normal-Map 24 MB als PNG).
-   * `scripts/pumpkin-build.mjs` rechnet daraus 156 kB. Wer die Dateien von
-   * Hand austauscht, merkt hier, wenn er das Verkleinern vergessen hat.
+   * Rohmaterial sind 42 MB (vier 4096er Texturen in einer GLB).
+   * `scripts/pumpkin-build.mjs` rechnet daraus 344 kB.
+   *
+   * WARUM 400 UND NICHT MEHR 300
+   * Die erste Fassung kam mit 156 kB aus, weil die Texturen 512 Pixel hatten.
+   * Sie sah plastisch aus, aber nicht echt: Die Rippen und die Schnittkanten
+   * am Gesicht sind das, woran ein Auge "echt" festmacht, und die stecken in
+   * der Normal-Map. Bei 1024 kostet sie 151 statt 50 kB. Der Vergleichswert
+   * ist der Roboter im selben Knopf — er wiegt 333 kB. Der Kürbis liegt mit
+   * 344 daneben, nicht darüber; die Grenze lässt Luft für eine Textur mehr,
+   * nicht für eine Verdopplung.
    */
-  ['Modell und Texturen des Kürbis unter 300 kB', () => {
+  ['Modell und Texturen des Kürbis unter 400 kB', () => {
     const modelle = path.join(wurzel, 'public/models');
     const teile = ['pumpkin.glb', 'pumpkin-albedo.webp', 'pumpkin-emissive.webp',
       'pumpkin-normal.webp', 'pumpkin-orm.webp'];
     const summe = teile.reduce((s, f) => s + fs.statSync(path.join(modelle, f)).size, 0);
-    return summe > 0 && summe < 300 * 1024;
+    return summe > 0 && summe < 400 * 1024;
+  }],
+
+  /**
+   * Und er bringt seine TANGENTEN mit.
+   *
+   * Ohne sie muss die Grafikkarte für die Normal-Map je Bildpunkt ein
+   * Koordinatensystem aus den Ableitungen raten — das Ergebnis ist weicher
+   * und an den UV-Nähten unruhig. Genau daran lag es, dass die erste Fassung
+   * (aus der FBX gerechnet, die keine Tangenten hat) flau wirkte. Wer das
+   * Modell einmal aus einer anderen Quelle neu baut, verliert sie
+   * stillschweigend wieder: Man sieht keinen Fehler, nur ein schlechteres
+   * Bild.
+   */
+  ['der Kürbis bringt Tangenten mit', () => {
+    const glb = fs.readFileSync(path.join(wurzel, 'public/models/pumpkin.glb'));
+    const laenge = glb.readUInt32LE(12);
+    const json = JSON.parse(glb.subarray(20, 20 + laenge).toString('utf8'));
+    const prim = json.meshes?.[0]?.primitives?.[0];
+    if (!prim || prim.attributes.TANGENT === undefined) return false;
+    // 5122 = Int16, normalisiert. Bei 8 Bit läge der Winkelfehler sichtbar
+    // über dem, was eine 1024er Normal-Map auflöst.
+    const a = json.accessors[prim.attributes.TANGENT];
+    return a.componentType === 5122 && a.normalized === true && json.materials?.[0]?.doubleSided === true;
   }],
 ];
 
