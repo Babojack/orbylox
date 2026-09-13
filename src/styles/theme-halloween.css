@@ -1416,6 +1416,18 @@
   padding: 12px;
 }
 
+/**
+ * Die Markenfarbe als Schrift AUF HOLZ.
+ *
+ * Weiter oben wird `.text-[#ef5a24]` zu einem tiefen Kürbiston gedunkelt,
+ * damit sie auf Pergament überhaupt lesbar ist. Auf dem Holz ist genau das
+ * falsch herum: Dort verschwand die Zeile "FOKUS" über der Aufgabe fast
+ * vollständig. Auf dunklem Grund muss dieselbe Marke hell sein.
+ */
+[data-theme='halloween'] .theme-scope :is(header, aside) .text-\[\#ef5a24\] {
+  color: var(--h-candle);
+}
+
 /* --- Die Bühne für den Kürbis ---------------------------------------------
  *
  * Das Band mit der 3D-Figur trägt `bg-[#f5f5f5]` und wäre damit Pergament.
@@ -1531,8 +1543,15 @@
    zusaetzliches DOM-Element.
 */
 
-/* Seitenleiste: oben links, wo das Holz am dunkelsten ist. */
-[data-theme='halloween'] .theme-scope aside[class] {
+/**
+ * Seitenleiste: oben links, wo das Holz am dunkelsten ist.
+ *
+ * `:not([data-liegengeblieben])`, weil das Band über der Projektliste
+ * ebenfalls ein `aside` ist — dort lag das Netz genau über der Zeile "Lange
+ * nichts gehört von". Das Holz darf es behalten, das Netz nicht: Ein Band von
+ * 90 Pixeln Höhe ist keine grosse, ruhige Fläche.
+ */
+[data-theme='halloween'] .theme-scope aside[class]:not([data-liegengeblieben]) {
   background-image:
     url("data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'>%20<g%20fill='none'%20stroke='%23d9d3bf'%20stroke-width='1.2'%20stroke-linecap='round'%20opacity='0.5'>%20<path%20d='M0%200%2064%208%20M0%200%2064%2026%20M0%200%2048%2048%20M0%200%2026%2064%20M0%200%208%2064'/>%20<path%20d='M13%200%20Q10%2010%200%2013'/><path%20d='M25%200%20Q18%2018%200%2025'/>%20<path%20d='M39%200%20Q28%2028%200%2039'/><path%20d='M53%200%20Q38%2038%200%2053'/>%20</g></svg>"),
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 40%),

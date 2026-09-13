@@ -1225,6 +1225,16 @@
 [data-theme='retro'] .theme-scope .text-\[\#ef5a24\] { color: #b0421b; }
 
 /**
+ * ... aber nicht auf dem Holz.
+ *
+ * Auf Pergament muss die Marke dunkler werden, sonst kommt sie auf 2,7:1.
+ * Auf Holz kehrt sich das um: Dort verschwand die Zeile "FOKUS" über der
+ * Aufgabe im Braun. Kopfzeilen und Leisten sind dunkel — dort bleibt sie
+ * hell.
+ */
+[data-theme='retro'] .theme-scope :is(header, aside) .text-\[\#ef5a24\] { color: #f0b429; }
+
+/**
  * Kopfzeile und Seitenleiste sind Holz, nicht Pergament — sie tragen die Seite.
  *
  * Ueber die Elementnamen statt ueber Klassen: `header` und `aside` bleiben,

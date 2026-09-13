@@ -95,6 +95,13 @@ jobs:
       - name: Ordner prüfen
         run: npm run check:folders
 
+      # Der Vorschlag "lange nichts gehoert von …" nennt Projekte beim Namen.
+      # Nennt er die falschen — ein ausgeblendetes, oder das, an dem man
+      # gerade sitzt —, merkt das niemand als Fehler: Man klickt es weg.
+      # Deshalb steht die Auswahl hier fest.
+      - name: Liegengebliebene prüfen
+        run: npm run check:neglect
+
       # Dieser Schritt sagt jetzt, WORAN es liegt.
       #
       # Vorher stand hier `ssh-keyscan … 2>/dev/null`: Der Befehl schlägt fehl,

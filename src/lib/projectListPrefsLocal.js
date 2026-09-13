@@ -51,10 +51,15 @@ export function readLocalProjectListPrefs(userEmailLower) {
   const favoritesKey = projectListPrefsStorageKey(userEmailLower, "favorites");
   const hiddenKey = projectListPrefsStorageKey(userEmailLower, "hidden");
   const focusLog = readJson(projectListPrefsStorageKey(userEmailLower, "focuslog"), {});
+  const openLog = readJson(projectListPrefsStorageKey(userEmailLower, "openlog"), {});
   return {
     favoriteIds: readStringArray(favoritesKey),
     hiddenIds: readStringArray(hiddenKey),
     focusLog: focusLog && typeof focusLog === "object" ? focusLog : {},
+    /** Projektkennung -> wann zuletzt geoeffnet. Siehe `projectNeglect.js`. */
+    openLog: openLog && typeof openLog === "object" ? openLog : {},
+    /** Tagesschluessel, an dem das Band der Liegengebliebenen weggeklickt wurde. */
+    neglectDismissed: readJson(projectListPrefsStorageKey(userEmailLower, "neglectoff"), null),
     focusSeen: readJson(projectListPrefsStorageKey(userEmailLower, "focusseen"), false) === true,
     focusLock: normalizeFocusLock(
       readJson(projectListPrefsStorageKey(userEmailLower, "focuslock"), null),
@@ -64,7 +69,7 @@ export function readLocalProjectListPrefs(userEmailLower) {
 
 export function writeLocalProjectListPrefs(
   userEmailLower,
-  { favoriteIds, hiddenIds, focusLog, focusSeen, focusLock },
+  { favoriteIds, hiddenIds, focusLog, focusSeen, focusLock, openLog, neglectDismissed },
 ) {
   writeStringArray(
     projectListPrefsStorageKey(userEmailLower, "favorites"),
@@ -80,6 +85,22 @@ export function writeLocalProjectListPrefs(
     projectListPrefsStorageKey(userEmailLower, "focuslock"),
     normalizeFocusLock(focusLock),
   );
+  /**
+   * `openLog` und der Wegklick-Vermerk werden nur geschrieben, wenn sie
+   * MITGEGEBEN wurden.
+   *
+   * Der Grund steht in `projectListPrefs.js`: Die Besuchsmitschrift hat genau
+   * einen Schreiber. Alle anderen Speichervorgänge (Favorit setzen,
+   * ausblenden, Fokus) kennen sie gar nicht — und dürfen sie deshalb auch
+   * nicht mit einem leeren Objekt überschreiben, nur weil das Feld in ihrem
+   * Aufruf fehlt.
+   */
+  if (openLog !== undefined) {
+    writeJson(projectListPrefsStorageKey(userEmailLower, "openlog"), openLog || {});
+  }
+  if (neglectDismissed !== undefined) {
+    writeJson(projectListPrefsStorageKey(userEmailLower, "neglectoff"), neglectDismissed ?? null);
+  }
 }
 
 /**

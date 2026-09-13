@@ -27,6 +27,9 @@ import { toast } from "@/components/ui/use-toast";
 import { getProjectTimer, startTimer, stopTimer, formatDuration } from "@/lib/projectTimer";
 import { useProjectsListRealtimeSync } from "@/hooks/useProjectsListRealtimeSync";
 import { useProjectListPrefs } from "@/hooks/useProjectListPrefs";
+import LiegengebliebenBand from "@/components/projects/LiegengebliebenBand";
+import { liegengeblieben, heuteWeggeklickt, wegklickVermerk } from "@/lib/projectNeglect";
+import { merkeBandWeggeklickt } from "@/api/projectListPrefs";
 import { hasFirebaseConfig } from "@/lib/firebase";
 import { getMaxProjectsForPlan, canCreateProject as canCreateProjectByPlan } from "@/lib/planLimits";
 import OrbyloxMark from "@/components/OrbyloxMark";
@@ -189,6 +192,9 @@ function ProjectsListContent() {
     focusLog,
     focusSeen,
     focusLock,
+    openLog,
+    neglectDismissed,
+    setNeglectDismissed,
     persistFavorites,
     persistHidden,
     setFocusLock,
@@ -316,6 +322,33 @@ function ProjectsListContent() {
     () => (focusedId ? projects.find((p) => p.id === focusedId) || null : null),
     [focusedId, projects],
   );
+
+  /**
+   * Projekte, die lange nichts von einem gehört haben.
+   *
+   * Gerechnet wird in `lib/projectNeglect.js`; hier stehen nur die Zutaten.
+   * `dayTick` hängt mit drin, damit die Rechnung um Mitternacht neu läuft —
+   * sonst zeigte ein Fenster, das über Nacht offen bleibt, morgen noch die
+   * gestrigen Tage und das gestrige "heute nicht mehr".
+   */
+  const liegengebliebene = useMemo(
+    () => liegengeblieben({
+      projekte: projects,
+      hiddenIds,
+      openLog,
+      focusLog,
+      fokusId: focusedId,
+    }),
+    [projects, hiddenIds, openLog, focusLog, focusedId, dayTick],
+  );
+
+  const bandWeg = useMemo(() => heuteWeggeklickt(neglectDismissed), [neglectDismissed, dayTick]);
+
+  const bandWegklicken = () => {
+    const vermerk = wegklickVermerk();
+    setNeglectDismissed(vermerk);      // sofort weg, ohne auf die Cloud zu warten
+    merkeBandWeggeklickt(user?.uid, userEmailLower, vermerk);
+  };
 
   const userCreatedProjects = projects.filter(p =>
     p.created_by && userEmailLower && p.created_by.toLowerCase() === userEmailLower
@@ -889,6 +922,17 @@ function ProjectsListContent() {
               ? 'Daten liegen nur in diesem Browser (localStorage). Für Chrome, Brave & andere Geräte: mit Google anmelden.'
               : 'Data is stored only in this browser (localStorage). Sign in with Google to sync across Chrome, Brave, and other devices.'}
           </div>
+        )}
+
+        {/* Was lange nichts von einem gehört hat. Im Fokus erscheint es nicht:
+            Diese Zweig wird dann gar nicht gerendert. */}
+        {!bandWeg && (
+          <LiegengebliebenBand
+            eintraege={liegengebliebene}
+            de={language === 'de'}
+            onOeffnen={openProject}
+            onWeg={bandWegklicken}
+          />
         )}
         {user?.uid && (
           <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-900">

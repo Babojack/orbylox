@@ -41,6 +41,17 @@ export function parsePrefsDoc(data) {
     favoriteIds: normalizeProjectIdList(data?.favorite_project_ids),
     hiddenIds: normalizeProjectIdList(data?.hidden_project_ids),
     focusLog: normalizeFocusLog(data?.focus_log),
+    /**
+     * Wann jemand ein Projekt zuletzt GEOEFFNET hat.
+     *
+     * Dieselbe Form wie `focus_log` und aus demselben Grund hier und nicht am
+     * Projekt: Es ist eine persoenliche Angabe. Gebraucht wird sie fuer die
+     * Vorschlaege in `projectNeglect.js` — welche Projekte lange nichts von
+     * einem gehoert haben.
+     */
+    openLog: normalizeFocusLog(data?.open_log),
+    /** Tagesschluessel, an dem das Band der Liegengebliebenen weggeklickt wurde. */
+    neglectDismissed: typeof data?.neglect_dismissed === 'string' ? data.neglect_dismissed : null,
     // Solange falsch, pulsiert der Hinweis am Fokus-Knopf.
     focusSeen: data?.focus_seen === true,
     /**
@@ -58,6 +69,8 @@ const EMPTY_PREFS = {
   focusLog: {},
   focusSeen: false,
   focusLock: null,
+  openLog: {},
+  neglectDismissed: null,
 };
 
 export async function saveProjectListPrefs(uid, userEmailLower, prefs) {
@@ -66,6 +79,18 @@ export async function saveProjectListPrefs(uid, userEmailLower, prefs) {
   const focusLog = normalizeFocusLog(prefs.focusLog);
   const focusSeen = prefs.focusSeen === true;
   const focusLock = normalizeFocusLock(prefs.focusLock);
+  /**
+   * `openLog` steht ABSICHTLICH nicht in dieser Liste.
+   *
+   * Wer hier speichert, schreibt immer den vollständigen Stand — das war die
+   * Lehre aus dem verlorenen Favoriten-Klick (siehe `useProjectListPrefs`).
+   * Genau deshalb darf die Besuchsmitschrift nicht mitgeschrieben werden: Sie
+   * wächst an einer anderen Stelle weiter (`merkeBesuch`, aufgerufen beim
+   * Öffnen eines Projekts), und ein Vollstand-Schreiber mit einem Stand von
+   * vor zwei Sekunden würde den frischen Besuch stillschweigend wegwerfen.
+   * Firestore mischt verschachtelte Felder bei `merge: true` einzeln — solange
+   * niemand das ganze Feld überschreibt, kommen sich beide nicht ins Gehege.
+   */
   const next = { favoriteIds, hiddenIds, focusLog, focusSeen, focusLock };
   writeLocalProjectListPrefs(userEmailLower, next);
 
@@ -147,6 +172,73 @@ export async function fetchProjectListPrefs(uid, userEmailLower) {
   } catch (err) {
     console.warn("[projectListPrefs] fetch failed", err?.message || err);
     return readLocalProjectListPrefs(userEmailLower);
+  }
+}
+
+/**
+ * Einen Projektbesuch vermerken.
+ *
+ * DER EINZIGE SCHREIBER DIESES FELDES
+ * Aufgerufen aus dem Rahmen, sobald eine Seite mit einem Projekt offen ist —
+ * egal ob über die Liste, ein Lesezeichen oder den Zurück-Knopf. Deshalb
+ * schreibt er auch nur DIESES eine Feld: `setDoc` mit `merge: true` mischt
+ * verschachtelte Felder einzeln, die Favoriten und die Ausgeblendeten bleiben
+ * unangetastet.
+ *
+ * WARUM HÖCHSTENS EINMAL PRO STUNDE
+ * Das Feld beantwortet die Frage "seit wann nicht mehr angefasst?" — auf die
+ * Stunde genau. Bei jedem Seitenwechsel innerhalb desselben Projekts zu
+ * schreiben, hiesse ein Schreibvorgang pro Klick, für eine Angabe, die sich
+ * dadurch nicht ändert.
+ *
+ * Fehler bleiben still: Ein Besuch, der nicht gespeichert wird, kostet
+ * schlimmstenfalls einen Vorschlag zu viel.
+ */
+const BESUCH_ABSTAND_MS = 60 * 60 * 1000;
+
+export async function merkeBesuch(uid, userEmailLower, projectId) {
+  if (!projectId || !userEmailLower) return;
+
+  const lokal = readLocalProjectListPrefs(userEmailLower);
+  const openLog = { ...(lokal.openLog || {}) };
+  const zuletzt = new Date(openLog[projectId] || 0).getTime();
+  if (Number.isFinite(zuletzt) && Date.now() - zuletzt < BESUCH_ABSTAND_MS) return;
+
+  const jetzt = new Date().toISOString();
+  openLog[projectId] = jetzt;
+  writeLocalProjectListPrefs(userEmailLower, { ...lokal, openLog });
+
+  if (!hasFirebaseConfig || !db || !uid) return;
+  try {
+    await setDoc(
+      doc(db, COLLECTION, uid),
+      { userId: uid, open_log: { [projectId]: jetzt }, updated_date: jetzt },
+      { merge: true },
+    );
+  } catch (err) {
+    console.warn('[projectListPrefs] Besuch nicht gemerkt', err?.message || err);
+  }
+}
+
+/**
+ * "Heute nicht mehr" für das Band der Liegengebliebenen.
+ *
+ * Auch dies ein Einzelfeld-Schreiber, aus demselben Grund wie oben.
+ */
+export async function merkeBandWeggeklickt(uid, userEmailLower, tagesschluessel) {
+  if (!userEmailLower) return;
+  const lokal = readLocalProjectListPrefs(userEmailLower);
+  writeLocalProjectListPrefs(userEmailLower, { ...lokal, neglectDismissed: tagesschluessel });
+
+  if (!hasFirebaseConfig || !db || !uid) return;
+  try {
+    await setDoc(
+      doc(db, COLLECTION, uid),
+      { userId: uid, neglect_dismissed: tagesschluessel, updated_date: new Date().toISOString() },
+      { merge: true },
+    );
+  } catch (err) {
+    console.warn('[projectListPrefs] Wegklicken nicht gemerkt', err?.message || err);
   }
 }
 

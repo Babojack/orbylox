@@ -41,6 +41,16 @@ export function useProjectListPrefs(user) {
   const [focusSeen, setFocusSeen] = useState(false);
   /** Auf welches Projekt ist der heutige Tag gesperrt? `{ id, day }` oder null. */
   const [focusLock, setFocusLockState] = useState(null);
+  /**
+   * Projektkennung -> wann zuletzt geöffnet, und ob das Band der
+   * Liegengebliebenen heute schon weggeklickt wurde.
+   *
+   * Beide werden hier nur GELESEN. Geschrieben werden sie einzeln
+   * (`merkeBesuch`, `merkeBandWeggeklickt`) — warum, steht in
+   * `api/projectListPrefs.js` bei `saveProjectListPrefs`.
+   */
+  const [openLog, setOpenLog] = useState({});
+  const [neglectDismissed, setNeglectDismissed] = useState(null);
 
   /** Einzige Wahrheit für das, was als Nächstes gespeichert wird. */
   const stateRef = useRef({
@@ -65,6 +75,10 @@ export function useProjectListPrefs(user) {
     setFocusLog(next.focusLog);
     setFocusSeen(next.focusSeen);
     setFocusLockState(next.focusLock);
+    // Nur lesen — steht bewusst NICHT in `stateRef`, damit kein
+    // Vollstand-Schreiber es je mitschreibt.
+    setOpenLog(prefs.openLog && typeof prefs.openLog === 'object' ? prefs.openLog : {});
+    setNeglectDismissed(typeof prefs.neglectDismissed === 'string' ? prefs.neglectDismissed : null);
   }, []);
 
   useEffect(() => {
@@ -177,6 +191,10 @@ export function useProjectListPrefs(user) {
     focusLog,
     focusSeen,
     focusLock,
+    openLog,
+    neglectDismissed,
+    /** Nur für das Band: sofort ausblenden, ohne auf die Cloud zu warten. */
+    setNeglectDismissed,
     persistFavorites,
     persistHidden,
     markFocused,

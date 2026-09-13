@@ -39,3 +39,6 @@ dist-ssr
 .env
 # Sicherungskopien der Konfiguration — enthalten Zugangsdaten.
 .orbylox-sicherung/
+
+# Vorschau-Harnisch (siehe vite.probe.config.js)
+probe/dist/

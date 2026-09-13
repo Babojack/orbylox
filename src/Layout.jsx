@@ -44,6 +44,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { sichtbareIds, modulVon } from "@/lib/menuModules";
 import { SYMBOL_VON } from "@/lib/menuIcons";
 import { useMenuPrefs } from "@/hooks/useMenuPrefs";
+import { merkeBesuch } from "@/api/projectListPrefs";
 /**
  * Der Bearbeiten-Modus wird nachgeladen.
  *
@@ -267,6 +268,24 @@ function LayoutContent({ children, currentPageName }) {
     });
     return () => setTrackedTimeSyncHandler(null);
   }, [queryClient]);
+
+  /**
+   * Vermerken, dass dieses Projekt gerade offen ist.
+   *
+   * WARUM HIER UND NICHT IN DER PROJEKTLISTE
+   * Weil man ein Projekt nicht nur über die Liste betritt: Lesezeichen,
+   * Zurück-Knopf, ein Link aus einer Mail. Der Rahmen liegt um jede
+   * Projektseite — was hier vorbeikommt, ist wirklich jeder Besuch. Stünde
+   * die Zeile in der Liste, würde jemand, der sein Hauptprojekt als
+   * Lesezeichen offen hält, als "sieben Tage nicht angefasst" gemeldet.
+   *
+   * `merkeBesuch` schreibt höchstens stündlich und nur dieses eine Feld;
+   * warum, steht dort.
+   */
+  React.useEffect(() => {
+    if (!projectId || !currentUser?.email) return;
+    merkeBesuch(currentUser.uid, currentUser.email.toLowerCase(), projectId);
+  }, [projectId, currentUser?.uid, currentUser?.email]);
 
   // Auto-start timer when user interacts inside a selected project.
   React.useEffect(() => {

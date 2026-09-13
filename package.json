@@ -4,19 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "assets:pumpkin": "node scripts/pumpkin-build.mjs",
     "build": "vite build",
     "check:bundle": "node scripts/bundle-check.mjs",
     "check:clips": "node scripts/clips-check.mjs",
     "check:deadlines": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/alias-loader.mjs\", pathToFileURL(\"./\"));' scripts/deadline-check.mjs",
     "check:folders": "node scripts/folder-check.mjs",
     "check:menu": "node scripts/menu-check.mjs",
+    "check:neglect": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/alias-loader.mjs\", pathToFileURL(\"./\"));' scripts/neglect-check.mjs",
     "check:theme": "node scripts/theme-check.mjs",
     "dev": "vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
-    "typecheck": "tsc -p ./jsconfig.json",
-    "assets:pumpkin": "node scripts/pumpkin-build.mjs"
+    "probe": "vite --config vite.probe.config.js",
+    "probe:build": "vite build --config vite.probe.config.js",
+    "typecheck": "tsc -p ./jsconfig.json"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",

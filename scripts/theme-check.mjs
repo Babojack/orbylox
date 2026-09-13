@@ -184,6 +184,7 @@ const MARKUP = `
       <h1 class="font-semibold text-slate-800" id="projektname">Website-Relaunch</h1>
       <button id="themeknopf" class="h-9 px-3 border-2 border-black bg-white text-xs uppercase">Retro</button>
       <button data-avatar="" id="avatarknopf" class="focus:outline-none"><img src="/a.png" /></button>
+      <p class="text-[10px] font-bold uppercase text-[#ef5a24]" id="markeaufholz">Fokus</p>
     </header>
     <div class="max-w-7xl mx-auto px-6 py-12">
       <div class="rounded-lg border-2 border-slate-200 bg-white shadow-sm" id="karte">
@@ -924,6 +925,74 @@ const faelle = [
   ['HW: Theme rührt keine Übergänge an', () => !/transition|transform:/.test(
     themeCss('halloween').replace(/\/\*[\s\S]*?\*\//g, '').replace(/url\("[^"]*"\)/g, ''),
   )],
+
+  /**
+   * Die Markenfarbe als Schrift: dunkel auf Pergament, hell auf Holz.
+   *
+   * Auf Pergament ergibt das rohe Orange 2,7:1 — deshalb wird es gedunkelt.
+   * Genau diese Regel liess dann die Zeile "FOKUS" über der Aufgabe im
+   * Holz der Kopfzeile verschwinden. Beide Richtungen stehen hier fest,
+   * für beide Themes.
+   */
+  ['Marke als Schrift wird auf Pergament dunkler', () => {
+    const r = farbe(w(R, '#markentext', 'color'));
+    const h = farbe(w(H, '#markentext', 'color'));
+    const roh = zuRgb('#ef5a24');
+    return !!r && !!h && r.join() !== roh.join() && h.join() !== roh.join()
+      && leuchte(r) < leuchte(roh) && leuchte(h) < leuchte(roh);
+  }],
+  ['und auf dem Holz heller', () => {
+    for (const [doc, holz] of [[R, palette['--r-wood']], [H, paletteH['--h-wood']]]) {
+      const c = farbe(w(doc, '#markeaufholz', 'color'));
+      if (!c) return false;
+      if (kontrast(c, zuRgb(holz)) < 4) return false;
+    }
+    return true;
+  }],
+
+  /**
+   * Der Fokusmodus.
+   *
+   * Zwei Zusicherungen am Quelltext, weil beide Fehler mit Farben nicht zu
+   * fassen sind:
+   *
+   *   1. Auf dem Handy war KEINE EINZIGE Teilaufgabe zu sehen. Die beiden
+   *      Spalten scrollten dort für sich — in einer Höhe, die es gar nicht
+   *      gab. Jedes `overflow` und jedes `min-h-0` im Inhalt muss deshalb an
+   *      `lg:` hängen; nur ab zwei Spalten gibt es eine Höhe zu verteilen.
+   *   2. Fokus und Ticket-Dialog müssen DIESELBEN Abfrageschlüssel benutzen.
+   *      Sonst hakt man im Fokus etwas ab, öffnet das Ticket und sieht es
+   *      wieder offen — zwei Wahrheiten über dieselbe Teilaufgabe.
+   */
+  ['Fokus: die Spalten scrollen erst ab zwei Spalten', () => {
+    const f = fs.readFileSync(path.join(wurzel, 'src/components/focus/TaskFocus.jsx'), 'utf8');
+    const inhalt = f.slice(f.indexOf('Zwei Spalten ab'), f.indexOf('---------------------------------------------------- Fuss'));
+    // Kein nacktes `overflow-y-auto` oder `min-h-0` mehr in den Spalten.
+    const nackt = (inhalt.match(/className="[^"]*"/g) || [])
+      .filter((k) => /(?<!lg:)(overflow-y-auto|min-h-0)/.test(k.replace(/lg:(overflow-y-auto|min-h-0)/g, '')))
+      .filter((k) => !k.includes('grid-cols-1'));   // die Hülle scrollt absichtlich
+    return nackt.length === 0 && /lg:flex-1 lg:min-h-0 lg:overflow-y-auto/.test(inhalt);
+  }],
+  ['Fokus und Ticket-Dialog teilen ihre Abfragen', () => {
+    const f = fs.readFileSync(path.join(wurzel, 'src/components/focus/TaskFocus.jsx'), 'utf8');
+    const d = fs.readFileSync(path.join(wurzel, 'src/components/kanban/TaskDetailDialog.jsx'), 'utf8');
+    return ["['subtasks', task", "['taskComments', task"].every((k) => d.includes(k))
+      && ["['subtasks', taskId]", "['taskComments', taskId]"].every((k) => f.includes(k));
+  }],
+  ['Fokus stösst die Zähler auf dem Brett an', () => {
+    const f = fs.readFileSync(path.join(wurzel, 'src/components/focus/TaskFocus.jsx'), 'utf8');
+    return f.includes("['allSubtasks', projectId]") && f.includes("['allComments', projectId]");
+  }],
+
+  /**
+   * Das Band der Liegengebliebenen ist ein `aside` — und bekam dadurch im
+   * Halloween das Spinnennetz der Seitenleiste, mitten über seine
+   * Überschrift. Holz darf es behalten, das Netz nicht.
+   */
+  ['HW: kein Netz auf dem Band über der Liste', () => {
+    const q = themeCss('halloween');
+    return /aside\[class\]:not\(\[data-liegengeblieben\]\)/.test(q);
+  }],
 
   // Der Kontrast-Rundgang
   [`${kombis.size} Klassenpaare über ${SCHWELLE}:1 (Retro)`, () => schwach.length === 0],
