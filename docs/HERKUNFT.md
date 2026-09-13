@@ -69,29 +69,32 @@ Das Skript braucht `jsdom` (Entwicklungsabhängigkeit) und Python mit Pillow.
 
 | Datei | Herkunft | Verarbeitung |
 |---|---|---|
-| `src/assets/halloween/halloween-himmel.webp` | Entwurf der Halloween-Startseite | oberer Streifen (Netze, Fledermäuse, Mond, Burg), 1600 px, WebP — 9 KB |
-| `src/assets/halloween/halloween-boden.webp` | derselbe Entwurf | unterer Streifen (Kürbisse, Kerzen, Nebel), 1600 px — 13 KB |
+| `src/assets/halloween/halloween-szene.webp` | Entwurf der Halloween-Startseite | die gemalte Oberfläche herausgenommen, 1920 px, WebP — 40 KB |
 | `src/assets/halloween/halloween-wortmarke.webp` | Entwurf des Halloween-Schriftzugs | Rand abgeschnitten, 1000 px, Alphakanal war bereits vorhanden — 86 KB |
 
-`npm run assets:halloween <entwurf.png> <logo.png>` schneidet sie.
+`npm run assets:halloween <entwurf.png> <logo.png>` rechnet beide.
 
-**Warum nur Streifen und nicht das ganze Bild.** Die Entwürfe zeigen
-Hintergrund UND Oberfläche in einem Bild — Überschrift, Karten, Knöpfe,
-Geräte. Als Vollbild sähe man die gemalte Oberfläche hinter der echten.
-Herausretuschieren ginge nicht ehrlich: Hinter den Karten liegen Zaun, Bäume
-und Nebel, die müsste man erfinden. Nachgemessen wurde auch, ob sich die
-beiden Entwürfe zu einer sauberen Platte verrechnen lassen — sie stammen aus
-zwei verschiedenen Bildgenerationen und weichen selbst in den
-oberflächenfreien Ecken um 17 bis 44 Helligkeitsstufen voneinander ab.
+**Wie aus dem Entwurf ein Hintergrund wird.** Der Entwurf zeigt die fertige
+Seite: Nacht, Kürbisse, Burg — und darüber Schriftzug, Überschrift, Knöpfe,
+Laptop und Telefone. Als Hintergrund darf davon nur die Nacht bleiben; die
+echte Oberfläche liegt später an denselben Stellen darüber. Das Skript nimmt
+die gemalte Oberfläche heraus, ohne Bildinhalt zu erfinden:
 
-Die Streifen sind der Teil ohne Oberfläche: kein einziger erfundener
-Bildpunkt. Dazwischen liegt die Nacht aus `theme-halloween.css`. Nebenbei ist
-das die robustere Lösung — ein Vollbild hätte ein festes Seitenverhältnis,
-die Streifen sitzen an jeder Abschnittshöhe richtig.
+- **Text und Knöpfe** stehen auf fast gleichmässiger Nacht (Rauschen unter
+  zwei Stufen). Alles Helle in den bekannten Rechtecken wird maskiert und mit
+  einer Inpainting-Rechnung auf einem Viertel der Auflösung aufgefüllt — auf
+  voller Auflösung zieht das Verfahren Streifen durch dünne Buchstaben. Das
+  Logo-Quadrat wird samt Schein als Ganzes maskiert; sein Schein liegt unter
+  jeder Schwelle und färbte beim ersten Anlauf die Füllung orange.
+- **Die Geräte** decken fast die halbe Bildbreite und stehen vor Nebel und
+  Strasse; Inpainting schmiert dort nur. Stattdessen kommt die gesäuberte
+  linke Seite gespiegelt und leicht gestreckt hinein: Zeilen bleiben Zeilen,
+  Horizont, Nebelkante und Strasse laufen durch.
 
-**Gäbe es den Entwurf ohne Oberfläche**, wäre er die bessere Quelle: dieselbe
-Szene ohne Text, Karten und Geräte. Dann kann das Bild randlos hinter die
-ganze Seite.
+Ein erster Anlauf hatte nur zwei Streifen ohne Oberfläche geschnitten (Himmel
+oben, Kürbisse unten) und dazwischen die violette Nacht des Themes gezeichnet.
+Auf dem Bild war das kein Hintergrund, sondern ein violetter Block mit zwei
+Rändern. Die Streifen gibt es nicht mehr.
 
 ## Musik
 

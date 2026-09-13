@@ -31,6 +31,9 @@
   /* Die Nacht */
   --h-night:     #1b1033;   /* Grundfläche, tiefes Mitternachtsviolett */
   --h-night-2:   #241645;   /* eine Stufe heller: Bereiche im Vordergrund */
+  --h-night-deep:#140c1c;   /* die Nacht der Szene auf der Startseite: fast schwarz,
+                               ein Hauch Violett — gemessen im Entwurf, damit die
+                               Bänder unter dem Bild nicht als violette Blöcke abreissen */
   --h-moon-halo: #3a2360;   /* der Hof um den Mond */
 
   /* Das Papier (die Karten) */
@@ -1441,28 +1444,6 @@
   box-shadow: 0 0 22px rgba(255, 176, 58, 0.35), 0 8px 20px rgba(10, 4, 24, 0.5);
 }
 
-/* --- Die Szene auf der Startseite ------------------------------------------
- *
- * Zwei Bänder aus dem Entwurf, oben und unten, mit der Nacht dazwischen:
- * oben Spinnweben, Mond und Burg, unten Kürbisse, Kerzen und Nebel.
- *
- * WARUM ZWEI BÄNDER UND KEIN VOLLBILD
- * Der Entwurf zeigt Hintergrund UND Oberfläche in einem Bild. Als Vollbild
- * sähe man die gemalte Oberfläche hinter der echten. Herausretuschieren geht
- * nicht ehrlich — hinter den Karten liegen Zaun, Bäume und Nebel, die müsste
- * man erfinden; und die beiden Entwürfe stammen aus zwei verschiedenen
- * Bildgenerationen (nachgemessen: 17 bis 44 Helligkeitsstufen Unterschied
- * selbst in den freien Ecken), lassen sich also auch nicht verrechnen.
- *
- * Die Bänder sind der Teil ohne Oberfläche — kein einziger erfundener
- * Bildpunkt. Und sie sind die robustere Lösung: Ein Vollbild hätte ein festes
- * Seitenverhältnis, diese sitzen an jeder Abschnittshöhe richtig.
- * `scripts/halloween-bilder.mjs` schneidet sie.
- *
- * `100% auto`: Die Breite füllt das Fenster, die Höhe folgt. Auf sehr breiten
- * Bildschirmen wird das Band höher — genau richtig, denn dort ist auch mehr
- * Platz.
- */
 /**
  * ALLE Bänder der Startseite werden zur Nacht.
  *
@@ -1477,7 +1458,7 @@
  * geraten. `header` und `footer` bleiben aussen vor: Die sind Holz.
  */
 [data-theme='halloween'] .theme-scope [data-landing] > :is(section, div) {
-  background-color: var(--h-night-2) !important;
+  background-color: var(--h-night-deep) !important;
   border-color: var(--h-wood-dark);
 }
 /**
@@ -1510,16 +1491,37 @@
   color: var(--h-lilac);
 }
 
+/* --- Die Szene auf der Startseite ------------------------------------------
+ *
+ * Der Entwurf, randlos, hinter dem Hero und hinter "Warum ORBYLOX?": Nacht,
+ * Spinne und Netz links, Mond und Burg rechts, Kürbisse und Kerzen unten,
+ * Nebel über der Strasse. Die echte Oberfläche liegt darüber — Schriftzug,
+ * Überschrift, Knöpfe, Geräte an denselben Stellen wie im Entwurf.
+ *
+ * Das Bild ist der Entwurf OHNE seine gemalte Oberfläche:
+ * `scripts/halloween-bilder.mjs` nimmt Text, Knöpfe und Geräte heraus, ohne
+ * einen Bildpunkt zu erfinden (Text auf glatter Nacht wird aufgefüllt, die
+ * Geräte werden durch die gespiegelte, gesäuberte linke Seite ersetzt).
+ *
+ * VORHER LAGEN HIER ZWEI STREIFEN UND DAZWISCHEN EINE VIOLETTE FLÄCHE.
+ * Auf dem Bild war das keine Szene, sondern ein violetter Block mit einem
+ * Rand oben und unten — die Fläche verdeckte genau das, was der Entwurf
+ * zeigen sollte. Deshalb jetzt `cover`: Das Bild füllt den Abschnitt ganz,
+ * an jeder Höhe; was nicht passt, wird an den Rändern beschnitten, und in
+ * der Mitte liegt ohnehin nur Nebel.
+ */
 [data-theme='halloween'] .theme-scope [data-hw-szene] {
-  background-color: var(--h-night) !important;
-  background-image:
-    url('@/assets/halloween/halloween-himmel.webp'),
-    url('@/assets/halloween/halloween-boden.webp'),
-    radial-gradient(48rem 30rem at 50% 40%, rgba(196, 172, 255, 0.10), transparent 66%);
-  background-repeat: no-repeat, no-repeat, no-repeat;
-  background-position: top center, bottom center, center;
-  background-size: 100% auto, 100% auto, cover;
+  background-color: var(--h-night-deep) !important;
+  background-image: url('@/assets/halloween/halloween-szene.webp');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
   border-color: var(--h-wood-dark);
+}
+/* Der zweite Abschnitt zeigt dieselbe Szene, aber etwas weiter oben
+   angeschnitten — sonst stünden zweimal dieselben Kürbisse untereinander. */
+[data-theme='halloween'] .theme-scope [data-hw-szene='warum'] {
+  background-position: center 35%;
 }
 
 /**
@@ -1533,19 +1535,6 @@
  * Die Knöpfe bleiben unberührt: Sie tragen ihre eigene Fläche und sind
  * ausdrücklich so gewollt, wie sie sind.
  */
-/**
- * Platz für die Bänder.
- *
- * Ohne diesen Zuschlag lag die Zeile "Kostenlose Registrierung · Keine
- * Kreditkarte · Sofort startklar" mitten in den Kürbissen. Die Bänder sind
- * rund 7 Prozent der Fensterbreite hoch (1600 zu 111 Punkte), deshalb `vw`
- * und nicht `px`: Auf einem breiten Bildschirm wachsen sie mit.
- */
-[data-theme='halloween'] .theme-scope [data-hw-szene] > div {
-  padding-top: max(4rem, 8vw);
-  padding-bottom: max(4rem, 9vw);
-}
-
 [data-theme='halloween'] .theme-scope [data-hw-szene] :is(h1, h2, h3, li, span):not(:is(button, a, button *, a *)) {
   color: var(--h-mist);
 }
@@ -1579,7 +1568,7 @@
  * `!important` gegen die Farbfamilien-Regel weiter oben, die es ebenfalls ist.
  */
 [data-theme='halloween'] .theme-scope [data-figur-buehne] {
-  background-color: var(--h-night-2) !important;
+  background-color: var(--h-night-deep) !important;
   background-image: radial-gradient(34rem 24rem at 26% 52%, rgba(255, 176, 58, 0.18), transparent 62%);
   border-color: var(--h-wood-dark);
 }

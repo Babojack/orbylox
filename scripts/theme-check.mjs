@@ -867,13 +867,13 @@ const faelle = [
    * `:not(:is(FLÄCHEN) *)` schloss alles aus, denn die Bühne SELBST ist
    * eine Fläche.
    */
-  ['HW: die Figuren-Bühne wird zur Nacht', () => farbe(w(H, '#buehne', 'background-color'))?.join() === zuRgb(paletteH['--h-night-2']).join()],
+  ['HW: die Figuren-Bühne wird zur Nacht', () => farbe(w(H, '#buehne', 'background-color'))?.join() === zuRgb(paletteH['--h-night-deep']).join()],
   ['HW: ihre Überschrift wird hell', () => w(H, '#buehnentitel', 'color') === 'var(--h-mist)'],
   ['HW: ihr Absatz auch', () => w(H, '#buehnentext', 'color') === 'var(--h-lilac)'],
   ['HW: und die Aufzählung daneben', () => w(H, '#buehnenpunkt', 'color') === 'var(--h-mist)'],
   ['HW: im Retro bleibt die Bühne, wie sie war', () => {
     const r = farbe(w(R, '#buehne', 'background-color'));
-    return !!r && r.join() !== zuRgb(paletteH['--h-night-2']).join();
+    return !!r && r.join() !== zuRgb(paletteH['--h-night-deep']).join();
   }],
   ['HW: ohne Theme erst recht', () => /245/.test(w(N, '#buehne', 'background-color') || '')],
 
@@ -989,13 +989,24 @@ const faelle = [
   /**
    * Die Szene auf der Startseite.
    *
-   * Im Halloween wird jedes Band der Startseite zur Nacht, und oben wie
-   * unten liegt ein Streifen aus dem Entwurf (Mond und Netze, Kürbisse und
-   * Kerzen). Die drei Zusicherungen halten genau die Stellen fest, an denen
-   * es schiefging.
+   * Im Halloween wird jedes Band der Startseite zur Nacht — zur TIEFEN Nacht
+   * der Szene, nicht zum helleren Violett der Flächen im Vordergrund. Beim
+   * ersten Anlauf war es das Violett, und auf dem Bild stand ein violetter
+   * Block zwischen zwei Bildstreifen: "Was sind die blauen Sachen, die den
+   * Hintergrund verdecken?"
    */
-  ['HW: die Bänder der Startseite werden zur Nacht', () => farbe(w(H, '#wiese', 'background-color'))?.join()
-    === zuRgb(paletteH['--h-night-2']).join()],
+  ['HW: die Bänder der Startseite werden zur tiefen Nacht', () => farbe(w(H, '#wiese', 'background-color'))?.join()
+    === zuRgb(paletteH['--h-night-deep']).join()],
+  /**
+   * Die Szene liegt randlos hinter Hero und "Warum" — ein Bild, `cover`,
+   * keine Streifen und keine Fläche dazwischen.
+   */
+  ['HW: die Szene füllt den Abschnitt ganz', () => {
+    const q = themeCss('halloween');
+    const m = q.match(/\[data-hw-szene\]\s*\{([^}]*)\}/);
+    return !!m && /halloween-szene\.webp/.test(m[1]) && /background-size:\s*cover/.test(m[1])
+      && !/himmel|boden/.test(m[1]);
+  }],
 
   /**
    * DER FEHLER, DER DREIMAL PASSIERT IST.
@@ -1019,7 +1030,7 @@ const faelle = [
     return /halloween \? \(\s*<img/.test(f.replace(/\s+/g, ' '))
       && f.includes('halloween-wortmarke.webp');
   }],
-  ['HW: die Bilder der Szene liegen bereit', () => ['halloween-himmel.webp', 'halloween-boden.webp',
+  ['HW: die Bilder der Szene liegen bereit', () => ['halloween-szene.webp',
     'halloween-wortmarke.webp'].every((f) => fs.existsSync(path.join(wurzel, 'src/assets/halloween', f)))],
 
   /**
