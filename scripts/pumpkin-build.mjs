@@ -60,7 +60,7 @@ import { TextDecoder, TextEncoder } from 'node:util';
 
 const wurzel = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const quelle = process.argv[2];
-const ziel = process.argv[3] || path.join(wurzel, 'public', 'models');
+const ziel = process.argv[3] || path.join(wurzel, 'src', 'assets', 'pumpkin');
 
 if (!quelle || !fs.existsSync(quelle)) {
   console.error('Aufruf: node scripts/pumpkin-build.mjs <halloween_pumpkin.glb> [ziel]');
@@ -281,18 +281,53 @@ bilder.forEach((b, i) => {
 });
 
 const verkleinern = `
-from PIL import Image
+from PIL import Image, ImageStat
 import os, sys, glob
 Image.MAX_IMAGE_PIXELS = None
 q, z = sys.argv[1], sys.argv[2]
 G = 1024
 QUALI = {'albedo': 80, 'orm': 82, 'emissive': 82, 'normal': 88}
-for rolle, quali in QUALI.items():
+
+def hole(rolle):
     treffer = glob.glob(os.path.join(q, rolle + '.*'))
     if not treffer:
         raise SystemExit('Textur fehlt: ' + rolle)
-    Image.open(treffer[0]).convert('RGB').resize((G, G), Image.LANCZOS).save(
-        os.path.join(z, 'pumpkin-%s.webp' % rolle), 'WEBP', quality=quali, method=6)
+    return Image.open(treffer[0]).convert('RGB').resize((G, G), Image.LANCZOS)
+
+# --- Albedo aufhellen ---------------------------------------------------
+#
+# Die Textur ist fuer eine helle Umgebung gebacken (ein HDR-Panorama), die
+# es hier nicht gibt: Ihr Mittelwert ist #965124, ein dunkles Rotbraun. In
+# der Nacht der Startseite kam damit eine verkohlte Ruebe heraus. Der erste
+# Versuch, das mit dreifachem Licht zu erschlagen, machte es schlimmer —
+# starkes Licht auf einer teils glaenzenden Flaeche ist Plastik.
+#
+# Also wird die Textur selbst angehoben, und zwar mit einer Kurve, nicht mit
+# einem Faktor: Ein Faktor wuerde die hellen Stellen abschneiden. Gamma 0,55
+# hebt die Mitten und laesst die Spitzen, wo sie sind.
+albedo = hole('albedo')
+tabelle = [min(255, round(255 * ((i / 255) ** 0.55))) for i in range(256)] * 3
+albedo = albedo.point(tabelle)
+print('  Albedo-Mittel nach dem Anheben: #%02x%02x%02x'
+      % tuple(round(x) for x in ImageStat.Stat(albedo).mean))
+albedo.save(os.path.join(z, 'pumpkin-albedo.webp'), 'WEBP', quality=QUALI['albedo'], method=6)
+
+# --- Rauheit nach unten begrenzen ---------------------------------------
+#
+# Der Gruenkanal der ORM-Datei geht bis 80 hinunter, also Rauheit 0,31 —
+# das ist nasses Fruchtfleisch. Auf der ganzen Schale ergibt das im Licht
+# harte Glanzlichter, und ein Kuerbis aus Plastik. Eine Kuerbisschale ist
+# matt bis seidig; unter 0,55 geht sie hier nicht.
+orm = hole('orm')
+r, g, b = orm.split()
+BODEN = 118                                   # 118/255 = 0,46 — matt, aber nicht staubig
+g = g.point(lambda v: BODEN + round(v * (255 - BODEN) / 255))
+Image.merge('RGB', (r, g, b)).save(
+    os.path.join(z, 'pumpkin-orm.webp'), 'WEBP', quality=QUALI['orm'], method=6)
+
+for rolle in ('emissive', 'normal'):
+    hole(rolle).save(os.path.join(z, 'pumpkin-%s.webp' % rolle),
+                     'WEBP', quality=QUALI[rolle], method=6)
 `;
 execFileSync('python3', ['-c', verkleinern, tmp, ziel], { stdio: 'inherit' });
 fs.rmSync(tmp, { recursive: true, force: true });

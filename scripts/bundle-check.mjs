@@ -155,11 +155,32 @@ const pruefungen = [
    * nicht für eine Verdopplung.
    */
   ['Modell und Texturen des Kürbis unter 400 kB', () => {
-    const modelle = path.join(wurzel, 'public/models');
+    const modelle = path.join(wurzel, 'src/assets/pumpkin');
     const teile = ['pumpkin.glb', 'pumpkin-albedo.webp', 'pumpkin-emissive.webp',
       'pumpkin-normal.webp', 'pumpkin-orm.webp'];
     const summe = teile.reduce((s, f) => s + fs.statSync(path.join(modelle, f)).size, 0);
     return summe > 0 && summe < 400 * 1024;
+  }],
+
+  /**
+   * Und er trägt einen INHALTSSTEMPEL im Dateinamen.
+   *
+   * Vorher lagen die fünf Dateien unter festem Namen in `public/models`, und
+   * `public/htaccess` sagt für Bilder "access plus 1 year". Als die Texturen
+   * von 512 auf 1024 wuchsen und das Modell Tangenten bekam, blieb bei jedem,
+   * der die Seite vorher gesehen hatte, der alte Stand im Zwischenspeicher —
+   * altes Modell, alte Map, neues Licht. Das Ergebnis sah aus wie glänzendes
+   * Plastik, und zwar ein Jahr lang. Genau so ist es aufgefallen.
+   *
+   * Über `src/assets` hängt Vite einen Stempel an; hier wird geprüft, dass er
+   * wirklich dransteht und dass niemand die Dateien nach `public/` zurücklegt.
+   */
+  ['der Kürbis trägt einen Inhaltsstempel', () => {
+    const gestempelt = fs.readdirSync(assets)
+      .filter((f) => /^pumpkin(-[a-z]+)?-[A-Za-z0-9_-]{8}\.(glb|webp)$/.test(f));
+    const inPublic = fs.existsSync(path.join(wurzel, 'public/models'))
+      && fs.readdirSync(path.join(wurzel, 'public/models')).some((f) => f.startsWith('pumpkin'));
+    return gestempelt.length === 5 && !inPublic;
   }],
 
   /**
@@ -174,7 +195,7 @@ const pruefungen = [
    * Bild.
    */
   ['der Kürbis bringt Tangenten mit', () => {
-    const glb = fs.readFileSync(path.join(wurzel, 'public/models/pumpkin.glb'));
+    const glb = fs.readFileSync(path.join(wurzel, 'src/assets/pumpkin/pumpkin.glb'));
     const laenge = glb.readUInt32LE(12);
     const json = JSON.parse(glb.subarray(20, 20 + laenge).toString('utf8'));
     const prim = json.meshes?.[0]?.primitives?.[0];

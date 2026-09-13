@@ -2,6 +2,30 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 /**
+ * Die Dateien kommen aus `src/assets/`, NICHT aus `public/`.
+ *
+ * Das ist kein Ordnungsgeschmack, sondern eine Fehlerbehebung. In `public/`
+ * behalten sie ihren Namen, und `public/htaccess` sagt für Bilder
+ * "access plus 1 year". Als die Texturen von 512 auf 1024 wuchsen und das
+ * Modell Tangenten bekam, blieb bei jedem, der die Seite vorher gesehen
+ * hatte, der alte Stand im Zwischenspeicher: altes Modell ohne Tangenten,
+ * alte flaue Normal-Map — und darauf das neue, kräftigere Licht. Das Ergebnis
+ * sah aus wie glänzendes Plastik, und zwar ein Jahr lang.
+ *
+ * Über `src/assets` hängt Vite einen Inhaltsstempel an den Dateinamen. Ändert
+ * sich eine Datei, ändert sich ihre Adresse; das Jahr im Zwischenspeicher
+ * wird damit vom Fehler zum Vorteil.
+ *
+ * Derselbe Grund wie beim Hauptbild der Startseite (siehe `check:theme`:
+ * "Hauptbild kommt aus src, nicht aus public").
+ */
+import modellUrl from '@/assets/pumpkin/pumpkin.glb?url';
+import albedoUrl from '@/assets/pumpkin/pumpkin-albedo.webp?url';
+import emissiveUrl from '@/assets/pumpkin/pumpkin-emissive.webp?url';
+import normalUrl from '@/assets/pumpkin/pumpkin-normal.webp?url';
+import ormUrl from '@/assets/pumpkin/pumpkin-orm.webp?url';
+
+/**
  * Der Kürbis: Modell, Material, Kerzenlicht — einmal beschrieben.
  *
  * Er tritt an zwei Stellen auf: gross in der Figuren-Sektion der Startseite
@@ -17,12 +41,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
  * stehen deshalb keine Zauberzahlen.
  */
 
-const MODELL = '/models/pumpkin.glb';
+const MODELL = modellUrl;
 const TEXTUREN = {
-  albedo: '/models/pumpkin-albedo.webp',
-  emissive: '/models/pumpkin-emissive.webp',
-  normal: '/models/pumpkin-normal.webp',
-  orm: '/models/pumpkin-orm.webp',
+  albedo: albedoUrl,
+  emissive: emissiveUrl,
+  normal: normalUrl,
+  orm: ormUrl,
 };
 
 /* Aus `theme-halloween.css`, damit die Szene zur Seite passt. */
@@ -34,12 +58,12 @@ export const MOND = 0xbda9e0;
  *
  * Zwei Anläufe lang stand hier der Kürbiston des Themes und danach ein
  * hellerer. Beide waren falsch, und zwar grundsätzlich: `color` wird mit der
- * Albedo MULTIPLIZIERT, und deren Mittelwert ist #965124 — ein dunkles
+ * Albedo MULTIPLIZIERT, und deren Mittelwert war #965124 — ein dunkles
  * Rotbraun. Multiplizieren kann nur dunkler machen. Der Kürbis sah aus wie
  * eine verkohlte Rübe, und je "oranger" der Ton, desto dunkler das Ergebnis.
  *
- * Die Textur ist gebacken, wie sie ist; hell wird sie durch LICHT, nicht
- * durch Färben. Deshalb Weiss — und dafür ein kräftigerer Streifer.
+ * Aufgehellt wird die Textur beim Bauen, nicht hier: Eine Kurve über den
+ * Mittelwert hebt sie auf #b77d4b, ohne die hellen Stellen abzuschneiden.
  */
 export const KUERBIS_TON = 0xffffff;
 
@@ -105,11 +129,11 @@ export async function ladeKuerbis() {
   mesh.material.dispose();
   mesh.material = new THREE.MeshStandardMaterial({
     map: albedo,
-    color: KUERBIS_TON,          // die Textur ist blass, das ist der Ton
+    color: KUERBIS_TON,          // weiss: die Textur bringt ihren Ton selbst mit
     normalMap: normal,
     aoMap: orm,
     roughnessMap: orm,
-    roughness: 1,                // die Stärke steht im Grünkanal
+    roughness: 1,                // die Stärke steht im Grünkanal (dort ab 0,55)
     metalness: 0,                // der Blaukanal ist überall null — ein Kürbis glänzt nicht
     emissiveMap: emissive,
     emissive: new THREE.Color(0xff8c1a),
@@ -127,6 +151,15 @@ export async function ladeKuerbis() {
  * kühle Kante von hinten — und die Kerze im Inneren, die die eigentliche
  * Arbeit macht.
  *
+ * WARUM NICHT MEHR
+ * Weil ich es einmal versucht habe. Der Kürbis war zu dunkel, und statt die
+ * Ursache zu suchen (eine für eine helle Umgebung gebackene Textur) habe ich
+ * den Streifer verdreifacht. Ergebnis: harte Glanzlichter auf einer Fläche,
+ * deren Rauheit stellenweise bei 0,31 lag — glänzendes Plastik in
+ * Kürbisform. Hell wird die Schale jetzt dort, wo es hingehört: in der
+ * Textur (`scripts/pumpkin-build.mjs` hebt sie an und begrenzt die Rauheit
+ * nach unten).
+ *
  * WARUM DIE KERZE SCHATTEN WIRFT
  * Ohne `castShadow` scheint ein Punktlicht mitten im Kürbis einfach durch die
  * Schale: Beim ersten Rendern glühte er als Ganzes, wie eine Lampe in
@@ -139,13 +172,13 @@ export async function ladeKuerbis() {
  * Kantenlänge, weil das Licht ohnehin weich ist.
  */
 export function lichtSetzen(scene, { kerzenStaerke = 3.2, schattenkarte = 512 } = {}) {
-  scene.add(new THREE.HemisphereLight(MOND, 0x2a1a12, 0.7));
+  scene.add(new THREE.HemisphereLight(MOND, 0x2a1a12, 0.45));
 
-  const key = new THREE.DirectionalLight(0xffd9a0, 2.2);
+  const key = new THREE.DirectionalLight(0xffd9a0, 1.4);
   key.position.set(2, 3, 2.5);
   scene.add(key);
 
-  const rim = new THREE.DirectionalLight(MOND, 1.1);
+  const rim = new THREE.DirectionalLight(MOND, 0.8);
   rim.position.set(-3, 2, -2.5);
   scene.add(rim);
 

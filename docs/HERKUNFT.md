@@ -11,7 +11,7 @@ was ausgeliefert wird.
 | `public/models/xbot.glb` | Mixamo "X Bot" mit der Bewegung "Happy Idle" | Zwei FBX (3,7 MB) zu einer GLB (325 KB): Dreiecke halbiert, Koordinaten quantisiert, Meshopt-komprimiert. Farben eingebrannt. |
 | `public/models/retro-figure.glb` | Figur mit Umhang aus denselben Mixamo-Paketen | Vier Skelette zu einem zusammengelegt (sonst tanzt nur der Körper), sieben Umhangknochen entfernt. |
 | `public/models/*.clip.json` | Mixamo-FBX | Einmalig zu JSON umgerechnet und fehlerbegrenzt ausgedünnt. Es liegt weder eine FBX noch ein FBX-Loader im Bündel. |
-| `public/models/pumpkin.*`, `pumpkin-*.webp` | "Halloween Pumpkin LP", CC-Modell | `npm run assets:pumpkin <halloween_pumpkin.glb>` — siehe unten. |
+| `src/assets/pumpkin/*` | "Halloween Pumpkin LP", CC-Modell | `npm run assets:pumpkin <halloween_pumpkin.glb>` — siehe unten. |
 
 ### Der Kürbis im Einzelnen
 
@@ -43,9 +43,25 @@ festmacht.
 Die Bilder bleiben absichtlich **ausserhalb** der GLB: So lässt sich ihre Grösse
 ändern, ohne das Modell neu zu rechnen, und der Browser lädt sie parallel.
 
-`npm run check:bundle` hält beides fest: die Obergrenze von 400 KB und dass die
-Tangenten da sind. Sie lassen sich verlieren, ohne dass etwas kaputtgeht — man
-sieht dann nur ein schlechteres Bild.
+**Sie liegen unter `src/assets/`, nicht in `public/`.** In `public/` behalten
+Dateien ihren Namen, und `public/htaccess` sagt für Bilder "access plus 1 year".
+Als die Texturen von 512 auf 1024 wuchsen, blieb bei jedem, der die Seite vorher
+gesehen hatte, der alte Stand im Zwischenspeicher — altes Modell ohne Tangenten,
+alte flaue Normal-Map, dazu das neue Licht. Das sah aus wie glänzendes Plastik,
+und zwar ein Jahr lang. Über `src/assets` hängt Vite einen Inhaltsstempel an:
+Ändert sich eine Datei, ändert sich ihre Adresse.
+
+**Die Albedo wird beim Bauen aufgehellt** (Gamma 0,55, Mittelwert #965124 →
+#be8856) und **die Rauheit nach unten begrenzt** (Grünkanal ab 0,46). Beides
+gehört zusammen: Die Textur ist für eine helle HDR-Umgebung gebacken, die es
+hier nicht gibt. Der erste Versuch, die Dunkelheit mit dreifachem Licht zu
+erschlagen, machte es schlimmer — starkes Licht auf einer Fläche mit Rauheit
+0,31 ist Plastik, kein Kürbis.
+
+`npm run check:bundle` hält drei Dinge fest: die Obergrenze von 400 KB, dass die
+Tangenten da sind und dass die Dateien einen Inhaltsstempel tragen. Alle drei
+lassen sich verlieren, ohne dass etwas kaputtgeht — man sieht dann nur ein
+schlechteres Bild.
 
 Das Skript braucht `jsdom` (Entwicklungsabhängigkeit) und Python mit Pillow.
 

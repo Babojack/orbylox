@@ -887,9 +887,11 @@ const faelle = [
       && /lazy\(\(\) => import\('\.\/HeroBot'\)\)/.test(s)
       && /theme === 'halloween' \? HeroPumpkin : HeroBot/.test(s);
   }],
+  /* Sie liegen unter `src/assets`, nicht in `public/` — den Grund hält
+     `check:bundle` fest ("der Kürbis trägt einen Inhaltsstempel"). */
   ['HW: Modell und Texturen liegen bereit', () => ['pumpkin.glb', 'pumpkin-albedo.webp',
     'pumpkin-emissive.webp', 'pumpkin-normal.webp', 'pumpkin-orm.webp']
-    .every((f) => fs.existsSync(path.join(wurzel, 'public/models', f)))],
+    .every((f) => fs.existsSync(path.join(wurzel, 'src/assets/pumpkin', f)))],
 
   /**
    * Die Musik.
