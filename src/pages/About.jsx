@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import {useState} from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -7,6 +7,7 @@ import {
 import { api } from '@/api/apiClient';
 import { loadAbout, saveAbout, emptyMember, ABOUT_FALLBACK } from '@/api/about';
 import { LanguageProvider, useLanguage } from '@/components/LanguageProvider';
+import Seo from "@/components/Seo";
 import OrbyloxMark from '@/components/OrbyloxMark';
 import { Reveal } from '@/components/motion/Reveal';
 import { Input } from '@/components/ui/input';
@@ -163,10 +164,6 @@ function AboutContent() {
     enabled: !!currentUser,
   });
 
-  useEffect(() => {
-    document.title = de ? 'Über uns — ORBYLOX' : 'About us — ORBYLOX';
-  }, [de]);
-
   const save = useMutation({
     mutationFn: saveAbout,
     onSuccess: (fresh) => {
@@ -193,6 +190,14 @@ function AboutContent() {
 
   return (
     <div className="min-h-screen bg-white">
+      <Seo
+        titel={de ? 'Über uns' : 'About us'}
+        beschreibung={de
+          ? 'Wer hinter ORBYLOX steckt und warum wir ein Projektwerkzeug bauen, das ohne Abo-Zwang auskommt.'
+          : 'Who is behind ORBYLOX and why we build a project tool that works without a forced subscription.'}
+        pfad="/About"
+        sprache={de ? 'de' : 'en'}
+      />
       {/* Kopfzeile */}
       <header className="border-b-2 border-black sticky top-0 bg-white/95 backdrop-blur-sm z-40">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">

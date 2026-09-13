@@ -1,11 +1,104 @@
 <!doctype html>
-<html lang="en">
+<!--
+  Der Kopf, den JEDE Adresse der Einzelseiten-App ausliefert — also der Kopf
+  der STARTSEITE. Vorher stand hier nur der Markenname und sonst nichts: keine
+  Beschreibung, kein Canonical, kein Vorschaubild, und lang="en" auf einer
+  deutschen Seite. Weil diese Datei alle Adressen ausser dem Blog beantwortet,
+  hatte damit die gesamte Anwendung einen einzigen Titel und keine einzige
+  Beschreibung.
+
+  Jede andere Seite setzt ihren Kopf beim Rendern (src/components/Seo.jsx).
+  Die Blogseiten kommen fertig vom Server (api/blog.php) und brauchen diese
+  Datei nicht.
+
+  In der Auszeichnung unten steht bewusst KEIN aggregateRating: Sterne in der
+  Trefferliste sind verlockend, aber es gibt keine Bewertungen. Sie zu
+  erfinden verstösst gegen Googles Richtlinien.
+-->
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
-    <title>ORBYLOX</title>
+
+    <title>ORBYLOX – kostenloses Projektmanagement mit Kanban-Board</title>
+    <meta
+      name="description"
+      content="Aufgaben, Kanban-Board, Dateien, Canvas, Chat und Videokonferenz in einem Werkzeug. Kostenlos starten – ohne Kreditkarte, ohne Abo-Zwang."
+    />
+    <link rel="canonical" href="https://orbylox.de/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+
+    <link rel="alternate" hreflang="de" href="https://orbylox.de/" />
+    <link rel="alternate" hreflang="x-default" href="https://orbylox.de/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ORBYLOX" />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:title" content="ORBYLOX – kostenloses Projektmanagement mit Kanban-Board" />
+    <meta
+      property="og:description"
+      content="Aufgaben, Kanban-Board, Dateien, Canvas, Chat und Videokonferenz in einem Werkzeug. Kostenlos starten – ohne Kreditkarte, ohne Abo-Zwang."
+    />
+    <meta property="og:url" content="https://orbylox.de/" />
+    <meta property="og:image" content="https://orbylox.de/screens/hero-devices.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ORBYLOX – kostenloses Projektmanagement mit Kanban-Board" />
+    <meta
+      name="twitter:description"
+      content="Aufgaben, Kanban-Board, Dateien, Canvas, Chat und Videokonferenz in einem Werkzeug. Kostenlos starten – ohne Kreditkarte, ohne Abo-Zwang."
+    />
+    <meta name="twitter:image" content="https://orbylox.de/screens/hero-devices.webp" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://orbylox.de/#organisation",
+            "name": "ORBYLOX",
+            "url": "https://orbylox.de/",
+            "logo": "https://orbylox.de/favicon.svg"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://orbylox.de/#website",
+            "url": "https://orbylox.de/",
+            "name": "ORBYLOX",
+            "inLanguage": "de-DE",
+            "publisher": { "@id": "https://orbylox.de/#organisation" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://orbylox.de/#anwendung",
+            "name": "ORBYLOX",
+            "url": "https://orbylox.de/",
+            "applicationCategory": "BusinessApplication",
+            "applicationSubCategory": "Projektmanagement",
+            "operatingSystem": "Web",
+            "inLanguage": ["de-DE", "en"],
+            "description": "Projektmanagement mit Aufgaben, Kanban-Board, Dateien, Canvas, Chat und Videokonferenz.",
+            "featureList": [
+              "Kanban-Board mit Teilaufgaben und Abhängigkeiten",
+              "Projektplan und Zeiterfassung",
+              "Dateien und Notizen mit Ordnern",
+              "Canvas für Ideen und Abläufe",
+              "Chat und Videokonferenz",
+              "Kalender und Termine"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "EUR",
+              "availability": "https://schema.org/InStock"
+            },
+            "publisher": { "@id": "https://orbylox.de/#organisation" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

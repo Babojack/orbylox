@@ -317,7 +317,7 @@
     "slug": "abhaengigkeiten-sichtbar-machen",
     "title": "Abhängigkeiten sichtbar machen: warum Projekte an Wartezeit sterben",
     "seo_title": "Abhängigkeiten im Projekt sichtbar machen",
-    "meta_description": "Wartezeit taucht in keinem Bericht auf. Wie man Abhängigkeiten zwischen Tickets erfasst, in Stufen ordnet und Kreise findet, bevor sie das Projekt blockieren.",
+    "meta_description": "Wartezeit ist der grösste Posten in jedem Projekt — und der einzige, den niemand misst. Wie man Abhängigkeiten sichtbar macht, bevor sie blockieren.",
     "excerpt": "Projekte bleiben selten wegen Langsamkeit stehen, sondern wegen Wartezeit — und die steht meistens nirgends.",
     "category": "Projektmanagement",
     "tags": [
@@ -375,7 +375,7 @@
     "slug": "definition-of-done",
     "title": "Definition of Done: der Satz, der Nacharbeit verhindert",
     "seo_title": "Definition of Done: fertig heißt für alle dasselbe",
-    "meta_description": "Drei bis fünf überprüfbare Bedingungen, die für jedes Ticket gelten. Was hineingehört, was nicht — und warum eine Definition of Done am Anfang mehr bewirkt als am Ende.",
+    "meta_description": "Ein Satz, auf den sich das Team einmal einigt, spart jede Woche Nacharbeit. Was in eine Definition of Done gehört — und was nicht.",
     "excerpt": "Wenn fertig für jeden etwas anderes heißt, wandert Arbeit zwischen Spalten hin und her. Das Board zeigt Bewegung, das Projekt macht keine.",
     "category": "Zusammenarbeit",
     "tags": [
@@ -404,7 +404,7 @@
     "slug": "definition-of-done-en",
     "title": "Definition of Done: the sentence that prevents rework",
     "seo_title": "Definition of Done: when done means the same to everyone",
-    "meta_description": "Three to five checkable conditions that apply to every ticket. What belongs in it, what doesn't — and why a Definition of Done does more at the start than at the end.",
+    "meta_description": "One sentence the team agrees on once saves rework every week. What belongs in a Definition of Done — and what does not.",
     "excerpt": "When done means something different to everyone, work travels back and forth between columns. The board shows movement, the project makes none.",
     "category": "Collaboration",
     "tags": [
@@ -433,7 +433,7 @@
     "slug": "ki-assistent-projektmanagement",
     "title": "KI im Projektmanagement: was ein Assistent kann — und was nicht",
     "seo_title": "KI-Assistent im Projektmanagement: Nutzen und Grenzen",
-    "meta_description": "Zerlegen, Lücken finden, formulieren: dabei hilft ein Assistent wirklich. Priorisieren und schätzen kann er nicht. Warum die Regel vorschlagen statt ausführen alles entscheidet.",
+    "meta_description": "Was ein KI-Assistent im Projekt wirklich abnimmt, wo er zuverlässig danebenliegt und welche Aufgaben man ihm besser nicht gibt.",
     "excerpt": "Die Erwartung an einen KI-Assistenten ist meistens zu groß und zu klein zugleich — und der echte Nutzen liegt woanders als vermutet.",
     "category": "Produktivität",
     "tags": [
@@ -462,7 +462,7 @@
     "slug": "ai-assistant-project-management",
     "title": "AI in project management: what an assistant can do — and what it can't",
     "seo_title": "AI assistant in project management: use and limits",
-    "meta_description": "Splitting, finding gaps, phrasing: that is where an assistant genuinely helps. Prioritising and estimating are not. Why propose-don't-execute decides everything.",
+    "meta_description": "What an AI assistant really takes off your plate, where it reliably gets things wrong, and which tasks you should not hand over.",
     "excerpt": "Expectations of an AI assistant are usually too high and too low at once — and the real benefit sits somewhere other than assumed.",
     "category": "Productivity",
     "tags": [

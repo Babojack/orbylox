@@ -95,6 +95,13 @@ jobs:
       - name: Ordner prüfen
         run: npm run check:folders
 
+      # Der Kopf, den Google zu sehen bekommt. Ein leerer Titel oder eine
+      # fehlende Beschreibung faellt im Betrieb NIE auf — die Seite sieht
+      # richtig aus, und nur die Suchmaschine sieht das Nichts. Genau so
+      # standen in der Search Console Impressionen ohne einen einzigen Klick.
+      - name: Suchmaschinen-Kopf prüfen
+        run: npm run check:seo
+
       # Der Vorschlag "lange nichts gehoert von …" nennt Projekte beim Namen.
       # Nennt er die falschen — ein ausgeblendetes, oder das, an dem man
       # gerade sitzt —, merkt das niemand als Fehler: Man klickt es weg.

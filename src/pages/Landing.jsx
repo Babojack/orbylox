@@ -5,6 +5,7 @@ import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import ModuleShowcase from "@/components/landing/ModuleShowcase";
 import BotSection from "@/components/landing/BotSection";
+import Seo from "@/components/Seo";
 import ThemeSwitch from '@/components/common/ThemeSwitch';
 import SoundSwitch from '@/components/common/SoundSwitch';
 import { cn } from '@/lib/utils';
@@ -277,6 +278,17 @@ function LandingContent() {
           </div>
         </div>
       </header>
+
+      <Seo
+        titel={de
+          ? 'ORBYLOX – kostenloses Projektmanagement mit Kanban-Board'
+          : 'ORBYLOX – free project management with a kanban board'}
+        beschreibung={de
+          ? 'Aufgaben, Kanban-Board, Dateien, Canvas, Chat und Videokonferenz in einem Werkzeug. Kostenlos starten – ohne Kreditkarte, ohne Abo-Zwang.'
+          : 'Tasks, kanban board, files, canvas, chat and video meetings in one tool. Start for free – no credit card, no forced subscription.'}
+        pfad="/"
+        sprache={de ? 'de' : 'en'}
+      />
 
       {/* Hero: Text links, Geraetebild rechts */}
       <section ref={heroRef} className="border-b-2 border-black overflow-hidden">

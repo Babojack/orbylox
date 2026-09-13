@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from "@/components/LanguageProvider";
 import OrbyloxMark from "@/components/OrbyloxMark";
+import Seo from "@/components/Seo";
 
 const ADDRESS = ['Jeyhun Afandiyev', 'c/o Online-Impressum #6833', 'Europaring 90', '53757 Sankt Augustin', 'Deutschland'];
 const ODR_URL = 'https://ec.europa.eu/consumers/odr/';
@@ -207,6 +208,16 @@ function ImpressumContent() {
 
   return (
     <div className="min-h-screen bg-white py-8 px-4 sm:py-12 sm:px-6">
+      {/* `noindex`: Ein Impressum ist Pflicht, aber kein Suchergebnis. Es
+          verwaessert nur, wofuer die Seite sonst gefunden wird. */}
+      <Seo
+        titel={de ? 'Impressum' : 'Legal notice'}
+        beschreibung={de
+          ? 'Anbieterkennzeichnung und Kontaktangaben zu ORBYLOX nach § 5 TMG.'
+          : 'Provider identification and contact details for ORBYLOX.'}
+        pfad="/Impressum"
+        sprache={de ? 'de' : 'en'}
+      />
       <div className="max-w-3xl mx-auto">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-8">
           <ArrowLeft className="w-4 h-4 mr-2" />
