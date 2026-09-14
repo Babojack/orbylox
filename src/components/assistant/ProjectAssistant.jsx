@@ -117,7 +117,10 @@ export default function ProjectAssistant({ open, onClose, project, tasks = [], m
         members,
         language,
       });
-      setMessages([...history, { role: 'assistant', content: r.reply }]);
+      /* Nur eine Blase, wenn auch etwas drinsteht.
+         Kam nur eine Vorschlagsliste zurück, stand hier vorher ein leeres
+         Kästchen darüber — ein Rahmen ohne Inhalt sieht nach Fehler aus. */
+      setMessages(r.reply ? [...history, { role: 'assistant', content: r.reply }] : history);
       setSuggestions(r.suggestions);
       // Voreingestellt alle angehakt: Wer den Vorschlag erbeten hat, will ihn
       // meist ganz — Abwählen ist die Ausnahme.

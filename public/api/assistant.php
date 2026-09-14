@@ -22,6 +22,19 @@ declare(strict_types=1);
  *   Authorization: Bearer <Firebase ID token>
  */
 
+/**
+ * Meldungen gehoeren ins Protokoll, nicht in die Antwort.
+ *
+ * Steht display_errors beim Hoster an — und bei Hostinger ist das der
+ * Normalfall —, schreibt PHP jede Warnung VOR die eigentliche Ausgabe. Die
+ * Antwort ist dann "Warning: … {"reply":…}" und damit kein gueltiges JSON
+ * mehr. Der Browser sah eine 200 mit unlesbarem Inhalt und zeichnete eine
+ * leere Sprechblase. Eine Schnittstelle darf ihren Rumpf nie mit Meldungen
+ * vermischen; wer sie sucht, findet sie im Fehlerprotokoll.
+ */
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Robots-Tag: noindex, nofollow');
@@ -260,20 +273,60 @@ if ($code !== 200) {
     orbyloxJsonFail($code === 401 ? 401 : 502, 'OpenAI (' . $code . '): ' . $why);
 }
 
-$content = (string)($json['choices'][0]['message']['content'] ?? '');
-$parsed = json_decode($content, true);
-if (!is_array($parsed)) {
-    orbyloxJsonFail(502, 'Unerwartete Antwortform von OpenAI.');
+$choice = $json['choices'][0] ?? [];
+$content = (string)($choice['message']['content'] ?? '');
+$finish = (string)($choice['finish_reason'] ?? '');
+$refusal = trim((string)($choice['message']['refusal'] ?? ''));
+
+/**
+ * WARUM DIE BEGRUENDUNG MITGESCHICKT WIRD
+ *
+ * Es gibt drei Arten, auf denen hier nichts Brauchbares ankommt, und sie
+ * sehen von aussen gleich aus — naemlich nach nichts:
+ *
+ *   - `refusal`: Das Modell hat die Antwort verweigert. Dann ist `content`
+ *     leer, und der Grund steht in einem eigenen Feld.
+ *   - `finish_reason = length`: Die Antwort wurde mitten im JSON abgeschnitten.
+ *     Sie laesst sich nicht lesen, und das liegt nicht an der Frage.
+ *   - `content_filter`: Der Inhaltsfilter hat abgebrochen.
+ *
+ * Vorher endeten alle drei in derselben Meldung "Unerwartete Antwortform",
+ * und ein leerer `reply` ging sogar als Erfolg durch. Jetzt geht die
+ * Begruendung als `reason` mit hinaus, und die Oberflaeche kann sie zeigen.
+ */
+if ($refusal !== '') {
+    orbyloxJsonFail(502, 'Das Sprachmodell hat die Antwort verweigert: ' . mb_substr($refusal, 0, 300));
 }
 
-echo json_encode([
-    'reply' => (string)($parsed['reply'] ?? ''),
-    'suggestions' => array_values(array_filter(
-        (array)($parsed['suggestions'] ?? []),
-        static fn ($s) => is_array($s) && trim((string)($s['title'] ?? '')) !== '',
-    )),
+$parsed = json_decode($content, true);
+if (!is_array($parsed)) {
+    $why = $finish === 'length'
+        ? 'Die Antwort wurde abgeschnitten (zu lang). Stell die Frage kleiner.'
+        : ($finish === 'content_filter'
+            ? 'Der Inhaltsfilter von OpenAI hat abgebrochen.'
+            : 'Unerwartete Antwortform von OpenAI (finish_reason: ' . ($finish ?: 'unbekannt') . ').');
+    orbyloxJsonFail(502, $why);
+}
+
+$reply = trim((string)($parsed['reply'] ?? ''));
+$suggestions = array_values(array_filter(
+    (array)($parsed['suggestions'] ?? []),
+    static fn ($s) => is_array($s) && trim((string)($s['title'] ?? '')) !== '',
+));
+
+$out = [
+    'reply' => $reply,
+    'suggestions' => $suggestions,
     'usage' => [
         'prompt_tokens' => (int)($json['usage']['prompt_tokens'] ?? 0),
         'completion_tokens' => (int)($json['usage']['completion_tokens'] ?? 0),
     ],
-], JSON_UNESCAPED_UNICODE);
+];
+// Nichts gesagt und nichts vorgeschlagen ist kein Erfolg. Die Begruendung
+// reist mit, damit drueben nicht geraten werden muss.
+if ($reply === '' && !$suggestions) {
+    $out['reason'] = 'finish_reason: ' . ($finish ?: 'unbekannt')
+        . ', Modell: ' . (string)$config['openai_model'];
+}
+
+echo json_encode($out, JSON_UNESCAPED_UNICODE);

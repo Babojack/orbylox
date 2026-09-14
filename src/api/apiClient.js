@@ -48,7 +48,86 @@ const DEMO_EMAIL = "demo@orbylox.local";
 const DEFAULT_ADMIN_EMAILS = ["jey.afandiyev@gmail.com"];
 const USER_PLANS_KEY = STORAGE_KEY_PREFIX + "user_plans";
 
+/**
+ * Der Speicher des Demo-Zugangs.
+ *
+ * WARUM NICHT MEHR NUR IM ARBEITSSPEICHER
+ * Hier stand `const demoMemoryStore = {}` — ein Objekt, das mit dem
+ * JavaScript-Kontext lebt und stirbt. `demoLogin` beendet diesen Kontext
+ * aber als Erstes: Es setzt `window.location.href`, und damit lädt die Seite
+ * neu. Der Speicher war also schon leer, BEVOR der erste Bildschirm der
+ * Anwendung erschien — und blieb es nach jedem Klick auf "neu laden". Der
+ * Demo-Zugang führte in eine leere Anwendung, und es sah aus wie ein Fehler
+ * in der Anwendung statt wie einer im Speicher.
+ *
+ * `sessionStorage` ist die richtige Ebene: Es überlebt das Laden der Seite,
+ * aber nicht das Schliessen des Tabs. Genau das will man hier — die
+ * Demodaten sollen niemandem hinterherlaufen, und sie dürfen die echten
+ * Daten unter `orbylox_*` in `localStorage` nicht anfassen. Deshalb ein
+ * eigener Präfix.
+ *
+ * Fällt `sessionStorage` aus (privates Fenster mit abgeschalteter Ablage),
+ * bleibt das Objekt im Arbeitsspeicher als Auffangnetz: Dann ist die Demo
+ * wieder so flüchtig wie vorher, aber sie stürzt nicht ab.
+ */
+const DEMO_PREFIX = "orbylox_demo_";
 const demoMemoryStore = {};
+
+function demoLesen(name) {
+  if (typeof window === "undefined") return demoMemoryStore[name] || [];
+  try {
+    const raw = window.sessionStorage.getItem(DEMO_PREFIX + name);
+    if (raw !== null) return JSON.parse(raw);
+  } catch {
+    // Ablage nicht verfügbar — unten weiter im Arbeitsspeicher.
+  }
+  return demoMemoryStore[name] || [];
+}
+
+function demoSchreiben(name, items) {
+  demoMemoryStore[name] = items;
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(DEMO_PREFIX + name, JSON.stringify(items));
+  } catch {
+    // Ablage voll oder gesperrt: Der Arbeitsspeicher oben hat es schon.
+  }
+}
+
+/**
+ * Alles aus dem Demo-Zugang wegräumen — beim Abmelden und vor dem Neusäen.
+ *
+ * Zwei Orte, nicht einer. Die Einträge selbst liegen in `sessionStorage`,
+ * aber die Seiten legen nebenbei Vorlieben in `localStorage` ab: Favoriten,
+ * ausgeblendete Projekte, wann zuletzt geöffnet. Die tragen die
+ * Demo-Adresse im Schlüssel, richten also bei niemandem Schaden an — aber
+ * sie blieben nach dem Abmelden liegen, und Krümel, die niemand mehr
+ * braucht, gehören weg.
+ */
+export function demoSpeicherLeeren() {
+  for (const k of Object.keys(demoMemoryStore)) delete demoMemoryStore[k];
+  if (typeof window === "undefined") return;
+  try {
+    const weg = [];
+    for (let i = 0; i < window.sessionStorage.length; i += 1) {
+      const k = window.sessionStorage.key(i);
+      if (k && k.startsWith(DEMO_PREFIX)) weg.push(k);
+    }
+    weg.forEach((k) => window.sessionStorage.removeItem(k));
+  } catch {
+    // nichts zu räumen
+  }
+  try {
+    const weg = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const k = window.localStorage.key(i);
+      if (k && k.includes(DEMO_EMAIL)) weg.push(k);
+    }
+    weg.forEach((k) => window.localStorage.removeItem(k));
+  } catch {
+    // nichts zu räumen
+  }
+}
 
 function getAdminEmails() {
   const fromEnv = (import.meta.env.VITE_ADMIN_EMAILS || "")
@@ -119,7 +198,7 @@ function getStorageUserId(user) {
 
 const readCollection = (name) => {
   if (typeof window === "undefined") return [];
-  if (isDemoUser()) return demoMemoryStore[name] || [];
+  if (isDemoUser()) return demoLesen(name);
   const raw = window.localStorage.getItem(STORAGE_KEY_PREFIX + name);
   try {
     return raw ? JSON.parse(raw) : [];
@@ -131,7 +210,7 @@ const readCollection = (name) => {
 const writeCollection = (name, items) => {
   if (typeof window === "undefined") return;
   if (isDemoUser()) {
-    demoMemoryStore[name] = items;
+    demoSchreiben(name, items);
     return;
   }
   window.localStorage.setItem(STORAGE_KEY_PREFIX + name, JSON.stringify(items));
@@ -1180,6 +1259,25 @@ export const api = {
     async me() {
       await delay();
       if (typeof window === "undefined") return null;
+      /**
+       * DER DEMO-ZUGANG ZUERST — vor Firebase.
+       *
+       * Hier lag der zweite Grund, warum "ohne Konto ausprobieren" ins Leere
+       * lief: Sobald eine Firebase-Konfiguration vorhanden ist (also im
+       * Betrieb, immer), ging diese Funktion direkt zu `onAuthStateChanged`.
+       * Der Demo-Nutzer steht aber nicht bei Firebase, sondern in
+       * `localStorage` — Firebase antwortete `null`, die Anwendung hielt
+       * niemanden für angemeldet und warf sofort auf die Anmeldeseite zurück.
+       *
+       * Auf dem Entwicklungsrechner ohne Firebase-Schlüssel fiel das nie auf:
+       * Dort greift der Zweig unten, und die Demo lief.
+       *
+       * `getStorageUser()` weiter oben macht es seit jeher richtig herum —
+       * hier war es schlicht vergessen.
+       */
+      if (isDemoUser()) {
+        return { email: DEMO_EMAIL, full_name: "Demo", plan: "basic", demo: true };
+      }
       if (hasFirebaseConfig && firebaseAuth) {
         return new Promise((resolve) => {
           const unsub = onAuthStateChanged(firebaseAuth, (u) => {
@@ -1410,6 +1508,9 @@ export const api = {
         }
         clearLegacyLocalEntityStorage();
       }
+      // Die Demodaten gehen mit. Sonst sieht sie der nächste im selben Tab —
+      // und wer sich danach richtig anmeldet, hat ein fremdes Café im Kopf.
+      demoSpeicherLeeren();
       try {
         window.localStorage.removeItem(STORAGE_KEY_PREFIX + "user");
         window.localStorage.removeItem(STORAGE_KEY_PREFIX + "redirect_after_login");
@@ -1432,7 +1533,21 @@ export const api = {
       }
       window.location.href = "/login";
     },
-    demoLogin(targetUrl) {
+    /**
+     * Ohne Konto ausprobieren.
+     *
+     * `mitDaten` sät ein fertiges Projekt ein — Board, Tickets, Teilaufgaben,
+     * Kommentare, Notizen, Termine, Feed. Ohne das landet man in einer leeren
+     * Anwendung und muss erst eine halbe Stunde tippen, um zu sehen, ob sie
+     * etwas taugt. Der Knopf auf der Startseite ruft mit `true` auf, der
+     * unscheinbare Weg über die Anmeldeseite ohne — dort will vielleicht
+     * jemand bewusst bei null anfangen.
+     *
+     * Gesät wird VOR der Weiterleitung, aber in `sessionStorage`: Das
+     * überlebt das Neuladen, das gleich danach passiert. (Genau daran ist die
+     * alte Fassung gescheitert — siehe `demoMemoryStore` weiter oben.)
+     */
+    async demoLogin(targetUrl, { mitDaten = false } = {}) {
       if (typeof window === "undefined") return;
       const demoUser = { email: DEMO_EMAIL };
       try {
@@ -1443,8 +1558,24 @@ export const api = {
       } catch {
         // ignore storage errors
       }
+
+      let ziel = targetUrl;
+      if (mitDaten) {
+        /* Erst hier geladen, nicht oben: Die Demodaten sind gut zwölf
+           Kilobyte Text, und wer sich anmeldet, braucht sie nie. */
+        const { demoDaten, DEMO_PROJEKT_ID } = await import("@/lib/demoDaten");
+        demoSpeicherLeeren();
+        const daten = demoDaten();
+        for (const [name, eintraege] of Object.entries(daten)) {
+          if (!name.startsWith("__") && Array.isArray(eintraege)) {
+            demoSchreiben(name, eintraege);
+          }
+        }
+        ziel = ziel || `/ScrumBoard?project=${DEMO_PROJEKT_ID}`;
+      }
+
       const redirect =
-        targetUrl ||
+        ziel ||
         window.localStorage.getItem(
           STORAGE_KEY_PREFIX + "redirect_after_login",
         ) ||

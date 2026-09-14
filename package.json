@@ -12,6 +12,7 @@
     "check:deadlines": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/alias-loader.mjs\", pathToFileURL(\"./\"));' scripts/deadline-check.mjs",
     "check:folders": "node scripts/folder-check.mjs",
     "check:menu": "node scripts/menu-check.mjs",
+    "check:demo": "node scripts/demo-check.mjs",
     "check:neglect": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"./scripts/alias-loader.mjs\", pathToFileURL(\"./\"));' scripts/neglect-check.mjs",
     "check:seo": "node scripts/seo-check.mjs",
     "check:theme": "node scripts/theme-check.mjs",

@@ -876,6 +876,35 @@ function LayoutContent({ children, currentPageName }) {
           </div>
         </header>
 
+        {/**
+         * Ein Streifen, der sagt, worin man sich gerade befindet.
+         *
+         * Ohne ihn sieht der Demo-Zugang aus wie ein Konto: Man legt Tickets
+         * an, schliesst den Tab, kommt wieder — und alles ist fort. Das ist
+         * kein Fehler, sondern die Absicht (die Daten liegen nur im Tab), aber
+         * das muss VORHER dastehen und nicht hinterher.
+         *
+         * Er hängt über dem Inhalt, nicht in der Kopfzeile: Die ist auf jeder
+         * Seite dieselbe und schon voll.
+         */}
+        {currentUser?.email === 'demo@orbylox.local' && (
+          <div className="shrink-0 border-b-2 border-black bg-[#ef5a24] text-white px-4 py-2
+                          flex flex-wrap items-center justify-between gap-2 text-sm">
+            <p className="font-bold">
+              {language === 'de'
+                ? 'Demo mit Beispieldaten — nichts davon wird gespeichert.'
+                : 'Demo with sample data — nothing here is saved.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => { api.auth.logout().then(() => { window.location.href = '/'; }); }}
+              className="underline underline-offset-4 font-bold hover:opacity-80"
+            >
+              {language === 'de' ? 'Richtiges Konto anlegen' : 'Create a real account'}
+            </button>
+          </div>
+        )}
+
         {/* Page Content */}
         <div className="p-4 md:p-6 w-full min-w-0 max-w-full overflow-x-hidden flex-1 overflow-y-auto">
           <PageTransition pageKey={pageTransitionKey} className="w-full min-w-0 max-w-full">

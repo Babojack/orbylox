@@ -109,6 +109,12 @@ jobs:
       - name: Liegengebliebene prüfen
         run: npm run check:neglect
 
+      # Die Demodaten sind der erste Eindruck — und sie scheitern leise. Ein
+      # verdrehter Sammlungsname liefert keine Fehlermeldung, sondern eine
+      # leere Seite, und das sieht man erst, wenn jemand den Knopf drückt.
+      - name: Demodaten prüfen
+        run: npm run check:demo
+
       # Dieser Schritt sagt jetzt, WORAN es liegt.
       #
       # Vorher stand hier `ssh-keyscan … 2>/dev/null`: Der Befehl schlägt fehl,

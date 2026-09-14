@@ -110,3 +110,16 @@ Halloween geht, lädt keine einzige Note.
 
 Welches Aussehen welches Stück hat, steht an genau einer Stelle:
 `STUECKE` in `src/lib/themeSound.js`.
+
+## Demodaten
+
+`src/lib/demoDaten.js` ist erfunden — ein Café, das es nicht gibt, mit
+Mitarbeitern, die es nicht gibt (`lena@beispiel.de`, `tom@beispiel.de`; die
+Domain `beispiel.de` ist für genau das gedacht). Kein echter Name, keine echte
+Adresse, kein fremdes Bild. Die Zeiten rechnen vom heutigen Tag aus, damit das
+Projekt nicht altert.
+
+`npm run check:demo` hält fest, dass die Daten zur Anwendung passen — dass es
+die Sammlungen wirklich gibt, dass alle vier Spalten des Boards besetzt sind
+und dass kein Verweis ins Leere zeigt. Das scheitert sonst leise: Eine falsche
+Kennung wirft keinen Fehler, sie zeigt nur nichts an.

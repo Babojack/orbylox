@@ -150,6 +150,32 @@ function LandingContent() {
   const de = language === 'de';
   const goLogin = () => navigate(createPageUrl('login'));
 
+  /**
+   * Ausprobieren, ohne sich anzumelden.
+   *
+   * Der Weg führt NICHT über die Anmeldeseite: Wer "ohne Konto" anklickt und
+   * dann ein Formular sieht, klickt weg. `demoLogin` legt die Demodaten an
+   * und springt direkt auf das Board des Beispielprojekts — man landet auf
+   * Karten, die man anfassen kann, nicht in einer leeren Anwendung.
+   *
+   * `api` kommt erst beim Klick dazu (`await import`): Es zieht Firebase
+   * hinter sich her, und die Startseite braucht davon nichts. Ein fester
+   * Import hier hätte das Startbündel um ein Vielfaches aufgebläht.
+   */
+  const [demoLaeuft, setDemoLaeuft] = React.useState(false);
+  const goDemo = async () => {
+    if (demoLaeuft) return;
+    setDemoLaeuft(true);
+    try {
+      const { api } = await import('@/api/apiClient');
+      await api.auth.demoLogin(null, { mitDaten: true });
+    } catch (err) {
+      console.error('[Landing] Demo konnte nicht starten', err);
+      setDemoLaeuft(false);
+      goLogin();
+    }
+  };
+
   // Beim Verlassen des Hero zieht das Geraetebild nach vorne weg und uebergibt
   // an den Rundgang, der die einzelnen Module heranholt.
   const theme = useTheme();
@@ -336,6 +362,21 @@ function LandingContent() {
             </TnButton>
             <TnButton variant="outline" onClick={goLogin}>
               {de ? 'Anmelden' : 'Login'}
+            </TnButton>
+            {/* Der dritte Weg: hineinsehen, ohne irgendetwas anzugeben.
+                Bewusst als „outline" und nicht als zweiter oranger Knopf —
+                drei gleich laute Knöpfe nebeneinander sind keine Wahl,
+                sondern eine Wand. */}
+            <TnButton
+              variant="outline"
+              onClick={goDemo}
+              disabled={demoLaeuft}
+              data-demo-knopf=""
+              className="disabled:opacity-60"
+            >
+              {demoLaeuft
+                ? (de ? 'Wird vorbereitet…' : 'Getting ready…')
+                : (de ? 'Mit Demodaten ausprobieren' : 'Try with demo data')}
             </TnButton>
           </div>
 
@@ -594,6 +635,22 @@ function LandingContent() {
               </TnButton>
             </div>
           </div>
+
+          {/* Wer bis hierher gelesen hat und sich noch nicht entschieden hat,
+              will meist erst sehen — nicht erst angeben. */}
+          <button
+            type="button"
+            onClick={goDemo}
+            disabled={demoLaeuft}
+            className="mt-6 text-sm text-slate-300 underline underline-offset-4
+                       hover:text-white disabled:opacity-60"
+          >
+            {demoLaeuft
+              ? (de ? 'Wird vorbereitet…' : 'Getting ready…')
+              : (de
+                ? 'Oder erst mit Demodaten ausprobieren — ohne Konto'
+                : 'Or try it with demo data first — no account')}
+          </button>
 
           {/* Warteliste */}
           <div className="max-w-md mx-auto mt-12">
