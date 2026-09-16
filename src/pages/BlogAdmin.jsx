@@ -140,6 +140,34 @@ export default function BlogAdmin() {
     retry: false,
   });
 
+  /**
+   * Wie viele Artikel liegen in der Startdatei bereit?
+   *
+   * DER FEHLER, DEN DAS BEHEBT
+   * Der Knopf "Fehlende nachziehen" hing an `posts.length < 10` — einer fest
+   * eingetippten Zahl aus der Zeit, als es fünf Themen in zwei Sprachen gab.
+   * Sobald genau diese zehn eingespielt waren, verschwand der Knopf: `10 < 10`
+   * ist falsch. Danach kamen zehn weitere Artikel in die Startdatei, und es
+   * gab keinen Weg mehr, sie einzuspielen — ausser über SSH. Der Blog zeigte
+   * monatelang fünf Themen, obwohl fünfzehn bereitlagen.
+   *
+   * Jetzt kommt die Zahl vom Server. `diag` liefert sie ohnehin schon mit;
+   * sie muss nur abgefragt werden, statt im Quelltext zu stehen. Eine Zahl,
+   * die sich mit jedem neuen Beitrag ändert, gehört nirgends fest hin.
+   *
+   * Schlägt die Abfrage fehl, bleibt `bereit` bei 0 und der Hinweis erscheint
+   * nicht — die Redaktion ist dann trotzdem voll benutzbar.
+   */
+  const { data: bereitschaft } = useQuery({
+    queryKey: ['blogSeedStand'],
+    queryFn: blogAdmin.diag,
+    enabled: !!isAdmin,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const bereit = Number(bereitschaft?.seed_count) || 0;
+  const fehlen = Math.max(0, bereit - posts.length);
+
   const saveMutation = useMutation({
     mutationFn: blogAdmin.save,
     onSuccess: (saved) => {
@@ -155,6 +183,9 @@ export default function BlogAdmin() {
     mutationFn: blogAdmin.seed,
     onSuccess: (r) => {
       queryClient.invalidateQueries({ queryKey: ['blogPosts'] });
+      // Auch den Stand neu holen — sonst bliebe das Band "N Artikel liegen
+      // bereit" stehen, obwohl gerade eingespielt wurde.
+      queryClient.invalidateQueries({ queryKey: ['blogSeedStand'] });
       setNotice(r.message + (r.published ? ` ${r.published} veröffentlicht.` : ''));
       setError(null);
     },
@@ -545,14 +576,16 @@ export default function BlogAdmin() {
         <div className="border-2 border-[#ef5a24] bg-[#ef5a24]/8 p-5 mb-5">
           <p className="font-bold text-black mb-1">Noch keine Beiträge</p>
           <p className="text-sm text-slate-600 mb-4">
-            Es liegen 10 fertige Artikel bereit (5 Themen, deutsch und englisch).
+            {bereit > 0
+              ? `Es liegen ${bereit} fertige Artikel bereit (${bereit / 2} Themen, deutsch und englisch).`
+              : 'In der Startdatei liegen fertige Artikel bereit.'}{' '}
             Ein Klick spielt sie ein — vorhandene Beiträge werden dabei nie überschrieben.
           </p>
           <button
             type="button"
             disabled={seedMutation.isPending}
             onClick={() => seedMutation.mutate()}
-            className="inline-flex items-center gap-2 h-11 px-5 bg-[#ef5a24] border-2 border-[#ef5a24] text-white text-xs font-bold uppercase disabled:opacity-60"
+            className="inline-flex items-center gap-2 h-11 px-5 bg-[#ef5a24] border-2 border-[#ef5a24] text-[#1a1a1a] text-xs font-bold uppercase disabled:opacity-60"
           >
             {seedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             Startartikel einspielen
@@ -560,17 +593,35 @@ export default function BlogAdmin() {
         </div>
       )}
 
-      {/* Spaeter: nachziehen, falls die Startdatei mehr enthaelt als der Bestand */}
-      {!isLoading && !isError && posts.length > 0 && posts.length < 10 && (
-        <div className="border-2 border-slate-200 p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm text-slate-600">
-            In der Startdatei liegen weitere Artikel bereit, die noch nicht eingespielt sind.
-          </p>
+      {/**
+       * Nachziehen, falls die Startdatei mehr enthält als der Bestand.
+       *
+       * Die Bedingung war `posts.length < 10` — und damit unbrauchbar in genau
+       * dem Moment, in dem sie gebraucht wurde: Bei zehn eingespielten
+       * Beiträgen ist `10 < 10` falsch, der Hinweis verschwand, und die zwanzig
+       * Artikel, die inzwischen in der Startdatei lagen, waren ohne SSH nicht
+       * mehr erreichbar.
+       *
+       * Jetzt entscheidet der Vergleich zweier echter Zahlen, und der Hinweis
+       * sagt, um wie viele es geht. Auffällig statt beiläufig: Wer die
+       * Redaktion öffnet, soll sehen, dass etwas bereitliegt.
+       */}
+      {!isLoading && !isError && posts.length > 0 && fehlen > 0 && (
+        <div className="border-2 border-[#ef5a24] bg-[#ef5a24]/8 p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="font-bold text-black">
+              {fehlen} {fehlen === 1 ? 'Artikel liegt' : 'Artikel liegen'} bereit
+            </p>
+            <p className="text-sm text-slate-600">
+              In der Startdatei stehen {bereit} Beiträge, eingespielt sind {posts.length}.
+              Vorhandene werden nie überschrieben.
+            </p>
+          </div>
           <button
             type="button"
             disabled={seedMutation.isPending}
             onClick={() => seedMutation.mutate()}
-            className="inline-flex items-center gap-2 h-10 px-4 border-2 border-black bg-white text-xs font-bold uppercase disabled:opacity-60"
+            className="inline-flex items-center gap-2 h-11 px-5 bg-[#ef5a24] border-2 border-[#ef5a24] text-[#1a1a1a] text-xs font-bold uppercase disabled:opacity-60"
           >
             {seedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             Fehlende nachziehen

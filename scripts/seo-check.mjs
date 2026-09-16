@@ -129,6 +129,33 @@ const pruefungen = [
     if (ohne.length) console.log('        ' + ohne.map((p) => p.slug).join(', '));
     return ohne.length === 0;
   }],
+  /**
+   * DER WEG VON DER STARTDATEI IN DEN BLOG.
+   *
+   * Die Beiträge hier nützen niemandem, solange sie nicht eingespielt sind —
+   * und eingespielt werden sie über einen Knopf in der Redaktion. Der hing an
+   * `posts.length < 10`, einer fest eingetippten Zahl: Bei genau zehn
+   * eingespielten Beiträgen verschwand er (`10 < 10` ist falsch), und die
+   * zwanzig weiteren in der Startdatei waren ohne SSH nicht mehr erreichbar.
+   * Auf der Seite standen fünf Themen, während fünfzehn bereitlagen, und
+   * nichts wies darauf hin.
+   *
+   * Deshalb wird hier festgehalten, dass die Zahl vom Server kommt.
+   */
+  ['die Redaktion vergleicht mit der Startdatei, nicht mit einer festen Zahl', () => {
+    const admin = fs.readFileSync(path.join(wurzel, 'src/pages/BlogAdmin.jsx'), 'utf8');
+    /* Kommentare raus, bevor nach der festen Zahl gesucht wird — sonst findet
+       die Prüfung die Erklärung, warum es sie nicht mehr gibt, und schlägt an
+       der eigenen Dokumentation fehl. Genau das ist beim ersten Lauf passiert. */
+    const code = admin.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const holtStand = /queryFn:\s*blogAdmin\.diag/.test(code)
+      && /seed_count/.test(code)
+      && /const fehlen = Math\.max\(0, bereit - posts\.length\)/.test(code);
+    const festeZahl = /posts\.length\s*<\s*\d+/.test(code);
+    if (festeZahl) console.log('        posts.length < <Zahl> steht wieder im Quelltext');
+    return holtStand && !festeZahl;
+  }],
+
   ['keine zwei Beiträge tragen denselben Titel', () => {
     const gesehen = new Map();
     for (const p of seed) {
