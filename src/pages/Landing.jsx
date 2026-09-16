@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
  *    bleibt deshalb, wo sie ist.
  */
 import heroDevices from '@/assets/hero-devices.webp';
+import heroDevices900 from '@/assets/hero-devices-900.webp';
 import OrbyloxMark from "@/components/OrbyloxMark";
 import halloweenWortmarke from "@/assets/halloween/halloween-wortmarke.webp";
 import {
@@ -73,7 +74,7 @@ function TnButton({ variant = 'solid', className = '', children, ...props }) {
     'inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold uppercase tracking-wide border-2 transition-colors';
   const variants = {
     solid: 'bg-black text-white border-black hover:bg-[#ef5a24] hover:border-[#ef5a24]',
-    accent: 'bg-[#ef5a24] text-white border-[#ef5a24] hover:bg-black hover:border-black',
+    accent: 'bg-[#ef5a24] text-[#1a1a1a] border-[#ef5a24] hover:bg-black hover:text-white hover:border-black',
     outline: 'bg-white text-black border-black hover:bg-black hover:text-white',
   };
   return (
@@ -310,6 +311,15 @@ function LandingContent() {
         </div>
       </header>
 
+      {/* Ab hier der eigentliche Inhalt.
+          Lighthouse bemaengelte "Dokument hat keine Hauptmarkierung": Kopf-
+          und Fusszeile waren als <header>/<footer> erkennbar, der Inhalt
+          dazwischen aber nur ein <div>. Wer mit einem Screenreader kommt, hat
+          dann keinen Sprung "zum Inhalt" und muss jedes Mal durch die
+          Kopfzeile. `data-landing` bleibt, wo es ist — die Theme-Regeln
+          haengen daran. */}
+      <main>
+
       <Seo
         titel={de
           ? 'ORBYLOX – kostenloses Projektmanagement mit Kanban-Board'
@@ -400,8 +410,31 @@ function LandingContent() {
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             className="w-full"
           >
+            {/**
+             * Das Bild, auf das der Seitenaufbau gemessen wird.
+             *
+             * Es ist das grösste sichtbare Element der Startseite — Google
+             * misst daran den "Largest Contentful Paint", und der lag auf dem
+             * Handy bei 4,5 Sekunden. Drei Dinge helfen:
+             *
+             * `fetchPriority="high"`: Ohne das reiht der Browser das Bild
+             * hinter Stilbogen und Skript ein, obwohl es das Erste ist, was
+             * jemand sehen will.
+             *
+             * `srcset`/`sizes`: Das Original ist 1800 Punkte breit. Ein Handy
+             * zeigt es auf etwa 380 und lädt damit das Vierfache an Daten.
+             * Mit beiden Angaben nimmt es die 900er Fassung — 21 statt 54 KB.
+             * `sizes` muss dabei sein: Ohne die Angabe rechnet der Browser mit
+             * voller Fensterbreite und wählt wieder zu gross.
+             *
+             * `loading="eager"` steht ausdrücklich da, obwohl es der
+             * Normalfall ist: Dieses eine Bild darf nie versehentlich in eine
+             * pauschale "alles faul laden"-Änderung geraten.
+             */}
             <motion.img
               src={heroDevices}
+              srcSet={`${heroDevices900} 900w, ${heroDevices} 1800w`}
+              sizes="(max-width: 1024px) 100vw, 50vw"
               data-screenshot=""
               alt={
                 de
@@ -410,6 +443,9 @@ function LandingContent() {
               }
               width="1800"
               height="825"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               style={{ scale: heroScale, y: heroY, opacity: heroFade }}
               className="w-full h-auto"
             />
@@ -444,9 +480,18 @@ function LandingContent() {
                 className="group w-full h-full flex flex-col items-center justify-center gap-4"
                 aria-label={de ? 'Video abspielen' : 'Play video'}
               >
+                {/* Fremde Adresse, weit unterhalb des ersten Bildschirms:
+                    `lazy` spart eine Verbindung zu einem anderen Server,
+                    solange niemand so weit gescrollt hat. `maxresdefault` ist
+                    1280×720 — die Masse stehen dran, damit der Platz schon
+                    vorher richtig gerechnet wird. */}
                 <img
                   src="https://img.youtube.com/vi/LeRWiWL-Zmk/maxresdefault.jpg"
                   alt=""
+                  width="1280"
+                  height="720"
+                  loading="lazy"
+                  decoding="async"
                   className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity"
                 />
                 <span className="relative w-16 h-16 bg-[#ef5a24] text-white flex items-center justify-center">
@@ -554,7 +599,7 @@ function LandingContent() {
           <div className="order-1 lg:order-2 border-2 border-black p-8 bg-white">
             <div className="border-2 border-black p-4 mb-3 flex items-center justify-between">
               <span className="font-bold">{de ? 'Aufgabe' : 'Task'}</span>
-              <span className="px-2 py-1 bg-[#ef5a24] text-white text-xs font-bold">{de ? 'OFFEN' : 'OPEN'}</span>
+              <span className="px-2 py-1 bg-[#ef5a24] text-[#1a1a1a] text-xs font-bold">{de ? 'OFFEN' : 'OPEN'}</span>
             </div>
             <div className="border-2 border-black p-4 mb-3 flex items-center justify-between">
               <span className="font-bold">{de ? 'Post-it' : 'Sticky note'}</span>
@@ -577,7 +622,7 @@ function LandingContent() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {steps.map((s) => (
               <div key={s.n} className="tn-card border-2 border-black bg-white p-5 relative">
-                <span className="absolute -top-4 left-5 px-2 py-1 bg-[#ef5a24] text-white text-xs font-black">
+                <span className="absolute -top-4 left-5 px-2 py-1 bg-[#ef5a24] text-[#1a1a1a] text-xs font-black">
                   {s.n}
                 </span>
                 <h3 className="font-bold mt-3 mb-1">{s.title}</h3>
@@ -680,6 +725,8 @@ function LandingContent() {
       </section>
 
       {/* Fußzeile */}
+      </main>
+
       <footer className="border-t-2 border-black">
         <div className="max-w-6xl mx-auto px-4 py-10 grid sm:grid-cols-3 gap-8">
           <div>

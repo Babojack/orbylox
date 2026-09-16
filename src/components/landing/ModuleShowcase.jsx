@@ -31,6 +31,8 @@ const MODULES = (de) => [
     key: 'tasks',
     icon: ListTodo,
     src: '/screens/tasks.webp',
+    breite: 1400,
+    hoehe: 779,
     label: de ? 'Aufgaben' : 'Tasks',
     title: de ? 'Kanban, das mitdenkt' : 'Kanban that keeps up',
     text: de
@@ -44,6 +46,8 @@ const MODULES = (de) => [
     key: 'feed',
     icon: LayoutGrid,
     src: '/screens/feed.webp',
+    breite: 1600,
+    hoehe: 807,
     label: 'Feed',
     title: de ? 'Alles Wichtige an einer Stelle' : 'Everything important in one place',
     text: de
@@ -57,6 +61,8 @@ const MODULES = (de) => [
     key: 'canvas',
     icon: Shapes,
     src: '/screens/canvas.webp',
+    breite: 1600,
+    hoehe: 809,
     label: 'Canvas',
     title: de ? 'Denken wie am Whiteboard' : 'Think like on a whiteboard',
     text: de
@@ -70,6 +76,8 @@ const MODULES = (de) => [
     key: 'files',
     icon: FolderOpen,
     src: '/screens/files.webp',
+    breite: 1600,
+    hoehe: 804,
     label: de ? 'Dateien' : 'Files',
     title: de ? 'Dateien mit Vorschau' : 'Files with preview',
     text: de
@@ -140,10 +148,18 @@ function Layer({ item, index, total, progress, rm, isActive }) {
 
         {/* Bild: feste Hoehe, object-contain — nichts wird abgeschnitten */}
         <div className="w-full h-[34vh] sm:h-[40vh] flex items-center justify-center">
+          {/* Zwei Fassungen je Bild: `-900` fürs Handy, das Original für den
+              Laptop. Die kleine wiegt rund ein Drittel. `sizes` ist Pflicht —
+              ohne sie rechnet der Browser mit der vollen Fensterbreite und
+              nimmt wieder die grosse. `npm run assets:screens` schneidet sie. */}
           <motion.img
             src={item.src}
+            srcSet={`${item.src.replace(/\.webp$/, '-900.webp')} 900w, ${item.src} ${item.breite}w`}
+            sizes="(max-width: 640px) 100vw, 80vw"
             data-screenshot=""
             alt={item.title}
+            width={item.breite}
+            height={item.hoehe}
             loading={index === 0 ? 'eager' : 'lazy'}
             decoding="async"
             style={{ scale: imageScale, y: imageY }}
@@ -262,7 +278,7 @@ export default function ModuleShowcase({ de }) {
                   />
                   <span
                     className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wide transition-colors duration-300 ${
-                      active === i ? 'text-black' : 'text-slate-400'
+                      active === i ? 'text-black' : 'text-slate-600'
                     }`}
                   >
                     {item.label}

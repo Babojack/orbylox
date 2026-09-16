@@ -153,7 +153,22 @@
  */
 [data-theme='retro'] .theme-scope .bg-\[\#f5f5f5\] { background-color: var(--r-parch-2); }
 [data-theme='retro'] .theme-scope .bg-black        { background-color: var(--r-edge); color: var(--r-parch); }
-[data-theme='retro'] .theme-scope .bg-\[\#ef5a24\] { background-color: var(--r-flame); color: #fff; }
+/**
+ * Die Marke bleibt die Marke — aber die Schrift darauf ist dunkel.
+ *
+ * Hier stand `color: #fff`, und damit ueberschrieb das Retro die Entscheidung,
+ * die im gewohnten Aussehen laengst gefallen war: Weiss auf #ef5a24 ergibt
+ * 3,41:1 und verfehlt die geforderten 4,5:1. Das Halloween macht es seit jeher
+ * richtig (`color: #2a1a12`); das Retro zog nicht mit, und die Pruefung fand
+ * genau dieses eine Paar.
+ *
+ * Die Flaeche bleibt unangetastet — geaendert wird nur, was darauf steht.
+ */
+[data-theme='retro'] .theme-scope .bg-\[\#ef5a24\] { background-color: var(--r-flame); color: #1a1a1a; }
+/* Knoepfe, die beim Zeigen schwarz werden, brauchen dort wieder helle Schrift:
+   sonst stuende Dunkel auf Dunkel. Die Regel ist spezifischer als die obige
+   (0,4,0 gegen 0,3,0) und greift deshalb nur im Zeigen-Zustand. */
+[data-theme='retro'] .theme-scope .bg-\[\#ef5a24\].hover\:bg-black:hover { color: #fff; }
 /**
  * Die Farbfamilien — zwei Regeln je Familie, nicht eine.
  *
@@ -185,8 +200,9 @@
  * #f0b429 auf #836216, weil Weiss auf hellem Gold 1,5:1 ergab. Das helle Gold
  * bleibt als Rahmen- und Akzentfarbe erhalten, nur als Flaeche taugt es nicht.
  *
- * Einzige Ausnahme ist die Marke: #ef5a24 mit Weiss ergibt 3,41:1. So ist es
- * in der ganzen Anwendung, und daran soll ein Theme nichts aendern.
+ * Die Marke #ef5a24 bleibt als FLAECHE unangetastet — die Schrift darauf ist
+ * aber dunkel und nicht weiss: Weiss ergibt dort nur 3,41:1. Das gilt in allen
+ * drei Aussehen gleich.
  *
  * WARUM `!important` bei den kraeftigen Stufen: `index.css` schaltet die
  * gesaettigten 500er/600er hart auf #0a0a0a !important. Dagegen hilft nur eine

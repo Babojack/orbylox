@@ -50,12 +50,34 @@ if (!fs.existsSync(assets)) {
   console.error('Kein dist/assets — bitte zuerst: npm run build');
   process.exit(2);
 }
+/**
+ * DAS GEBAUTE CSS LIEGT SEIT DER ENTLASTUNG IN DREI DATEIEN.
+ *
+ * Retro und Halloween sind aus dem Hauptstilbogen heraus und werden erst
+ * geladen, wenn jemand sie einschaltet (`lib/theme.js`) — 155 von 283 KB, die
+ * vorher jeden Seitenaufbau anhielten. Für die Kaskade hier ändert das nichts:
+ * Im Browser liegen zu dem Zeitpunkt, an dem ein Theme gilt, alle drei Bögen
+ * im Dokument. Also werden sie hier wieder zusammengelegt, in derselben
+ * Reihenfolge, in der der Browser sie hat — Grundstil zuerst, Themes danach.
+ *
+ * Diese Prüfung ist genau deshalb wertvoll: Fiele einer der beiden Bögen beim
+ * Bauen weg, sähe man das nirgends — ausser hier.
+ */
 const cssDatei = fs.readdirSync(assets).find((f) => /^index-.*\.css$/.test(f));
 if (!cssDatei) {
   console.error('Keine gebaute CSS-Datei in dist/assets gefunden.');
   process.exit(2);
 }
-const css = fs.readFileSync(path.join(assets, cssDatei), 'utf8');
+const themeBoegen = ['retro', 'halloween'].map((name) => {
+  const d = fs.readdirSync(assets).find((f) => new RegExp(`^theme-${name}-.*\\.css$`).test(f));
+  if (!d) {
+    console.error(`Kein gebauter Stilbogen fuer "${name}" in dist/assets.`);
+    console.error('Wird er in lib/theme.js noch per import() geholt?');
+    process.exit(2);
+  }
+  return fs.readFileSync(path.join(assets, d), 'utf8');
+});
+const css = [fs.readFileSync(path.join(assets, cssDatei), 'utf8'), ...themeBoegen].join('\n');
 
 /* ------------------------------------------------------------- Kaskade */
 
@@ -855,7 +877,27 @@ const faelle = [
     const ids = [...t.matchAll(/id:\s*'([\w-]+)'/g)].map((m) => m[1]);
     return ids.join() === 'default,retro,halloween' && s.includes('THEME_LISTE.map');
   }],
-  ['HW: das Stylesheet wird geladen', () => fs.readFileSync(path.join(wurzel, 'src/main.jsx'), 'utf8').includes('theme-halloween.css')],
+  /**
+   * Der Stilbogen wird geladen — aber nicht mehr aus `main.jsx`.
+   *
+   * Dort stand er als fester Import und landete damit im Hauptstilbogen, der
+   * den Seitenaufbau anhält. Jetzt holt ihn `lib/theme.js` per `import()`,
+   * sobald ein Theme wirklich gilt. Geprüft wird beides: dass die Ladefunktion
+   * dasteht UND dass `main.jsx` ihn NICHT mehr fest hereinzieht — ein
+   * versehentlich wiederhergestellter Import würde die ganze Ersparnis
+   * stillschweigend zunichtemachen.
+   */
+  ['HW: der Stilbogen wird nachgeladen, nicht fest eingebunden', () => {
+    const theme = fs.readFileSync(path.join(wurzel, 'src/lib/theme.js'), 'utf8');
+    const main = fs.readFileSync(path.join(wurzel, 'src/main.jsx'), 'utf8');
+    return /halloween:\s*\(\)\s*=>\s*import\('@\/styles\/theme-halloween\.css'\)/.test(theme)
+      && /retro:\s*\(\)\s*=>\s*import\('@\/styles\/theme-retro\.css'\)/.test(theme)
+      && !/^import\s+['"]@\/styles\/theme-/m.test(main);
+  }],
+  ['HW: beim Start wird auf den Stilbogen gewartet', () => {
+    const main = fs.readFileSync(path.join(wurzel, 'src/main.jsx'), 'utf8');
+    return /initTheme\(\)\.then\(/.test(main);
+  }],
 
   /**
    * Die Bühne für den Kürbis.

@@ -74,6 +74,16 @@ Das Skript braucht `jsdom` (Entwicklungsabhängigkeit) und Python mit Pillow.
 
 `npm run assets:halloween <entwurf.png> <logo.png>` rechnet beide.
 
+### Kleine Fassungen fuer schmale Geraete
+
+`npm run assets:screens` legt neben jedes Bildschirmfoto eine 900er Fassung
+(`*-900.webp`). Die Seiten binden beide per `srcset` ein; der Browser waehlt.
+Auf einem Handy sind das 79 statt 198 KB — die Bilder sind 1600 bis 1800 Punkte
+breit, gebraucht werden dort hoechstens 900.
+
+Wer ein Bildschirmfoto austauscht, muss das Skript einmal laufen lassen; sonst
+zeigt das Handy weiter das alte.
+
 **Wie aus dem Entwurf ein Hintergrund wird.** Der Entwurf zeigt die fertige
 Seite: Nacht, Kürbisse, Burg — und darüber Schriftzug, Überschrift, Knöpfe,
 Laptop und Telefone. Als Hintergrund darf davon nur die Nacht bleiben; die
@@ -123,3 +133,19 @@ Projekt nicht altert.
 die Sammlungen wirklich gibt, dass alle vier Spalten des Boards besetzt sind
 und dass kein Verweis ins Leere zeigt. Das scheitert sonst leise: Eine falsche
 Kennung wirft keinen Fehler, sie zeigt nur nichts an.
+
+## Warum das CSS in drei Dateien liegt
+
+`index.css` wird beim Seitenaufbau geladen und haelt ihn an, bis es da ist.
+Retro und Halloween standen bis September als feste Importe in `main.jsx` und
+landeten damit in genau dieser Datei: 73 und 82 von 283 Kilobyte, also 55
+Prozent, fuer ein Aussehen, das die allermeisten Besucher nie einschalten.
+
+Jetzt holt sie `lib/theme.js` per `import()`, sobald ein Theme wirklich gilt.
+Der kritische Pfad ist damit 127 statt 283 KB. `main.jsx` wartet beim Start auf
+das Versprechen aus `initTheme()` — sonst blitzte bei Retro und Halloween kurz
+die weisse Voreinstellung auf.
+
+`npm run check:theme` legt die drei gebauten Dateien wieder zusammen, so wie
+sie im Browser nebeneinander liegen, und haelt zusaetzlich fest, dass der feste
+Import nicht zurueckkommt.

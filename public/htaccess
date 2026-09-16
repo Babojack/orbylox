@@ -46,6 +46,37 @@
   ExpiresByType text/css "access plus 1 year"
 </IfModule>
 
+# Alles unter /assets/ traegt einen Inhaltsstempel im Namen.
+#
+# WARUM ZUSAETZLICH ZU mod_expires
+# `ExpiresByType` setzt nur ein Ablaufdatum. Lighthouse bemaengelte trotzdem
+# die Verweildauer im Zwischenspeicher (128 KB) — der Browser fragt naemlich
+# beim Neuladen sicherheitshalber nach, ob sich etwas geaendert hat. `immutable`
+# sagt ihm, dass er sich das sparen kann, und genau das stimmt hier: Aendert
+# sich der Inhalt, aendert sich der Dateiname. Ausserdem greift dieser Block
+# auch dann, wenn mod_expires auf dem Server gar nicht geladen ist.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css|woff2?|webp|png|jpe?g|svg|mp3|glb)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+# Ueber die Leitung gehoert alles gepackt.
+#
+# Lighthouse rechnete allein beim JavaScript 24 KB vor, die ungepackt
+# uebertragen wurden — der Server komprimiert offenbar nicht alles von selbst.
+# Brotli zuerst, weil es dichter packt; wo es fehlt, springt gzip ein.
+<IfModule mod_brotli.c>
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/xml \
+    application/javascript application/x-javascript application/json \
+    application/xml application/rss+xml image/svg+xml
+</IfModule>
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml \
+    application/javascript application/x-javascript application/json \
+    application/xml application/rss+xml image/svg+xml
+</IfModule>
+
 # Security headers
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"

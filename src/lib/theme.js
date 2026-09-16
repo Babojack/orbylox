@@ -19,6 +19,49 @@
 const SCOPE_CLASS = 'theme-scope';
 const THEME_EVENT = 'orbylox:theme';
 
+/**
+ * Die Stilbögen der Themes kommen erst, wenn jemand sie anschaltet.
+ *
+ * WARUM DAS SO WICHTIG IST
+ * Sie standen als feste Importe in `main.jsx` und landeten damit in DER EINEN
+ * Stildatei, die den Seitenaufbau blockiert. Gemessen am gebauten Ergebnis:
+ * 283 KB insgesamt, davon 73 KB Retro und 82 KB Halloween — 55 Prozent für
+ * ein Aussehen, das die allermeisten Besucher nie einschalten. Jeder wartete
+ * beim ersten Bild auf Spinnweben und Holzmaserung.
+ *
+ * `import()` mit einer CSS-Datei ist kein Kunstgriff, sondern der vorgesehene
+ * Weg: Vite macht daraus einen eigenen Stilbogen und hängt ihn beim Aufruf
+ * als <link> ins Dokument. Die Zuordnung Name → Ladefunktion steht
+ * ausgeschrieben da, weil Vite den Pfad beim Bauen sehen muss; eine
+ * zusammengesetzte Zeichenkette könnte es nicht auflösen.
+ *
+ * Das Versprechen wird gemerkt: Zweimal umschalten lädt nicht zweimal.
+ */
+const STIL_LADER = {
+  retro: () => import('@/styles/theme-retro.css'),
+  halloween: () => import('@/styles/theme-halloween.css'),
+};
+const stilVersprechen = {};
+
+/**
+ * Den Stilbogen eines Themes holen. Gibt ein Versprechen zurück, das hält,
+ * sobald der Browser ihn angewandt hat.
+ *
+ * Fehler werden verschluckt und nur ins Protokoll geschrieben: Ein Aussehen,
+ * das nicht laden kann, ist ärgerlich — eine Anwendung, die deshalb stehen
+ * bleibt, ist schlimmer. Ohne den Bogen sieht man das gewohnte Kleid.
+ */
+export function themeStilLaden(theme) {
+  const lader = STIL_LADER[theme];
+  if (!lader) return Promise.resolve();
+  if (!stilVersprechen[theme]) {
+    stilVersprechen[theme] = lader().catch((err) => {
+      console.error(`[theme] Stilbogen "${theme}" konnte nicht geladen werden`, err);
+    });
+  }
+  return stilVersprechen[theme];
+}
+
 const KEY = 'orbylox_theme';
 export const THEMES = ['default', 'retro', 'halloween'];
 
@@ -59,6 +102,11 @@ export function currentTheme() {
 
 export function applyTheme(theme) {
   const t = THEMES.includes(theme) ? theme : 'default';
+  // Anstossen, nicht abwarten: Das Attribut soll sofort stehen. Wer beim
+  // Umschalten eine Zehntelsekunde das alte Kleid sieht, hat gerade selbst
+  // geklickt und weiss, dass etwas passiert. Beim START ist das anders —
+  // `initTheme` wartet deshalb dort ausdrücklich.
+  themeStilLaden(t);
   if (typeof document !== 'undefined') {
     // 'default' ohne Attribut: So greift kein einziger Selektor, und das
     // gewohnte Aussehen kostet nichts.
@@ -96,11 +144,23 @@ export function onThemeChange(handler) {
   return () => window.removeEventListener(THEME_EVENT, fn);
 }
 
-/** Beim Start anwenden, damit die Seite nicht kurz im falschen Kleid steht. */
+/**
+ * Beim Start anwenden, damit die Seite nicht kurz im falschen Kleid steht.
+ *
+ * Gibt ein Versprechen zurück, das erst hält, wenn auch der Stilbogen da ist.
+ * `main.jsx` wartet darauf, bevor es rendert — sonst sähe ein Retro-Besucher
+ * für einen Moment die weisse Voreinstellung, und das ist genau das Blitzen,
+ * das diese Funktion seit jeher verhindern soll.
+ *
+ * Für das gewohnte Aussehen hält das Versprechen sofort: `themeStilLaden`
+ * gibt dort ein bereits erfülltes zurück, es wird nichts nachgeladen und
+ * nichts gewartet. Die Kosten dieser Zeile trägt nur, wer Retro oder
+ * Halloween eingeschaltet hat.
+ */
 export function initTheme() {
   const t = applyTheme(readTheme());
   if (typeof document !== 'undefined' && !document.body) {
     document.addEventListener('DOMContentLoaded', () => applyTheme(t), { once: true });
   }
-  return t;
+  return themeStilLaden(t).then(() => t);
 }

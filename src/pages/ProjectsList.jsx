@@ -684,8 +684,21 @@ function ProjectsListContent() {
             title={language === 'de' ? 'Zur Startseite' : 'To the homepage'}
           >
             <OrbyloxMark className="w-8 h-8 shrink-0 transition-transform group-hover:-rotate-6" />
+            {/**
+             * `truncate` am Schriftzug, nicht nur `min-w-0` am Kasten.
+             *
+             * `min-w-0` erlaubt dem Kasten zu schrumpfen — es zwingt den Text
+             * darin aber zu gar nichts. Der lief einfach über seine Grenze
+             * hinaus weiter und schob sich unter die Knöpfe: Auf 320 Pixel im
+             * Retro lagen "ORBYLOX" und der Ideen-Knopf sechs Pixel
+             * übereinander. Erst `truncate` (overflow-hidden samt Ellipse)
+             * hält den Text in seinem Kasten.
+             *
+             * Die Sperrung ist auf dem Handy kleiner: 0,08em auf acht
+             * Buchstaben sind gut sieben Pixel, die dort niemand hat.
+             */}
             <div className="min-w-0">
-              <div className="text-sm font-extrabold tracking-[0.08em] leading-none text-slate-900">
+              <div className="truncate text-sm font-extrabold tracking-[0.04em] sm:tracking-[0.08em] leading-none text-slate-900">
                 ORBYLOX
               </div>
               <div className="hidden sm:block mt-0.5 text-[10px] tracking-[0.08em] leading-tight text-slate-500">
@@ -693,7 +706,18 @@ function ProjectsListContent() {
               </div>
             </div>
           </Link>
-          <div className="flex items-center gap-3">
+          {/**
+           * `shrink-0`: Die Knopfreihe ist keine Verhandlungsmasse.
+           *
+           * Ohne das teilen sich beide Seiten den Mangel — die Knöpfe werden
+           * schmaler als ihr Inhalt, und der quillt heraus. Was nachgeben
+           * soll, ist der Schriftzug links, und der kann es jetzt auch.
+           *
+           * Die Lücken sind auf dem Handy enger (`gap-2`), weil im Retro jeder
+           * Knopf einen harten Schatten von drei Pixeln nach rechts trägt: Der
+           * sieht aus wie Abstand, ist aber keiner.
+           */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Button
               type="button"
               variant="outline"

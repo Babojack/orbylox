@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "assets:screens": "node scripts/screens-build.mjs",
     "assets:halloween": "node scripts/halloween-bilder.mjs",
     "assets:pumpkin": "node scripts/pumpkin-build.mjs",
     "build": "vite build",
